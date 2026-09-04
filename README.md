@@ -3,7 +3,11 @@
 
 ### 👥 Equipo
 - **Integrantes:**
-  - *[Completar con los nombres de los integrantes del grupo]*
+  - Lourdes Alvarez
+  - Florencia Carballo
+  - Alexander Ramos
+  - Juan Martín Cruz
+  - Santiago Manuel Allaud
 
 ---
 
