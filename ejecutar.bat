@@ -24,7 +24,7 @@ if %ERRORLEVEL% NEQ 0 (
     )
 )
 
-:: Si se envio un argumento por linea de comandos (ej: ejecutar.bat cafe)
+:: Si se envio un argumento por linea de comandos (ej: ejecutar.bat galletitas oreo)
 if not "%~1"=="" (
     set "ARG1=%~1"
     goto :evaluar_arg
@@ -32,19 +32,26 @@ if not "%~1"=="" (
 
 :menu
 echo Selecciona una opcion:
-echo   [1] Procesar todos los productos de input.csv
-echo   [2] Buscar un producto especifico manualmente
+echo   [1] Procesar la lista completa de productos desde input.csv
+echo   [2] Escribir el nombre de un producto para buscarlo ahora
+echo.
+echo (Tip: Tambien puedes escribir directamente el producto aqui y presionar Enter)
 echo.
 set "OPCION=1"
-set /p "OPCION=Elige una opcion [1]: "
+set /p "OPCION=Elige opcion o escribe el producto [1]: "
 
-if "%OPCION%"=="2" (
-    echo.
-    set /p "PROD_MANUAL=Ingresa el nombre del producto (ej: cafe, azucar, galletitas): "
-    goto :buscar_manual
-) else (
+if "%OPCION%"=="1" (
     goto :ejecutar_csv
 )
+if "%OPCION%"=="2" (
+    echo.
+    set /p "PROD_MANUAL=Ingresa el producto a buscar (ej: galletitas oreo, cafe): "
+    goto :buscar_manual
+)
+
+:: Si el usuario escribio directamente el nombre del producto (ej: galletitas oreo)
+set "PROD_MANUAL=%OPCION%"
+goto :buscar_manual
 
 :evaluar_arg
 if "%ARG1:~0,1%"=="-" (
@@ -65,7 +72,7 @@ echo producto> temp_input.csv
 echo %PROD_MANUAL%>> temp_input.csv
 
 echo.
-echo [INFO] Iniciando automatizacion con TagUI para: "%PROD_MANUAL%"...
+echo [INFO] Iniciando automatizacion con TagUI para el producto: "%PROD_MANUAL%"...
 echo.
 call tagui supermercados.tag temp_input.csv
 if exist "temp_input.csv" del "temp_input.csv"
@@ -99,9 +106,23 @@ goto :fin
 
 :fin
 echo.
+echo [INFO] Generando reporte visual en Excel con colores, conclusiones y ranking...
+node generar_excel.js
+
+:: Abrir el Excel inmediatamente en pantalla apenas termina
+if exist "reporte_supermercados.xlsx" (
+    echo [INFO] Abriendo reporte_supermercados.xlsx en Microsoft Excel...
+    start "" "reporte_supermercados.xlsx"
+)
+
+echo.
 echo ==============================================================================
-echo [FIN] Proceso completado exitosamente.
-echo Revisa los resultados guardados en el archivo resultados.csv.
+echo [FIN] Proceso completado exitosamente!
+echo.
+echo Archivos actualizados:
+echo   - reporte_supermercados.xlsx (Excel interactivo con colores, medallas y conclusion)
+echo   - resultados.csv             (Persistencia local requerida por la catedra)
 echo ==============================================================================
 echo.
 pause
+

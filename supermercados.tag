@@ -10,9 +10,9 @@
 // Ejecución: tagui supermercados.tag input.csv
 // ==============================================================================
 
-// En la primera iteración inicializamos el archivo de salida con sus encabezados
+// En la primera iteración creamos el encabezado si el archivo aún no existe
 if iteration equals to 1
-    dump Nombre,Precio,Supermercado,URL,Fecha to resultados.csv
+    js var fs = require('fs'); if (!fs.exists('resultados.csv')) { fs.write('resultados.csv', 'Nombre,Precio,Supermercado,URL,Fecha\n', 'w'); }
 
 echo ----------------------------------------------------------------------------
 echo [INFO] Procesando producto: `producto` (Fila `iteration`)
@@ -21,12 +21,15 @@ echo ---------------------------------------------------------------------------
 // Obtenemos la fecha actual en formato YYYY-MM-DD
 js var hoy = new Date(); var m = (hoy.getMonth() + 1).toString(); var d = hoy.getDate().toString(); if (m.length < 2) m = '0' + m; if (d.length < 2) d = '0' + d; fechaHoy = hoy.getFullYear() + '-' + m + '-' + d;
 
+// Codificamos el término para URL segura (reemplaza espacios por %20 para soportar búsquedas compuestas como 'leche serenisima' o 'galletitas oreo')
+js prod_url = encodeURIComponent(producto.trim());
+
 
 // ==============================================================================
 // 1. CONSULTA EN CARREFOUR ARGENTINA
 // ==============================================================================
 echo [Carrefour] Navegando a la búsqueda de: `producto`
-https://www.carrefour.com.ar/`producto`
+https://www.carrefour.com.ar/`prod_url`
 wait 6
 
 // Si se presenta el banner de cookies de OneTrust, lo cerramos
@@ -65,7 +68,7 @@ write `csv_row([carrefour_nom, carrefour_pre, "Carrefour", carrefour_url, fechaH
 // 2. CONSULTA EN COTO DIGITAL
 // ==============================================================================
 echo [COTO] Navegando a la búsqueda de: `producto`
-https://www.coto.com.ar/productos/`producto`
+https://www.coto.com.ar/productos/`prod_url`
 wait 6
 
 coto_nom = "No encontrado / Sin stock"
@@ -100,7 +103,7 @@ write `csv_row([coto_nom, coto_pre, "COTO", coto_url, fechaHoy])` to resultados.
 // 3. CONSULTA EN DÍA %
 // ==============================================================================
 echo [Día %] Navegando a la búsqueda de: `producto`
-https://diaonline.supermercadosdia.com.ar/`producto`
+https://diaonline.supermercadosdia.com.ar/`prod_url`
 wait 6
 
 dia_nom = "No encontrado / Sin stock"

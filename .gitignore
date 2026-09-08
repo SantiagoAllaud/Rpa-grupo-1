@@ -1,8 +1,3 @@
-# Archivos temporales generados por TagUI
-*.js
-*.raw
+node_modules/
 *.log
-
-# Archivos temporales locales
 temp_input.csv
-resultados_backup.csv

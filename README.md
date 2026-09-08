@@ -138,11 +138,21 @@ tagui supermercados.tag input.csv
 ```
 *(Nota: Para ejecutarlo en segundo plano sin abrir visualmente la ventana de Chrome, se puede agregar el modificador `-h`: `tagui supermercados.tag input.csv -h`).*
 
-### Salida Generada (`resultados.csv`)
-Al finalizar la ejecución, se generará o actualizará el archivo `resultados.csv` con el siguiente formato:
+### Salidas Generadas
+
+El bot genera dos formatos complementarios de salida:
+
+#### 1. Planilla Visual Avanzada (`reporte_supermercados.xlsx`)
+Un archivo nativo de Microsoft Excel con diseño visual, colores y análisis automático:
+* **Pestaña 1 (🏆 Conclusiones y Ganadores):** Presenta tarjetas resumen de KPIs, el cálculo del ahorro total estimado, y una tabla destacando en verde pastel el **producto ganador (más barato)** para cada categoría comparado con la alternativa más cara, junto con una conclusión narrativa y enlaces directos a las tiendas.
+* **Pestaña 2 (📊 Ranking Menor a Mayor):** Ordena todos los productos relevados estrictamente de menor a mayor precio con medallas (🥇 1°, 🥈 2°, 🥉 3°), distintivos de color por supermercado y formato moneda.
+* *Se abre automáticamente al finalizar la ejecución de `ejecutar.bat`.*
+
+#### 2. Archivo Crudo de Persistencia (`resultados.csv`)
+El archivo CSV estándar requerido por el diagrama de arquitectura de la cátedra para la persistencia local:
 ```csv
 Nombre,Precio,Supermercado,URL,Fecha
-Yerba mate Playadito suave con palo 1 kg.,"$ 5.209,00",Carrefour,https://www.carrefour.com.ar/yerba-mate-playadito-suave-con-palo-1-kg-714088/p,2026-09-04
+Yerba mate Playadito suave con palo 1 kg.,"$ 5.209,00",Carrefour,https://www.carrefour.com.ar/yerba-mate-playadito-suave-con-palo-1-kg/p,2026-09-08
 Yerba Mate 4 Flex Mañanita Paq 1 Kgm,"$5.370,00",COTO,https://www.coto.com.ar/productos/yerba-mate-4-flex-mananita-paq-1-kgm-/_/R-00499475-00499475-200,2026-09-04
 Yerba Mate Mañanita 4 Flex 1 Kg.,$ 3.790,Día %,https://diaonline.supermercadosdia.com.ar/yerba,2026-09-04
 ```
