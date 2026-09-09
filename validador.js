@@ -571,22 +571,93 @@ function limpiarResultados(opcion) {
     }
 }
 
+// Genera temp_input.csv de forma 100% segura respetando RFC-4180
+function crearTempInput(producto) {
+    const fs = require('fs');
+    const path = require('path');
+    var tempFile = path.join(__dirname, 'temp_input.csv');
+    var q = (producto || '').trim();
+    var esc = '"' + q.replace(/"/g, '""') + '"';
+    fs.writeFileSync(tempFile, 'producto,modo\r\n' + esc + ',individual\r\n', 'utf8');
+    console.log('[OK] temp_input.csv generado de forma segura para: ' + q);
+}
+
 // Ejecución como script CLI
 if (require.main === module) {
     var args = process.argv.slice(2);
-    if (args[0] === '--reporte-individual') {
+    if (args[0] === '--crear-temp') {
+        var prodArg = args.slice(1).join(' ').trim();
+        crearTempInput(prodArg);
+    } else if (args[0] === '--reporte-individual') {
         var queryArg = args.slice(1).join(' ').trim();
         mostrarReporteIndividual(queryArg || null);
     } else if (args[0] === '--limpiar') {
         limpiarResultados(args[1] || '3');
     } else if (args[0] === '--test') {
-        console.log('[TEST] Probando validador...');
-        var t1 = detectarIntencion('gaseosa secco pomelo');
-        console.log('Intención Secco:', t1);
-        var v1 = validarCoincidencia('gaseosa secco pomelo', { nombre: 'Pomelo Rojo . Xkg', precioStr: '$999,00' });
-        console.log('Validación Pomelo Rojo:', v1);
+        console.log('======================================================================');
+        console.log('       🧪 BATERÍA DE PRUEBAS UNITARIAS: validador.js');
+        console.log('======================================================================');
+        var errores = 0;
+
+        function assertEq(desc, real, esperado) {
+            if (real === esperado) {
+                console.log(' [OK] ' + desc + ' -> ' + real);
+            } else {
+                console.log(' [FAIL] ' + desc + ' -> Esperado: ' + esperado + ', Obtenido: ' + real);
+                errores++;
+            }
+        }
+
+        // Test 1: Rechazo de Manaos para Secco específico
+        var r1 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Gaseosa Manaos Pomelo 2.25L', precio: 1000 });
+        assertEq('Rechazo de Manaos para consulta Secco', r1.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 2: Rechazo de Pepsi para Secco específico
+        var r2 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Gaseosa Pepsi Pomelo 1.5L', precio: 1200 });
+        assertEq('Rechazo de Pepsi para consulta Secco', r2.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 3: Rechazo de Fanta para Secco específico
+        var r3 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Gaseosa Fanta Pomelo 2L', precio: 1500 });
+        assertEq('Rechazo de Fanta para consulta Secco', r3.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 4: Rechazo de fruta por kg para bebida
+        var r4 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Pomelo Rojo . Xkg', precio: 999 });
+        assertEq('Rechazo de Pomelo fruta para Secco', r4.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 5: Aceptación de alternativa en búsqueda genérica
+        var r5 = validarCoincidencia('gaseosa de pomelo', { nombre: 'Gaseosa Manaos Pomelo 2.25L', precio: 1000 });
+        assertEq('Aceptación de alternativa en búsqueda genérica', r5.estado, 'VALIDADA');
+
+        // Test 6: Equivalencia 2.25L vs 2250ml
+        var r6 = validarCoincidencia('Coca Cola 2.25L', { nombre: 'Coca Cola 2250ml', precio: 2000 });
+        assertEq('Equivalencia 2.25L vs 2250ml', r6.estado, 'VALIDADA');
+
+        // Test 7: Equivalencia 2,25 litros vs 2.25L
+        var r7 = validarCoincidencia('Coca Cola 2,25 litros', { nombre: 'Coca Cola 2.25L', precio: 2000 });
+        assertEq('Equivalencia 2,25 litros vs 2.25L', r7.estado, 'VALIDADA');
+
+        // Test 8: Incompatibilidad 2.25L vs 500ml
+        var r8 = validarCoincidencia('Coca Cola 2.25L', { nombre: 'Coca Cola 500ml', precio: 800 });
+        assertEq('Incompatibilidad 2.25L vs 500ml', r8.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 9: Incompatibilidad 1kg vs 500g
+        var r9 = validarCoincidencia('Arroz Ala 1kg', { nombre: 'Arroz Ala 500g', precio: 800 });
+        assertEq('Incompatibilidad 1kg vs 500g', r9.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 10: Producto sin stock
+        var r10 = validarCoincidencia('leche', { nombre: 'Leche Serenisima 1L', precioStr: 'Sin stock', stockRaw: 'SIN STOCK' });
+        assertEq('Detección de Sin Stock', r10.estado, 'SIN STOCK');
+
+        console.log('----------------------------------------------------------------------');
+        if (errores === 0) {
+            console.log(' 🎉 DIAGNÓSTICO FINAL: TODAS LAS PRUEBAS DEL VALIDADOR PASARON (10/10)\n');
+            process.exit(0);
+        } else {
+            console.log(' ❌ DIAGNÓSTICO FINAL: SE DETECTARON ' + errores + ' ERRORES\n');
+            process.exit(1);
+        }
     } else {
-        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--limpiar 1|2|3] | [--test]');
+        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--limpiar 1|2|3] | [--crear-temp "producto"] | [--test]');
     }
 }
 
@@ -600,6 +671,7 @@ module.exports = {
     leerResultadosCSV: leerResultadosCSV,
     mostrarReporteIndividual: mostrarReporteIndividual,
     limpiarResultados: limpiarResultados,
+    crearTempInput: crearTempInput,
     MARCAS_CONOCIDAS: MARCAS_CONOCIDAS,
     CATEGORIAS_PRODUCTO: CATEGORIAS_PRODUCTO
 };

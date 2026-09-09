@@ -72,7 +72,7 @@ El robot opera sobre tres plataformas con arquitecturas web y motores de renderi
 
 ```
 Rpa programa/
-├── ejecutar.bat                # Lanzador por lotes interactivo con menú de 5 opciones para Windows.
+├── ejecutar.bat                # Lanzador por lotes interactivo con menú de 6 opciones y diagnóstico para Windows.
 ├── supermercados.tag           # Script central de automatización TagUI (control de Chrome y extracción DOM).
 ├── validador.js                # Motor de validación semántica, detección de intención y reporte terminal.
 ├── generar_excel.js            # Generador del reporte profesional en Excel (5 hojas con estilos y KPIs).
@@ -87,7 +87,7 @@ Rpa programa/
 ```
 
 ### Detalle de Responsabilidad por Archivo:
-- **`ejecutar.bat`**: Menú amigable en Windows (soporta UTF-8). Valida la presencia de TagUI y Node.js en el sistema. Ofrece las opciones de procesar la compra mensual, realizar búsquedas individuales, abrir el Excel o limpiar el historial.
+- **`ejecutar.bat`**: Menú amigable en Windows (soporta UTF-8 y codificación CRLF). Incluye validaciones previas de entorno (TagUI en PATH, Node.js, npm, ExcelJS y archivos esenciales). Ofrece 6 opciones: Compra del Mes, Búsqueda Individual, Abrir Excel, Limpieza de Historial, Diagnóstico del Sistema con pruebas unitarias, y Salir.
 - **`supermercados.tag`**: Realiza la automatización de la interfaz gráfica web en Google Chrome. Codifica los parámetros con `encodeURIComponent` para soportar términos compuestos, inyecta JavaScript para extraer datos limpios del DOM y persiste cada registro con 8 columnas en `resultados.csv`.
 - **`validador.js`**: Normaliza cadenas (elimina tildes, puntuación y mayúsculas), reconoce marcas argentinas comunes (Secco, Manaos, Coca Cola, La Serenísima, Lucchetti, etc.), extrae volúmenes o pesos (`2.25L`, `1Kg`) y valida que el producto encontrado coincida con lo pedido sin aceptar falsos positivos. Incluye reporte interactivo para la terminal.
 - **`generar_excel.js`**: Procesa `resultados.csv` mediante la librería `exceljs`. Realiza el análisis matemático del costo de canasta y genera un archivo `.xlsx` estilizado con paletas de color corporativas, bordes, formatos de moneda argentina y enlaces directos.
@@ -374,7 +374,11 @@ Desde el menú principal de `ejecutar.bat`, la opción `[4] Limpiar resultados /
 
 ### 4. Error EBUSY al generar el Excel
 - **Causa:** El archivo `reporte_supermercados.xlsx` se encuentra abierto en Microsoft Excel al momento de guardar.
-- **Solución:** Cerrar la ventana de Excel antes de ejecutar una nueva consulta para permitir la reescritura.
+- **Solución:** Cerrar la ventana de Excel antes de ejecutar una nueva consulta para permitir la reescritura (el sistema ahora lo detecta e informa con un mensaje limpio).
+
+### 5. La ventana de CMD se cerraba inmediatamente al ejecutar `ejecutar.bat`
+- **Causa:** Archivos `.bat` guardados con saltos de línea estilo UNIX (`LF`) o ejecutados desde un directorio relativo diferente al hacer doble clic.
+- **Solución:** `ejecutar.bat` fue formateado estrictamente con saltos de línea Windows CRLF (`\r\n`), inicia con `cd /d "%~dp0"` y `setlocal EnableExtensions EnableDelayedExpansion`, e incluye pausas informativas y diagnóstico integrado (`[5]`) para que nunca se cierre sin previo aviso.
 
 ---
 

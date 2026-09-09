@@ -22,10 +22,11 @@ echo ---------------------------------------------------------------------------
 js var hoy = new Date(); var m = (hoy.getMonth() + 1).toString(); var d = hoy.getDate().toString(); if (m.length < 2) m = '0' + m; if (d.length < 2) d = '0' + d; fechaHoy = hoy.getFullYear() + '-' + m + '-' + d;
 
 // Detectar el modo de ejecución (compra_mes o individual)
-js var modo_actual = 'compra_mes'; try { if (typeof modo !== 'undefined' && modo && modo !== 'modo') { modo_actual = modo.trim(); } } catch(e) { modo_actual = 'compra_mes'; }
+js modo_actual = 'compra_mes'; try { if (typeof modo !== 'undefined' && modo && modo !== 'modo') { modo_actual = modo.trim(); } } catch(e) { modo_actual = 'compra_mes'; }
 
-// Codificamos el término para URL segura (reemplaza espacios por %20 para soportar búsquedas compuestas como 'leche serenisima' o 'galletitas oreo')
-js prod_url = encodeURIComponent(producto.trim());
+// Codificamos el término para URL segura (reemplaza espacios por %20 para soportar búsquedas compuestas y limpia comas en URL)
+js prod_clean = producto.replace(/"/g, '').replace(/'/g, '').trim();
+js prod_url = encodeURIComponent(prod_clean.replace(/,/g, ' ').replace(/\s+/g, ' '));
 
 
 // ==============================================================================
@@ -45,32 +46,65 @@ carrefour_pre = "N/D"
 carrefour_url = url()
 carrefour_stock = "NO ENCONTRADO"
 
-// Extracción precisa de datos del DOM en Carrefour (VTEX)
+// Extracción inteligente de múltiples tarjetas del DOM en Carrefour (VTEX)
 dom begin
-var nameEl = document.querySelector('[class*="productBrand"], [class*="product-summary-2-x-nameContainer"], [data-testid="product-summary-name"]');
-var priceEl = document.querySelector('[class*="sellingPrice"], [class*="currencyContainer"], [class*="price_sellingPrice"]');
-var linkEl = document.querySelector('[class*="product-summary"] a[href*="/p"]') || document.querySelector('section a[href*="/p"]') || document.querySelector('article a[href*="/p"]');
-
-if (nameEl) {
-    var rawPrice = priceEl ? priceEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'N/D';
-    var isUnavailable = false;
-    var card = nameEl.closest('article, [class*="product-summary"], section') || document.body;
-    var cardText = card ? card.innerText.toLowerCase() : '';
-    if (document.querySelector('[class*="unavailable"], [class*="outOfStock"]') || cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1) {
-        isUnavailable = true;
-    }
-    if (rawPrice === 'N/D' || rawPrice === '' || rawPrice === '$ 0' || rawPrice === '$ 0,00') {
-        isUnavailable = true;
-    }
-    return JSON.stringify({
-        name: nameEl.innerText.trim(),
-        price: rawPrice,
-        url: linkEl ? linkEl.href : window.location.href,
-        stock: isUnavailable ? 'SIN STOCK' : 'DISPONIBLE'
-    });
-} else {
-    return 'null';
+function cleanText(s) {
+    if (!s) return '';
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\.,;:!¡?¿\(\)\[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
 }
+
+var qStr = cleanText("`producto`");
+var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
+
+var cards = Array.from(document.querySelectorAll('article, [class*="product-summary"], [class*="vtex-search-result-3-x-galleryItem"]')).slice(0, 8);
+if (cards.length === 0) return 'null';
+
+var candidates = [];
+for (var i = 0; i < cards.length; i++) {
+    var c = cards[i];
+    var nEl = c.querySelector('[class*="productBrand"], [class*="product-summary-2-x-nameContainer"], [data-testid="product-summary-name"], h3, h2');
+    var pEl = c.querySelector('[class*="sellingPrice"], [class*="currencyContainer"], [class*="price_sellingPrice"]');
+    var lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
+    if (!nEl) continue;
+
+    var nameVal = nEl.innerText.trim();
+    var priceVal = pEl ? pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'N/D';
+    var urlVal = lEl ? lEl.href : window.location.href;
+
+    var cardText = (c.innerText || '').toLowerCase();
+    var unavail = (c.querySelector('[class*="unavailable"], [class*="outOfStock"]') !== null) || cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1;
+    if (priceVal === 'N/D' || priceVal === '' || priceVal === '$ 0' || priceVal === '$ 0,00') unavail = true;
+
+    var nClean = cleanText(nameVal);
+    var score = 0;
+    if (nClean.indexOf(qStr) > -1) score += 100;
+    for (var w = 0; w < qWords.length; w++) {
+        if (nClean.indexOf(qWords[w]) > -1) score += 20;
+    }
+    if ((qStr.indexOf('gaseosa') > -1 || qStr.indexOf('bebida') > -1) && (nClean.indexOf('shampoo') > -1 || nClean.indexOf('jabon') > -1 || nClean.indexOf('xkg') > -1)) {
+        score -= 200;
+    }
+    if (unavail) score -= 10;
+
+    candidates.push({
+        name: nameVal,
+        price: priceVal,
+        url: urlVal,
+        stock: unavail ? 'SIN STOCK' : 'DISPONIBLE',
+        score: score
+    });
+}
+
+if (candidates.length === 0) return 'null';
+candidates.sort(function(a, b) { return b.score - a.score; });
+
+if (candidates[0].score > 0) {
+    return JSON.stringify(candidates[0]);
+}
+
+var fallbackC = candidates[0];
+fallbackC.stock = 'COINCIDENCIA NO VÁLIDA';
+return JSON.stringify(fallbackC);
 dom finish
 
 js var cData = JSON.parse(dom_result); if (cData) { carrefour_nom = cData.name; carrefour_pre = cData.price; carrefour_url = cData.url; carrefour_stock = cData.stock; }
@@ -90,38 +124,69 @@ coto_pre = "N/D"
 coto_url = url()
 coto_stock = "NO ENCONTRADO"
 
-// Extracción precisa de datos del DOM en COTO (Angular SPA)
+// Extracción inteligente de múltiples tarjetas del DOM en COTO (Angular SPA)
 dom begin
-var item = document.querySelector('constructor-result-item');
-if (item) {
-    var nameEl = item.querySelector('.nombre-producto') || item.querySelector('h3') || item.querySelector('h2');
-    var priceEl = item.querySelector('.card-title') || item.querySelector('h4') || item.querySelector('[class*="price"]');
-    var linkEl = item.querySelector('a');
-    var pName = nameEl ? nameEl.innerText.trim() : 'Producto COTO';
-    var pPrice = priceEl ? priceEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'N/D';
-    
-    var isUnavailable = false;
-    var itemText = (item.innerText || '').toLowerCase();
-    if (itemText.indexOf('sin stock') > -1 || itemText.indexOf('agotado') > -1 || itemText.indexOf('no disponible') > -1) {
-        isUnavailable = true;
-    }
-    var btn = item.querySelector('button, [class*="btn"]');
-    if (btn && (btn.disabled || (btn.innerText && (btn.innerText.toLowerCase().indexOf('agotado') > -1 || btn.innerText.toLowerCase().indexOf('sin stock') > -1)))) {
-        isUnavailable = true;
-    }
-    if (pPrice === 'N/D' || pPrice === '' || pPrice === '$0' || pPrice === '$0,00') {
-        isUnavailable = true;
-    }
-
-    return JSON.stringify({
-        name: pName,
-        price: pPrice,
-        url: linkEl ? linkEl.href : window.location.href,
-        stock: isUnavailable ? 'SIN STOCK' : 'DISPONIBLE'
-    });
-} else {
-    return 'null';
+function cleanText(s) {
+    if (!s) return '';
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\.,;:!¡?¿\(\)\[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
 }
+
+var qStr = cleanText("`producto`");
+var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
+
+var items = Array.from(document.querySelectorAll('constructor-result-item')).slice(0, 8);
+if (items.length === 0) return 'null';
+
+var candidates = [];
+for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var nEl = it.querySelector('.nombre-producto, h3, h2');
+    var pEl = it.querySelector('.card-title, h4, [class*="price"]');
+    var lEl = it.querySelector('a');
+    if (!nEl) continue;
+
+    var nameVal = nEl.innerText.trim();
+    var priceVal = pEl ? pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'N/D';
+    var urlVal = lEl ? lEl.href : window.location.href;
+
+    var itText = (it.innerText || '').toLowerCase();
+    var unavail = itText.indexOf('sin stock') > -1 || itText.indexOf('agotado') > -1 || itText.indexOf('no disponible') > -1;
+    var btn = it.querySelector('button, [class*="btn"]');
+    if (btn && (btn.disabled || (btn.innerText && (btn.innerText.toLowerCase().indexOf('agotado') > -1 || btn.innerText.toLowerCase().indexOf('sin stock') > -1)))) {
+        unavail = true;
+    }
+    if (priceVal === 'N/D' || priceVal === '' || priceVal === '$0' || priceVal === '$0,00') unavail = true;
+
+    var nClean = cleanText(nameVal);
+    var score = 0;
+    if (nClean.indexOf(qStr) > -1) score += 100;
+    for (var w = 0; w < qWords.length; w++) {
+        if (nClean.indexOf(qWords[w]) > -1) score += 20;
+    }
+    if ((qStr.indexOf('gaseosa') > -1 || qStr.indexOf('bebida') > -1) && (nClean.indexOf('shampoo') > -1 || nClean.indexOf('xkg') > -1 || nClean.indexOf('jabon') > -1)) {
+        score -= 200;
+    }
+    if (unavail) score -= 10;
+
+    candidates.push({
+        name: nameVal,
+        price: priceVal,
+        url: urlVal,
+        stock: unavail ? 'SIN STOCK' : 'DISPONIBLE',
+        score: score
+    });
+}
+
+if (candidates.length === 0) return 'null';
+candidates.sort(function(a, b) { return b.score - a.score; });
+
+if (candidates[0].score > 0) {
+    return JSON.stringify(candidates[0]);
+}
+
+var fallbackCt = candidates[0];
+fallbackCt.stock = 'COINCIDENCIA NO VÁLIDA';
+return JSON.stringify(fallbackCt);
 dom finish
 
 js var ctData = JSON.parse(dom_result); if (ctData) { coto_nom = ctData.name; coto_pre = ctData.price; coto_url = ctData.url; coto_stock = ctData.stock; }
@@ -141,46 +206,76 @@ dia_pre = "N/D"
 dia_url = url()
 dia_stock = "NO ENCONTRADO"
 
-// Extracción precisa de datos del DOM en Día % (VTEX)
+// Extracción inteligente de múltiples tarjetas del DOM en Día % (VTEX)
 dom begin
-var dCard = document.querySelector('article') || document.querySelector('[class*="product-summary"]');
-if (dCard) {
-    var nameEl = dCard.querySelector('h3') || dCard.querySelector('[class*="productBrand"]');
-    var priceEl = dCard.querySelector('[class*="sellingPrice"]') || dCard.querySelector('[class*="currencyContainer"]');
-    var linkEl = dCard.querySelector('a[href*="/p"]') || dCard.querySelector('a');
-    
-    // Si no encuentra clase de precio directa, busca el texto con signo $
-    var pPrice = 'N/D';
-    if (priceEl) {
-        pPrice = priceEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+function cleanText(s) {
+    if (!s) return '';
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\.,;:!¡?¿\(\)\[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+var qStr = cleanText("`producto`");
+var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
+
+var dCards = Array.from(document.querySelectorAll('article, [class*="product-summary"]')).slice(0, 8);
+if (dCards.length === 0) return 'null';
+
+var candidates = [];
+for (var i = 0; i < dCards.length; i++) {
+    var c = dCards[i];
+    var nEl = c.querySelector('h3, [class*="productBrand"]');
+    var pEl = c.querySelector('[class*="sellingPrice"], [class*="currencyContainer"]');
+    var lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
+    if (!nEl) continue;
+
+    var nameVal = nEl.innerText.trim();
+    var priceVal = 'N/D';
+    if (pEl) {
+        priceVal = pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     } else {
-        var lines = dCard.innerText.split('\n').filter(function(s){ return s.trim().length > 0; });
-        for (var i = 0; i < lines.length; i++) {
-            if (lines[i].indexOf('$') > -1) {
-                pPrice = lines[i].trim();
+        var lines = c.innerText.split('\n').filter(function(s){ return s.trim().length > 0; });
+        for (var l = 0; l < lines.length; l++) {
+            if (lines[l].indexOf('$') > -1) {
+                priceVal = lines[l].trim();
                 break;
             }
         }
     }
+    var urlVal = lEl ? lEl.href : window.location.href;
 
-    var cardText = (dCard.innerText || '').toLowerCase();
-    var isUnavailable = false;
-    if (cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1 || cardText.indexOf('no disponible') > -1) {
-        isUnavailable = true;
-    }
-    if (pPrice === 'N/D' || pPrice === '' || pPrice === '$ 0' || pPrice === '$ 0,00') {
-        isUnavailable = true;
-    }
+    var cardText = (c.innerText || '').toLowerCase();
+    var unavail = cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1 || cardText.indexOf('no disponible') > -1;
+    if (priceVal === 'N/D' || priceVal === '' || priceVal === '$ 0' || priceVal === '$ 0,00') unavail = true;
 
-    return JSON.stringify({
-        name: nameEl ? nameEl.innerText.trim() : 'Producto Día %',
-        price: pPrice,
-        url: linkEl ? linkEl.href : window.location.href,
-        stock: isUnavailable ? 'SIN STOCK' : 'DISPONIBLE'
+    var nClean = cleanText(nameVal);
+    var score = 0;
+    if (nClean.indexOf(qStr) > -1) score += 100;
+    for (var w = 0; w < qWords.length; w++) {
+        if (nClean.indexOf(qWords[w]) > -1) score += 20;
+    }
+    if ((qStr.indexOf('gaseosa') > -1 || qStr.indexOf('bebida') > -1) && (nClean.indexOf('shampoo') > -1 || nClean.indexOf('jabon') > -1 || nClean.indexOf('xkg') > -1)) {
+        score -= 200;
+    }
+    if (unavail) score -= 10;
+
+    candidates.push({
+        name: nameVal,
+        price: priceVal,
+        url: urlVal,
+        stock: unavail ? 'SIN STOCK' : 'DISPONIBLE',
+        score: score
     });
-} else {
-    return 'null';
 }
+
+if (candidates.length === 0) return 'null';
+candidates.sort(function(a, b) { return b.score - a.score; });
+
+if (candidates[0].score > 0) {
+    return JSON.stringify(candidates[0]);
+}
+
+var fallbackD = candidates[0];
+fallbackD.stock = 'COINCIDENCIA NO VÁLIDA';
+return JSON.stringify(fallbackD);
 dom finish
 
 js var dData = JSON.parse(dom_result); if (dData) { dia_nom = dData.name; dia_pre = dData.price; dia_url = dData.url; dia_stock = dData.stock; }

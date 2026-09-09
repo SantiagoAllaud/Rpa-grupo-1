@@ -884,9 +884,20 @@ async function main() {
     ws5.getColumn('G').width = 24;
     ws5.getColumn('H').width = 50;
 
-    // Guardar el libro consolidado
-    await workbook.xlsx.writeFile(XLSX_PATH);
-    console.log('[OK] Reporte Excel con 5 hojas generado exitosamente en: ' + XLSX_PATH);
+    // Guardar el libro consolidado con control de archivo bloqueado
+    try {
+        await workbook.xlsx.writeFile(XLSX_PATH);
+        console.log('[OK] Reporte Excel con 5 hojas generado exitosamente en: ' + XLSX_PATH);
+    } catch (err) {
+        if (err.code === 'EBUSY') {
+            console.error('\n[ERROR] El archivo reporte_supermercados.xlsx está abierto en Microsoft Excel.');
+            console.error('Por favor cierre el archivo en Excel y vuelva a intentarlo para permitir su actualización.\n');
+            process.exit(2);
+        } else {
+            console.error('[ERROR] No se pudo guardar el archivo Excel:', err.message);
+            process.exit(1);
+        }
+    }
 }
 
 main().catch(console.error);

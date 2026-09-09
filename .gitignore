@@ -1,3 +1,7 @@
 node_modules/
 *.log
 temp_input.csv
+*.tag.js
+*.tag.raw
+*.tag.cmd
+__test*.tmp
