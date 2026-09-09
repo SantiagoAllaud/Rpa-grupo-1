@@ -1,44 +1,52 @@
 // ==============================================================================
 // UTN FRCU - Tecnologías para la Automatización (Año 2026)
-// Generador de Reporte Visual en Excel (.xlsx)
+// generar_excel.js - Generador de Reporte Avanzado en Excel (.xlsx)
 //
-// Procesa resultados.csv y genera un Excel con diseño profesional,
-// análisis del producto más barato, conclusiones y ranking ordenado.
+// 5 Hojas Estilizadas:
+// 1. 🏆 Conclusiones (Costo canasta mensual, ganador, compra combinada, ahorro)
+// 2. 🛒 Canasta Mensual (Tabla horizontal comparativa producto a producto)
+// 3. 📊 Ranking Menor a Mayor (Todos los productos ordenados con medallas)
+// 4. 🔎 Consultas Individuales (Historial de búsquedas unitarias con validación)
+// 5. ⚠️ Disponibilidad y Stock (Artículos sin stock, no encontrados o no válidos)
 // ==============================================================================
 
 const fs = require('fs');
 const path = require('path');
 const ExcelJS = require('exceljs');
+const validador = require('./validador.js');
 
 const CSV_PATH = path.join(__dirname, 'resultados.csv');
 const XLSX_PATH = path.join(__dirname, 'reporte_supermercados.xlsx');
 
-// Función para parsear precios argentinos (ej: "$ 5.209,00 c/u" -> 5209.00)
-function parsePrecio(str) {
-    if (!str || typeof str !== 'string' || str === 'N/D') return null;
-    var match = str.match(/[\d.]+(?:,\d+)?/);
-    if (!match) return null;
-    var raw = match[0].replace(/\./g, '').replace(',', '.');
-    var val = parseFloat(raw);
-    return isNaN(val) ? null : val;
-}
+// Paleta corporativa armónica
+const COLOR_AZUL_OSCURO = '1F4E79';
+const COLOR_AZUL_TITULO = '2F5597';
+const COLOR_AZUL_CLARO = 'D9E1F2';
+const COLOR_VERDE_PASTEL = 'E2EFDA';
+const COLOR_VERDE_TEXTO = '276A3C';
+const COLOR_ROJO_PASTEL = 'FCE4D6';
+const COLOR_ROJO_TEXTO = 'C00000';
+const COLOR_AMARILLO_PASTEL = 'FFF2CC';
+const COLOR_AMARILLO_TEXTO = '9C6500';
+const COLOR_GRIS_FONDO = 'F2F4F7';
+const COLOR_BORDE = 'D9D9D9';
 
-// Función para adivinar el grupo/término de búsqueda a partir de la URL o nombre
-function identificarGrupo(item) {
-    var url = (item.url || '').toLowerCase();
-    var nom = (item.nombre || '').toLowerCase();
-    
-    // Lista de términos conocidos
-    var palabras = ['yerba', 'leche serenisima', 'leche', 'arroz', 'fideos', 'aceite', 'galletitas oreo', 'oreo', 'cafe', 'azucar', 'shampoo', 'pomelo'];
-    for (var i = 0; i < palabras.length; i++) {
-        var p = palabras[i];
-        if (url.indexOf(encodeURIComponent(p)) > -1 || url.indexOf(p.replace(/ /g, '%20')) > -1 || url.indexOf(p.replace(/ /g, '-')) > -1 || nom.indexOf(p) > -1) {
-            return p.charAt(0).toUpperCase() + p.slice(1);
-        }
+function aplicarBordes(ws, cIni, fIni, cFin, fFin) {
+    var cols = [];
+    for (var c = cIni.charCodeAt(0); c <= cFin.charCodeAt(0); c++) {
+        cols.push(String.fromCharCode(c));
     }
-    // Si no coincide, extrae las dos primeras palabras del nombre
-    var words = item.nombre.split(/\s+/).slice(0, 2).join(' ');
-    return words || 'Otros';
+    cols.forEach(function(col) {
+        for (var r = fIni; r <= fFin; r++) {
+            var cell = ws.getCell(col + r);
+            cell.border = {
+                top: { style: 'thin', color: { argb: COLOR_BORDE } },
+                bottom: { style: 'thin', color: { argb: COLOR_BORDE } },
+                left: { style: 'thin', color: { argb: COLOR_BORDE } },
+                right: { style: 'thin', color: { argb: COLOR_BORDE } }
+            };
+        }
+    });
 }
 
 async function main() {
@@ -47,359 +55,565 @@ async function main() {
         return;
     }
 
-    var csvRaw = fs.readFileSync(CSV_PATH, 'utf-8');
-    var lines = csvRaw.split(/\r?\n/).filter(function(l) { return l.trim().length > 0; });
-    if (lines.length <= 1) {
-        console.log('[INFO] El archivo resultados.csv está vacío o solo contiene encabezados.');
-        return;
-    }
-
-    // Saltar encabezado
-    var items = [];
-    for (var i = 1; i < lines.length; i++) {
-        var line = lines[i];
-        if (line.startsWith('sep=')) continue;
-        
-        // Parsear fila CSV respetando comillas
-        var match = line.match(/(?:^|,)(?:"([^"]*)"|([^,]*))/g);
-        if (!match || match.length < 4) continue;
-        var cols = match.map(function(c) {
-            c = c.replace(/^,/, '').trim();
-            if (c.startsWith('"') && c.endsWith('"')) c = c.slice(1, -1);
-            return c;
-        });
-
-        var nombre = cols[0] || 'N/D';
-        var precioStr = cols[1] || 'N/D';
-        var superm = cols[2] || 'N/D';
-        var url = cols[3] || '';
-        var fecha = cols[4] || '';
-        var precioNum = parsePrecio(precioStr);
-
-        items.push({
-            nombre: nombre,
-            precioStr: precioStr,
-            precio: precioNum,
-            supermercado: superm,
-            url: url,
-            fecha: fecha
-        });
-    }
-
+    var items = validador.leerResultadosCSV(CSV_PATH);
     if (items.length === 0) {
-        console.log('[INFO] No hay registros para procesar.');
+        console.log('[INFO] El archivo resultados.csv no contiene registros procesables.');
         return;
     }
 
-    // Agrupar por término / categoría
-    var grupos = {};
-    items.forEach(function(item) {
-        var grp = identificarGrupo(item);
-        if (!grupos[grp]) grupos[grp] = [];
-        grupos[grp].push(item);
+    // Validar cada elemento con el motor inteligente
+    items.forEach(function(it) {
+        var v = validador.validarCoincidencia(it.producto, it);
+        it.estado = v.estado;
+        it.valido = v.valido;
+        it.motivo = v.motivo;
+        it.intencion = v.intencion;
     });
 
-    // Crear Libro de Excel
+    var itemsMensual = items.filter(function(x) { return x.modo === 'compra_mes'; });
+    var itemsIndividual = items.filter(function(x) { return x.modo === 'individual'; });
+
+    // Si por compatibilidad no hay diferenciación de modo, tratamos todos como compra mensual
+    if (itemsMensual.length === 0 && itemsIndividual.length === 0) {
+        itemsMensual = items;
+    }
+
     var workbook = new ExcelJS.Workbook();
     workbook.creator = 'RPA Bot - UTN FRCU';
     workbook.created = new Date();
 
-    // Paletas de Color
-    var COLOR_AZUL_OSCURO = '1F4E79';
-    var COLOR_AZUL_TITULO = '2F5597';
-    var COLOR_VERDE_PASTEL = 'E2EFDA';
-    var COLOR_VERDE_TEXTO = '276A3C';
-    var COLOR_ROJO_PASTEL = 'FCE4D6';
-    var COLOR_ROJO_TEXTO = 'C00000';
-    var COLOR_AMARILLO_PASTEL = 'FFF2CC';
-    var COLOR_GRIS_FONDO = 'F2F4F7';
-    var COLOR_BORDE = 'D9D9D9';
+    // ==============================================================================
+    // 1. ANÁLISIS DE LA CANASTA MENSUAL
+    // ==============================================================================
+    // Agrupar por producto solicitado
+    var productosMensualUnicos = [];
+    var grupoMensual = {};
+
+    itemsMensual.forEach(function(it) {
+        var p = it.producto.toLowerCase().trim();
+        if (!grupoMensual[p]) {
+            grupoMensual[p] = [];
+            productosMensualUnicos.push(p);
+        }
+        grupoMensual[p].push(it);
+    });
+
+    var supersList = ['Carrefour', 'COTO', 'Día %'];
+    var totalesCanasta = { 'Carrefour': 0, 'COTO': 0, 'Día %': 0 };
+    var conteoDisponibles = { 'Carrefour': 0, 'COTO': 0, 'Día %': 0 };
+    var conteoProblemas = { 'Carrefour': 0, 'COTO': 0, 'Día %': 0 };
+    var conteoGanados = { 'Carrefour': 0, 'COTO': 0, 'Día %': 0 };
+
+    var filasCanasta = [];
+    var costoOptimoCombinado = 0;
+
+    productosMensualUnicos.forEach(function(prod) {
+        var itemsDelProd = grupoMensual[prod];
+        var preciosPorSuper = {};
+        var itemsPorSuper = {};
+
+        supersList.forEach(function(s) {
+            var found = itemsDelProd.filter(function(x) { return x.supermercado === s; }).pop();
+            itemsPorSuper[s] = found || null;
+            if (found && found.valido && found.precio !== null) {
+                preciosPorSuper[s] = found.precio;
+                totalesCanasta[s] += found.precio;
+                conteoDisponibles[s]++;
+            } else {
+                preciosPorSuper[s] = null;
+                conteoProblemas[s]++;
+            }
+        });
+
+        // Encontrar opción más barata para este producto
+        var validos = [];
+        supersList.forEach(function(s) {
+            if (preciosPorSuper[s] !== null) {
+                validos.push({ superm: s, precio: preciosPorSuper[s], item: itemsPorSuper[s] });
+            }
+        });
+        validos.sort(function(a, b) { return a.precio - b.precio; });
+
+        var ganadorProd = validos.length > 0 ? validos[0] : null;
+        var masCaroProd = validos.length > 1 ? validos[validos.length - 1] : null;
+        var ahorroProd = (ganadorProd && masCaroProd) ? (masCaroProd.precio - ganadorProd.precio) : 0;
+
+        if (ganadorProd) {
+            costoOptimoCombinado += ganadorProd.precio;
+            conteoGanados[ganadorProd.superm]++;
+        }
+
+        filasCanasta.push({
+            producto: prod,
+            carrefour: itemsPorSuper['Carrefour'],
+            coto: itemsPorSuper['COTO'],
+            dia: itemsPorSuper['Día %'],
+            ganador: ganadorProd,
+            masCaro: masCaroProd,
+            ahorro: ahorroProd
+        });
+    });
+
+    // Determinar Supermercado Recomendado para la Canasta Completa (por costo total)
+    var superRecomendado = 'N/D';
+    var menorCostoCanasta = Infinity;
+    supersList.forEach(function(s) {
+        if (totalesCanasta[s] > 0 && totalesCanasta[s] < menorCostoCanasta) {
+            menorCostoCanasta = totalesCanasta[s];
+            superRecomendado = s;
+        }
+    });
+
+    // Mayor costo de canasta para calcular ahorro potencial
+    var mayorCostoCanasta = 0;
+    supersList.forEach(function(s) {
+        if (totalesCanasta[s] > mayorCostoCanasta) {
+            mayorCostoCanasta = totalesCanasta[s];
+        }
+    });
+
+    var ahorroCanastaRecomendada = mayorCostoCanasta > menorCostoCanasta ? (mayorCostoCanasta - menorCostoCanasta) : 0;
+    var ahorroCombinadoMaximo = mayorCostoCanasta > costoOptimoCombinado ? (mayorCostoCanasta - costoOptimoCombinado) : 0;
 
     // ==============================================================================
-    // HOJA 1: 🏆 CONCLUSIÓN Y ELECCIÓN DEL MÁS BARATO
+    // HOJA 1: 🏆 CONCLUSIONES Y DECISIÓN DE COMPRA
     // ==============================================================================
-    var ws1 = workbook.addWorksheet('🏆 Conclusiones y Ganadores', {
-        views: [{ showGridLines: true }]
-    });
+    var ws1 = workbook.addWorksheet('🏆 Conclusiones', { views: [{ showGridLines: true }] });
 
     // Título Principal
     ws1.mergeCells('B2:H2');
-    var titleCell = ws1.getCell('B2');
-    titleCell.value = '🛒 REPORTE RPA: COMPARADOR DE PRECIOS Y MEJORES OFERTAS';
-    titleCell.font = { name: 'Segoe UI', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
+    var tCell = ws1.getCell('B2');
+    tCell.value = '🛒 REPORTE RPA: COMPARADOR DE PRECIOS Y CANASTA INTELIGENTE';
+    tCell.font = { name: 'Segoe UI', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+    tCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    tCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
     ws1.getRow(2).height = 36;
 
     // Subtítulo
     ws1.mergeCells('B3:H3');
-    var subCell = ws1.getCell('B3');
-    subCell.value = 'Relevamiento automático en tiempo real en Carrefour, COTO y Día % • Generado el ' + new Date().toLocaleDateString('es-AR');
-    subCell.font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF555555' } };
-    subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    var stCell = ws1.getCell('B3');
+    stCell.value = 'Relevamiento en tiempo real en Carrefour, COTO y Día % • Modo Compra del Mes y Búsquedas Individuales • ' + new Date().toLocaleDateString('es-AR');
+    stCell.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF555555' } };
+    stCell.alignment = { vertical: 'middle', horizontal: 'center' };
     ws1.getRow(3).height = 20;
 
-    // Métricas y Ganadores
-    var totalGrupos = Object.keys(grupos).length;
-    var victorias = { 'Carrefour': 0, 'COTO': 0, 'Día %': 0 };
-    var ahorroTotalEstimado = 0;
-    var resumenGanadores = [];
-
-    Object.keys(grupos).forEach(function(grp) {
-        var lista = grupos[grp].filter(function(x) { return x.precio !== null; });
-        if (lista.length === 0) return;
-
-        // Ordenar por precio ascendente (más barato primero)
-        lista.sort(function(a, b) { return a.precio - b.precio; });
-
-        var ganador = lista[0];
-        var masCaro = lista[lista.length - 1];
-        var ahorro = masCaro.precio - ganador.precio;
-        var ahorroPct = masCaro.precio > 0 ? ((ahorro / masCaro.precio) * 100) : 0;
-
-        if (victorias[ganador.supermercado] !== undefined) {
-            victorias[ganador.supermercado]++;
-        }
-        ahorroTotalEstimado += ahorro;
-
-        resumenGanadores.push({
-            grupo: grp,
-            ganadorSuper: ganador.supermercado,
-            ganadorNombre: ganador.nombre,
-            ganadorPrecio: ganador.precio,
-            caroSuper: masCaro.supermercado,
-            caroPrecio: masCaro.precio,
-            ahorro: ahorro,
-            ahorroPct: ahorroPct,
-            url: ganador.url
-        });
-    });
-
-    // Determinar supermercado líder en ofertas
-    var liderSuper = 'Varios';
-    var maxV = -1;
-    Object.keys(victorias).forEach(function(s) {
-        if (victorias[s] > maxV) {
-            maxV = victorias[s];
-            liderSuper = s;
-        }
-    });
-
-    // Bloque KPI Cards (Fila 5)
+    // KPI Cards Fila 5-6
+    // Card 1: Supermercado Recomendado Canasta
     ws1.mergeCells('B5:C5');
-    ws1.getCell('B5').value = '📦 PRODUCTOS EVALUADOS';
+    ws1.getCell('B5').value = '🏆 SÚPER RECOMENDADO (CANASTA)';
     ws1.getCell('B5').font = { size: 9, bold: true, color: { argb: 'FF555555' } };
     ws1.getCell('B5').alignment = { horizontal: 'center' };
     ws1.mergeCells('B6:C6');
-    ws1.getCell('B6').value = totalGrupos + ' Categorías';
-    ws1.getCell('B6').font = { size: 14, bold: true, color: { argb: COLOR_AZUL_TITULO } };
+    ws1.getCell('B6').value = superRecomendado;
+    ws1.getCell('B6').font = { size: 14, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
     ws1.getCell('B6').alignment = { horizontal: 'center' };
 
+    // Card 2: Costo Total Canasta Ganadora
     ws1.mergeCells('D5:E5');
-    ws1.getCell('D5').value = '🏆 SÚPER MÁS ECONÓMICO';
+    ws1.getCell('D5').value = '💰 COSTO CANASTA RECOMENDADA';
     ws1.getCell('D5').font = { size: 9, bold: true, color: { argb: 'FF555555' } };
     ws1.getCell('D5').alignment = { horizontal: 'center' };
     ws1.mergeCells('D6:E6');
-    ws1.getCell('D6').value = liderSuper + ' (' + maxV + ' mejores precios)';
-    ws1.getCell('D6').font = { size: 14, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+    ws1.getCell('D6').value = menorCostoCanasta !== Infinity ? menorCostoCanasta : 0;
+    ws1.getCell('D6').numFmt = '"$"#,##0.00';
+    ws1.getCell('D6').font = { size: 14, bold: true, color: { argb: COLOR_AZUL_TITULO } };
     ws1.getCell('D6').alignment = { horizontal: 'center' };
 
-    ws1.mergeCells('F5:H5');
-    ws1.getCell('F5').value = '💰 AHORRO TOTAL COMBINADO';
+    // Card 3: Compra Combinada Óptima
+    ws1.mergeCells('F5:G5');
+    ws1.getCell('F5').value = '⚡ COMPRA COMBINADA ÓPTIMA';
     ws1.getCell('F5').font = { size: 9, bold: true, color: { argb: 'FF555555' } };
     ws1.getCell('F5').alignment = { horizontal: 'center' };
-    ws1.mergeCells('F6:H6');
-    ws1.getCell('F6').value = ahorroTotalEstimado;
+    ws1.mergeCells('F6:G6');
+    ws1.getCell('F6').value = costoOptimoCombinado;
     ws1.getCell('F6').numFmt = '"$"#,##0.00';
     ws1.getCell('F6').font = { size: 14, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
     ws1.getCell('F6').alignment = { horizontal: 'center' };
 
-    // Estilos de las KPI cards
-    ['B5', 'C5', 'D5', 'E5', 'F5', 'G5', 'H5', 'B6', 'C6', 'D6', 'E6', 'F6', 'G6', 'H6'].forEach(function(pos) {
+    // Card 4: Ahorro Máximo Potencial
+    ws1.getCell('H5').value = '💸 AHORRO MÁXIMO';
+    ws1.getCell('H5').font = { size: 9, bold: true, color: { argb: 'FF555555' } };
+    ws1.getCell('H5').alignment = { horizontal: 'center' };
+    ws1.getCell('H6').value = ahorroCombinadoMaximo;
+    ws1.getCell('H6').numFmt = '"$"#,##0.00';
+    ws1.getCell('H6').font = { size: 14, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+    ws1.getCell('H6').alignment = { horizontal: 'center' };
+
+    ['B5','C5','D5','E5','F5','G5','H5','B6','C6','D6','E6','F6','G6','H6'].forEach(function(pos) {
         ws1.getCell(pos).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_GRIS_FONDO } };
-        ws1.getCell(pos).border = {
-            top: { style: 'thin', color: { argb: COLOR_BORDE } },
-            bottom: { style: 'thin', color: { argb: COLOR_BORDE } },
-            left: { style: 'thin', color: { argb: COLOR_BORDE } },
-            right: { style: 'thin', color: { argb: COLOR_BORDE } }
-        };
     });
+    aplicarBordes(ws1, 'B', 5, 'H', 6);
     ws1.getRow(5).height = 18;
     ws1.getRow(6).height = 28;
 
-    // Encabezado de la Tabla de Elección de Más Baratos (Fila 8)
-    var headers1 = [
-        { col: 'B', text: 'Categoría / Búsqueda' },
-        { col: 'C', text: '🥇 Elección Más Barata' },
-        { col: 'D', text: 'Producto Recomendado' },
+    // Tabla 1: Costo Total por Supermercado (Fila 8)
+    ws1.mergeCells('B8:H8');
+    var secTitle1 = ws1.getCell('B8');
+    secTitle1.value = '📊 EVALUACIÓN COMPARATIVA: COSTO TOTAL DE LA CANASTA COMPLETA';
+    secTitle1.font = { size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    secTitle1.alignment = { vertical: 'middle', horizontal: 'left' };
+    secTitle1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+    ws1.getRow(8).height = 24;
+
+    var hT1 = [
+        { col: 'B', text: 'Supermercado' },
+        { col: 'C', text: 'Costo Canasta Total' },
+        { col: 'D', text: 'Artículos Disponibles' },
+        { col: 'E', text: 'Artículos con Problema' },
+        { col: 'F', text: 'Precios Más Bajos Ganados' },
+        { col: 'G', text: 'Diferencia vs Mejor' },
+        { col: 'H', text: 'Estado / Recomendación' }
+    ];
+    ws1.getRow(9).height = 22;
+    hT1.forEach(function(h) {
+        var cell = ws1.getCell(h.col + '9');
+        cell.value = h.text;
+        cell.font = { size: 10, bold: true, color: { argb: COLOR_AZUL_OSCURO } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_CLARO } };
+    });
+
+    var rT1 = 10;
+    supersList.forEach(function(s) {
+        ws1.getRow(rT1).height = 22;
+        var esGanador = (s === superRecomendado);
+
+        ws1.getCell('B' + rT1).value = s;
+        ws1.getCell('B' + rT1).font = { bold: true };
+        ws1.getCell('B' + rT1).alignment = { vertical: 'middle', horizontal: 'left' };
+
+        var cCosto = ws1.getCell('C' + rT1);
+        cCosto.value = totalesCanasta[s] > 0 ? totalesCanasta[s] : 0;
+        cCosto.numFmt = '"$"#,##0.00';
+        cCosto.font = { bold: true, color: { argb: esGanador ? COLOR_VERDE_TEXTO : 'FF333333' } };
+        cCosto.alignment = { vertical: 'middle', horizontal: 'right' };
+        if (esGanador) cCosto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+
+        ws1.getCell('D' + rT1).value = conteoDisponibles[s] + ' de ' + productosMensualUnicos.length;
+        ws1.getCell('D' + rT1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        ws1.getCell('E' + rT1).value = conteoProblemas[s];
+        ws1.getCell('E' + rT1).alignment = { vertical: 'middle', horizontal: 'center' };
+        if (conteoProblemas[s] > 0) {
+            ws1.getCell('E' + rT1).font = { bold: true, color: { argb: COLOR_ROJO_TEXTO } };
+        }
+
+        ws1.getCell('F' + rT1).value = conteoGanados[s] + ' productos';
+        ws1.getCell('F' + rT1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        var dif = totalesCanasta[s] - menorCostoCanasta;
+        ws1.getCell('G' + rT1).value = dif > 0 ? ('+$' + dif.toLocaleString('es-AR', { minimumFractionDigits: 2 })) : 'Mejor opción';
+        ws1.getCell('G' + rT1).font = { bold: esGanador, color: { argb: esGanador ? COLOR_VERDE_TEXTO : 'FF666666' } };
+        ws1.getCell('G' + rT1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        var cRec = ws1.getCell('H' + rT1);
+        cRec.value = esGanador ? '🏆 RECOMENDADO' : (dif > 0 ? 'Más costoso' : 'Sin datos');
+        cRec.font = { bold: esGanador, color: { argb: esGanador ? COLOR_VERDE_TEXTO : 'FF777777' } };
+        cRec.alignment = { vertical: 'middle', horizontal: 'center' };
+        if (esGanador) cRec.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+
+        rT1++;
+    });
+    aplicarBordes(ws1, 'B', 9, 'H', rT1 - 1);
+
+    // Tabla 2: Resumen del Producto Ganador por Categoría (Fila rT1 + 1)
+    var rT2 = rT1 + 1;
+    ws1.mergeCells('B' + rT2 + ':H' + rT2);
+    var secTitle2 = ws1.getCell('B' + rT2);
+    secTitle2.value = '🛒 PRODUCTO GANADOR POR ARTÍCULO (MEJOR PRECIO)';
+    secTitle2.font = { size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    secTitle2.alignment = { vertical: 'middle', horizontal: 'left' };
+    secTitle2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+    ws1.getRow(rT2).height = 24;
+
+    var hT2 = [
+        { col: 'B', text: 'Artículo Solicitado' },
+        { col: 'C', text: '🏆 Súper Más Barato' },
+        { col: 'D', text: 'Producto Encontrado' },
         { col: 'E', text: 'Mejor Precio' },
         { col: 'F', text: 'Opción Más Cara' },
-        { col: 'G', text: 'Te Ahorrás' },
+        { col: 'G', text: 'Ahorro' },
         { col: 'H', text: 'Enlace Directo' }
     ];
-
-    ws1.getRow(8).height = 26;
-    headers1.forEach(function(h) {
-        var cell = ws1.getCell(h.col + '8');
+    rT2++;
+    ws1.getRow(rT2).height = 22;
+    hT2.forEach(function(h) {
+        var cell = ws1.getCell(h.col + rT2);
         cell.value = h.text;
-        cell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
-        cell.border = { top: { style: 'medium' }, bottom: { style: 'medium' } };
+        cell.font = { size: 10, bold: true, color: { argb: COLOR_AZUL_OSCURO } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_CLARO } };
     });
 
-    // Filas de Ganadores
-    var curRow = 9;
-    resumenGanadores.forEach(function(res) {
-        ws1.getRow(curRow).height = 24;
+    var rDataT2Start = rT2 + 1;
+    filasCanasta.forEach(function(f) {
+        rT2++;
+        ws1.getRow(rT2).height = 22;
 
-        // Categoría
-        var cCat = ws1.getCell('B' + curRow);
-        cCat.value = res.grupo;
-        cCat.font = { bold: true };
-        cCat.alignment = { vertical: 'middle', horizontal: 'left' };
+        ws1.getCell('B' + rT2).value = f.producto.toUpperCase();
+        ws1.getCell('B' + rT2).font = { bold: true, size: 9 };
+        ws1.getCell('B' + rT2).alignment = { vertical: 'middle', horizontal: 'left' };
 
-        // Super Ganador
-        var cSup = ws1.getCell('C' + curRow);
-        cSup.value = '🏆 ' + res.ganadorSuper;
-        cSup.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
-        cSup.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
-        cSup.alignment = { vertical: 'middle', horizontal: 'center' };
+        var cSupG = ws1.getCell('C' + rT2);
+        cSupG.value = f.ganador ? ('🏆 ' + f.ganador.superm) : 'Sin opción válida';
+        cSupG.font = { bold: true, color: { argb: f.ganador ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO }, size: 9 };
+        cSupG.alignment = { vertical: 'middle', horizontal: 'center' };
+        if (f.ganador) cSupG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
 
-        // Nombre
-        var cNom = ws1.getCell('D' + curRow);
-        cNom.value = res.ganadorNombre;
-        cNom.alignment = { vertical: 'middle', horizontal: 'left' };
+        ws1.getCell('D' + rT2).value = f.ganador && f.ganador.item ? f.ganador.item.nombre : 'No encontrado';
+        ws1.getCell('D' + rT2).alignment = { vertical: 'middle', horizontal: 'left' };
+        ws1.getCell('D' + rT2).font = { size: 9 };
 
-        // Mejor Precio
-        var cPre = ws1.getCell('E' + curRow);
-        cPre.value = res.ganadorPrecio;
-        cPre.numFmt = '"$"#,##0.00';
-        cPre.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
-        cPre.alignment = { vertical: 'middle', horizontal: 'right' };
-        cPre.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        var cP = ws1.getCell('E' + rT2);
+        if (f.ganador) {
+            cP.value = f.ganador.precio;
+            cP.numFmt = '"$"#,##0.00';
+            cP.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+            cP.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        } else {
+            cP.value = 'N/D';
+        }
+        cP.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // Más Caro
-        var cCaro = ws1.getCell('F' + curRow);
-        cCaro.value = res.caroSuper + ' ($ ' + res.caroPrecio.toLocaleString('es-AR', { minimumFractionDigits: 2 }) + ')';
-        cCaro.font = { color: { argb: 'FF888888' }, size: 9 };
+        var cCaro = ws1.getCell('F' + rT2);
+        cCaro.value = f.masCaro ? (f.masCaro.superm + ' ($' + f.masCaro.precio.toLocaleString('es-AR') + ')') : '-';
         cCaro.alignment = { vertical: 'middle', horizontal: 'center' };
+        cCaro.font = { size: 8, color: { argb: 'FF777777' } };
 
-        // Ahorro
-        var cAho = ws1.getCell('G' + curRow);
-        cAho.value = res.ahorro > 0 ? ('-$' + res.ahorro.toLocaleString('es-AR', { minimumFractionDigits: 0 }) + ' (' + res.ahorroPct.toFixed(0) + '%)') : 'Mismo precio';
-        cAho.font = { bold: true, color: { argb: res.ahorro > 0 ? COLOR_VERDE_TEXTO : 'FF555555' } };
+        var cAho = ws1.getCell('G' + rT2);
+        cAho.value = f.ahorro > 0 ? ('-$' + f.ahorro.toLocaleString('es-AR', { minimumFractionDigits: 0 })) : 'Mismo valor';
+        cAho.font = { bold: f.ahorro > 0, color: { argb: f.ahorro > 0 ? COLOR_VERDE_TEXTO : 'FF666666' }, size: 9 };
         cAho.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        // Link
-        var cLnk = ws1.getCell('H' + curRow);
-        if (res.url && res.url.startsWith('http')) {
-            cLnk.value = { text: '🔗 Ver Oferta', hyperlink: res.url };
-            cLnk.font = { color: { argb: 'FF0563C1' }, underline: true };
+        var cLnk = ws1.getCell('H' + rT2);
+        if (f.ganador && f.ganador.item && f.ganador.item.url && f.ganador.item.url.startsWith('http')) {
+            cLnk.value = { text: '🔗 Ver en Tienda', hyperlink: f.ganador.item.url };
+            cLnk.font = { color: { argb: 'FF0563C1' }, underline: true, size: 9 };
         } else {
-            cLnk.value = 'N/D';
+            cLnk.value = '-';
         }
         cLnk.alignment = { vertical: 'middle', horizontal: 'center' };
-
-        ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(function(col) {
-            ws1.getCell(col + curRow).border = {
-                bottom: { style: 'thin', color: { argb: COLOR_BORDE } },
-                left: { style: 'thin', color: { argb: COLOR_BORDE } },
-                right: { style: 'thin', color: { argb: COLOR_BORDE } }
-            };
-        });
-
-        curRow++;
     });
+    aplicarBordes(ws1, 'B', rDataT2Start - 1, 'H', rT2);
 
-    // Bloque Conclusión Narrativa
-    curRow += 2;
-    ws1.mergeCells('B' + curRow + ':H' + (curRow + 3));
-    var concCell = ws1.getCell('B' + curRow);
-    concCell.value = '💡 CONCLUSIÓN DEL BOT RPA:\n' +
-        '• En este relevamiento, el supermercado con mayor cantidad de precios más bajos fue ' + liderSuper + '.\n' +
-        '• Si comprás cada producto en el supermercado ganador correspondiente, lográs un ahorro total estimado de $' + ahorroTotalEstimado.toLocaleString('es-AR', { minimumFractionDigits: 2 }) + ' en tu compra.\n' +
-        '• Podés hacer clic en cualquiera de los enlaces para validar o comprar directamente en la tienda online.';
-    concCell.font = { name: 'Segoe UI', size: 10, italic: false, color: { argb: 'FF1F4E79' } };
-    concCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF1F5' } };
-    concCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-    ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(function(col) {
-        for (var r = curRow; r <= curRow + 3; r++) {
-            ws1.getCell(col + r).border = {
-                top: { style: 'thin', color: { argb: COLOR_AZUL_TITULO } },
-                bottom: { style: 'thin', color: { argb: COLOR_AZUL_TITULO } },
-                left: { style: 'thin', color: { argb: COLOR_AZUL_TITULO } },
-                right: { style: 'thin', color: { argb: COLOR_AZUL_TITULO } }
-            };
-        }
-    });
+    // Conclusión Narrativa
+    rT2 += 2;
+    ws1.mergeCells('B' + rT2 + ':H' + (rT2 + 3));
+    var concNarrativa = ws1.getCell('B' + rT2);
+    concNarrativa.value = '💡 CONCLUSIÓN Y ESTRATEGIA RECOMENDADA POR EL BOT RPA:\n' +
+        '1. Si realizás toda la compra mensual en un único lugar: El supermercado más conveniente es ' + superRecomendado + ' con un costo de $' + menorCostoCanasta.toLocaleString('es-AR', { minimumFractionDigits: 2 }) + '.\n' +
+        '2. Si realizás una compra combinada (comprando cada producto en su supermercado ganador): Pagás solo $' + costoOptimoCombinado.toLocaleString('es-AR', { minimumFractionDigits: 2 }) + ', ahorrando un total de $' + ahorroCombinadoMaximo.toLocaleString('es-AR', { minimumFractionDigits: 2 }) + '.\n' +
+        '3. Podés verificar el detalle de stock y sustituciones rechazadas en la pestaña "⚠️ Disponibilidad y Stock".';
+    concNarrativa.font = { name: 'Segoe UI', size: 9, color: { argb: 'FF1F4E79' } };
+    concNarrativa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF1F5' } };
+    concNarrativa.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    aplicarBordes(ws1, 'B', rT2, 'H', rT2 + 3);
 
-    // Auto-ajuste de ancho de columnas Hoja 1
     ws1.getColumn('A').width = 4;
     ws1.getColumn('B').width = 22;
     ws1.getColumn('C').width = 24;
-    ws1.getColumn('D').width = 45;
-    ws1.getColumn('E').width = 16;
-    ws1.getColumn('F').width = 26;
+    ws1.getColumn('D').width = 42;
+    ws1.getColumn('E').width = 18;
+    ws1.getColumn('F').width = 24;
     ws1.getColumn('G').width = 20;
-    ws1.getColumn('H').width = 18;
+    ws1.getColumn('H').width = 20;
 
 
     // ==============================================================================
-    // HOJA 2: 📊 RANKING DE MENOR A MAYOR PRECIO (TODOS LOS PRODUCTOS)
+    // HOJA 2: 🛒 CANASTA MENSUAL (COMPARATIVA HORIZONTAL PRODUCTO A PRODUCTO)
     // ==============================================================================
-    var ws2 = workbook.addWorksheet('📊 Ranking Menor a Mayor', {
-        views: [{ showGridLines: true }]
-    });
+    var ws2 = workbook.addWorksheet('🛒 Canasta Mensual', { views: [{ showGridLines: true }] });
 
-    // Título Hoja 2
-    ws2.mergeCells('B2:G2');
-    var t2 = ws2.getCell('B2');
-    t2.value = '📊 RANKING GENERAL: DE MENOR A MAYOR PRECIO';
-    t2.font = { name: 'Segoe UI', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
-    t2.alignment = { vertical: 'middle', horizontal: 'center' };
-    t2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
+    ws2.mergeCells('B2:H2');
+    var tWs2 = ws2.getCell('B2');
+    tWs2.value = '🛒 CANASTA MENSUAL: COMPARATIVA DETALLADA DE PRECIOS POR SUPERMERCADO';
+    tWs2.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    tWs2.alignment = { vertical: 'middle', horizontal: 'center' };
+    tWs2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
     ws2.getRow(2).height = 34;
 
-    ws2.mergeCells('B3:G3');
-    var st2 = ws2.getCell('B3');
-    st2.value = 'Listado consolidado de todos los artículos encontrados, ordenados estrictamente por precio ascendente.';
-    st2.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
-    st2.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws2.mergeCells('B3:H3');
+    var stWs2 = ws2.getCell('B3');
+    stWs2.value = 'Precios relevados lado a lado para la lista de compra. Las celdas en verde destacan el menor precio para cada artículo.';
+    stWs2.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
+    stWs2.alignment = { vertical: 'middle', horizontal: 'center' };
     ws2.getRow(3).height = 18;
 
-    // Encabezados Hoja 2 (Fila 5)
-    var headers2 = [
-        { col: 'B', text: 'Posición / Medalla' },
-        { col: 'C', text: 'Supermercado' },
-        { col: 'D', text: 'Nombre del Producto Extraído' },
-        { col: 'E', text: 'Precio' },
-        { col: 'F', text: 'Fecha' },
-        { col: 'G', text: 'Enlace a la Web' }
+    var hWs2 = [
+        { col: 'B', text: 'Artículo Solicitado' },
+        { col: 'C', text: 'Carrefour' },
+        { col: 'D', text: 'COTO' },
+        { col: 'E', text: 'Día %' },
+        { col: 'F', text: '🥇 Más Barato' },
+        { col: 'G', text: 'Precio Mínimo' },
+        { col: 'H', text: 'Ahorro Máximo' }
     ];
-
-    ws2.getRow(5).height = 24;
-    headers2.forEach(function(h) {
+    ws2.getRow(5).height = 22;
+    hWs2.forEach(function(h) {
         var cell = ws2.getCell(h.col + '5');
         cell.value = h.text;
-        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
-        cell.border = { top: { style: 'medium' }, bottom: { style: 'medium' } };
     });
 
-    // Ordenar TODOS los productos de menor a mayor
-    var itemsOrdenados = items.slice().filter(function(x) { return x.precio !== null; });
-    itemsOrdenados.sort(function(a, b) { return a.precio - b.precio; });
+    var rWs2 = 6;
+    filasCanasta.forEach(function(f) {
+        ws2.getRow(rWs2).height = 22;
 
-    var rIdx = 6;
-    itemsOrdenados.forEach(function(item, idx) {
-        ws2.getRow(rIdx).height = 22;
+        ws2.getCell('B' + rWs2).value = f.producto.toUpperCase();
+        ws2.getCell('B' + rWs2).font = { bold: true };
+        ws2.getCell('B' + rWs2).alignment = { vertical: 'middle', horizontal: 'left' };
 
-        // Medalla / Posición
-        var posCell = ws2.getCell('B' + rIdx);
-        var medal = (idx === 0) ? '🥇 1° MÁS BARATO' : (idx === 1 ? '🥈 2° Lugar' : (idx === 2 ? '🥉 3° Lugar' : '#' + (idx + 1)));
-        posCell.value = medal;
+        // Carrefour, COTO, Día %
+        var mapeo = [
+            { col: 'C', superm: 'Carrefour', obj: f.carrefour },
+            { col: 'D', superm: 'COTO', obj: f.coto },
+            { col: 'E', superm: 'Día %', obj: f.dia }
+        ];
+
+        mapeo.forEach(function(m) {
+            var cCell = ws2.getCell(m.col + rWs2);
+            if (!m.obj || !m.obj.valido || m.obj.precio === null) {
+                var tag = m.obj ? (m.obj.estado === 'SIN STOCK' ? 'Sin Stock' : (m.obj.estado === 'COINCIDENCIA NO VÁLIDA' ? 'No válida' : 'No encontrado')) : 'N/D';
+                cCell.value = tag;
+                cCell.font = { size: 9, color: { argb: 'FF888888' }, italic: true };
+                cCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            } else {
+                cCell.value = m.obj.precio;
+                cCell.numFmt = '"$"#,##0.00';
+                cCell.alignment = { vertical: 'middle', horizontal: 'right' };
+                var esElGanador = f.ganador && f.ganador.superm === m.superm;
+                if (esElGanador) {
+                    cCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+                    cCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+                }
+            }
+        });
+
+        // Ganador
+        var gCell = ws2.getCell('F' + rWs2);
+        gCell.value = f.ganador ? ('🏆 ' + f.ganador.superm) : 'Ninguno';
+        gCell.font = { bold: true, color: { argb: f.ganador ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO } };
+        gCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        if (f.ganador) gCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+
+        // Precio mínimo
+        var pMinCell = ws2.getCell('G' + rWs2);
+        if (f.ganador) {
+            pMinCell.value = f.ganador.precio;
+            pMinCell.numFmt = '"$"#,##0.00';
+            pMinCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+        } else {
+            pMinCell.value = 'N/D';
+        }
+        pMinCell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+        // Ahorro
+        var ahCell = ws2.getCell('H' + rWs2);
+        ahCell.value = f.ahorro > 0 ? ('-$' + f.ahorro.toLocaleString('es-AR', { minimumFractionDigits: 2 })) : 'Mismo precio';
+        ahCell.font = { bold: f.ahorro > 0, color: { argb: f.ahorro > 0 ? COLOR_VERDE_TEXTO : 'FF666666' } };
+        ahCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        rWs2++;
+    });
+
+    // Fila Total de Canasta al pie
+    ws2.getRow(rWs2).height = 24;
+    ws2.getCell('B' + rWs2).value = 'TOTAL CANASTA';
+    ws2.getCell('B' + rWs2).font = { bold: true, size: 10 };
+    ws2.getCell('B' + rWs2).alignment = { vertical: 'middle', horizontal: 'left' };
+
+    ['C', 'D', 'E'].forEach(function(col, idx) {
+        var s = supersList[idx];
+        var cell = ws2.getCell(col + rWs2);
+        cell.value = totalesCanasta[s] > 0 ? totalesCanasta[s] : 0;
+        cell.numFmt = '"$"#,##0.00';
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        if (s === superRecomendado) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+            cell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+        }
+    });
+
+    ws2.getCell('F' + rWs2).value = 'Óptima Combinada';
+    ws2.getCell('F' + rWs2).font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+    ws2.getCell('F' + rWs2).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    var optCell = ws2.getCell('G' + rWs2);
+    optCell.value = costoOptimoCombinado;
+    optCell.numFmt = '"$"#,##0.00';
+    optCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+    optCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    optCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+
+    var totAhoCell = ws2.getCell('H' + rWs2);
+    totAhoCell.value = ahorroCombinadoMaximo > 0 ? ('-$' + ahorroCombinadoMaximo.toLocaleString('es-AR', { minimumFractionDigits: 2 })) : '-';
+    totAhoCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+    totAhoCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    aplicarBordes(ws2, 'B', 5, 'H', rWs2);
+
+    ws2.getColumn('A').width = 4;
+    ws2.getColumn('B').width = 22;
+    ws2.getColumn('C').width = 18;
+    ws2.getColumn('D').width = 18;
+    ws2.getColumn('E').width = 18;
+    ws2.getColumn('F').width = 20;
+    ws2.getColumn('G').width = 18;
+    ws2.getColumn('H').width = 18;
+
+
+    // ==============================================================================
+    // HOJA 3: 📊 RANKING GENERAL (DE MENOR A MAYOR PRECIO)
+    // ==============================================================================
+    var ws3 = workbook.addWorksheet('📊 Ranking Menor a Mayor', { views: [{ showGridLines: true }] });
+
+    ws3.mergeCells('B2:H2');
+    var tWs3 = ws3.getCell('B2');
+    tWs3.value = '📊 RANKING GENERAL: TODOS LOS PRODUCTOS DE MENOR A MAYOR PRECIO';
+    tWs3.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    tWs3.alignment = { vertical: 'middle', horizontal: 'center' };
+    tWs3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
+    ws3.getRow(2).height = 34;
+
+    ws3.mergeCells('B3:H3');
+    var stWs3 = ws3.getCell('B3');
+    stWs3.value = 'Consolidado general de todos los productos válidos encontrados, ordenados estrictamente por precio ascendente.';
+    stWs3.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
+    stWs3.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getRow(3).height = 18;
+
+    var hWs3 = [
+        { col: 'B', text: 'Posición / Medalla' },
+        { col: 'C', text: 'Supermercado' },
+        { col: 'D', text: 'Producto Solicitado' },
+        { col: 'E', text: 'Nombre Devuelto por la Tienda' },
+        { col: 'F', text: 'Precio' },
+        { col: 'G', text: 'Modo de Consulta' },
+        { col: 'H', text: 'Enlace Web' }
+    ];
+    ws3.getRow(5).height = 22;
+    hWs3.forEach(function(h) {
+        var cell = ws3.getCell(h.col + '5');
+        cell.value = h.text;
+        cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+    });
+
+    // Filtrar válidos con precio numérico
+    var rankingItems = items.filter(function(x) { return x.valido && x.precio !== null; });
+    rankingItems.sort(function(a, b) { return a.precio - b.precio; });
+
+    var rWs3 = 6;
+    rankingItems.forEach(function(it, idx) {
+        ws3.getRow(rWs3).height = 22;
+
+        var posCell = ws3.getCell('B' + rWs3);
+        var medalla = (idx === 0) ? '🥇 1° MÁS BARATO' : (idx === 1 ? '🥈 2° Puesto' : (idx === 2 ? '🥉 3° Puesto' : '#' + (idx + 1)));
+        posCell.value = medalla;
         posCell.alignment = { vertical: 'middle', horizontal: 'center' };
         posCell.font = { bold: idx < 3, size: 9 };
         if (idx === 0) {
@@ -409,73 +623,270 @@ async function main() {
             posCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AMARILLO_PASTEL } };
         }
 
-        // Supermercado con color
-        var supCell = ws2.getCell('C' + rIdx);
-        supCell.value = item.supermercado;
+        var supCell = ws3.getCell('C' + rWs3);
+        supCell.value = it.supermercado;
         supCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        supCell.font = { bold: true, size: 10 };
-        if (item.supermercado === 'Carrefour') {
-            supCell.font = { bold: true, color: { argb: 'FF0B4EA2' } };
-        } else if (item.supermercado === 'COTO') {
-            supCell.font = { bold: true, color: { argb: 'FFE20025' } };
-        } else if (item.supermercado.indexOf('Día') > -1 || item.supermercado.indexOf('Dia') > -1) {
-            supCell.font = { bold: true, color: { argb: 'FFB01B1B' } };
-        }
+        supCell.font = { bold: true, size: 9 };
 
-        // Nombre
-        var nomCell = ws2.getCell('D' + rIdx);
-        nomCell.value = item.nombre;
-        nomCell.alignment = { vertical: 'middle', horizontal: 'left' };
+        ws3.getCell('D' + rWs3).value = it.producto.toUpperCase();
+        ws3.getCell('D' + rWs3).alignment = { vertical: 'middle', horizontal: 'left' };
+        ws3.getCell('D' + rWs3).font = { size: 9 };
 
-        // Precio
-        var preCell = ws2.getCell('E' + rIdx);
-        preCell.value = item.precio;
+        ws3.getCell('E' + rWs3).value = it.nombre;
+        ws3.getCell('E' + rWs3).alignment = { vertical: 'middle', horizontal: 'left' };
+        ws3.getCell('E' + rWs3).font = { size: 9 };
+
+        var preCell = ws3.getCell('F' + rWs3);
+        preCell.value = it.precio;
         preCell.numFmt = '"$"#,##0.00';
         preCell.alignment = { vertical: 'middle', horizontal: 'right' };
-        preCell.font = { bold: true };
-        if (idx < 3) {
-            preCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
-        }
+        preCell.font = { bold: true, color: { argb: idx < 3 ? COLOR_VERDE_TEXTO : 'FF333333' } };
 
-        // Fecha
-        var fecCell = ws2.getCell('F' + rIdx);
-        fecCell.value = item.fecha;
-        fecCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        fecCell.font = { size: 9, color: { argb: 'FF666666' } };
+        var modoCell = ws3.getCell('G' + rWs3);
+        modoCell.value = (it.modo === 'compra_mes') ? '🛒 Canasta Mensual' : '🔎 Individual';
+        modoCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        modoCell.font = { size: 8, color: { argb: 'FF666666' } };
 
-        // Link
-        var urlCell = ws2.getCell('G' + rIdx);
-        if (item.url && item.url.startsWith('http')) {
-            urlCell.value = { text: '🔗 Ver Producto', hyperlink: item.url };
-            urlCell.font = { color: { argb: 'FF0563C1' }, underline: true };
+        var lnkCell = ws3.getCell('H' + rWs3);
+        if (it.url && it.url.startsWith('http')) {
+            lnkCell.value = { text: '🔗 Ver Tienda', hyperlink: it.url };
+            lnkCell.font = { color: { argb: 'FF0563C1' }, underline: true, size: 9 };
         } else {
-            urlCell.value = 'N/D';
+            lnkCell.value = '-';
         }
-        urlCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        lnkCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        ['B', 'C', 'D', 'E', 'F', 'G'].forEach(function(col) {
-            ws2.getCell(col + rIdx).border = {
-                bottom: { style: 'thin', color: { argb: COLOR_BORDE } },
-                left: { style: 'thin', color: { argb: COLOR_BORDE } },
-                right: { style: 'thin', color: { argb: COLOR_BORDE } }
-            };
-        });
+        rWs3++;
+    });
+    aplicarBordes(ws3, 'B', 5, 'H', rWs3 - 1);
 
-        rIdx++;
+    ws3.getColumn('A').width = 4;
+    ws3.getColumn('B').width = 20;
+    ws3.getColumn('C').width = 16;
+    ws3.getColumn('D').width = 20;
+    ws3.getColumn('E').width = 45;
+    ws3.getColumn('F').width = 16;
+    ws3.getColumn('G').width = 20;
+    ws3.getColumn('H').width = 16;
+
+
+    // ==============================================================================
+    // HOJA 4: 🔎 CONSULTAS INDIVIDUALES (HISTORIAL Y RESULTADOS)
+    // ==============================================================================
+    var ws4 = workbook.addWorksheet('🔎 Consultas Individuales', { views: [{ showGridLines: true }] });
+
+    ws4.mergeCells('B2:H2');
+    var tWs4 = ws4.getCell('B2');
+    tWs4.value = '🔎 HISTORIAL DE BÚSQUEDAS INDIVIDUALES Y VALIDACIONES EN VIVO';
+    tWs4.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    tWs4.alignment = { vertical: 'middle', horizontal: 'center' };
+    tWs4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
+    ws4.getRow(2).height = 34;
+
+    ws4.mergeCells('B3:H3');
+    var stWs4 = ws4.getCell('B3');
+    stWs4.value = 'Registro de consultas directas ingresadas por consola. Incluye validación estricta de marca vs genérica.';
+    stWs4.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
+    stWs4.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws4.getRow(3).height = 18;
+
+    var hWs4 = [
+        { col: 'B', text: 'Fecha' },
+        { col: 'C', text: 'Producto Solicitado' },
+        { col: 'D', text: 'Supermercado' },
+        { col: 'E', text: 'Producto Encontrado' },
+        { col: 'F', text: 'Precio' },
+        { col: 'G', text: 'Estado Validación' },
+        { col: 'H', text: 'Observación Técnica' }
+    ];
+    ws4.getRow(5).height = 22;
+    hWs4.forEach(function(h) {
+        var cell = ws4.getCell(h.col + '5');
+        cell.value = h.text;
+        cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
     });
 
-    // Auto-ajuste columnas Hoja 2
-    ws2.getColumn('A').width = 4;
-    ws2.getColumn('B').width = 20;
-    ws2.getColumn('C').width = 18;
-    ws2.getColumn('D').width = 50;
-    ws2.getColumn('E').width = 16;
-    ws2.getColumn('F').width = 14;
-    ws2.getColumn('G').width = 18;
+    var rWs4 = 6;
+    if (itemsIndividual.length === 0) {
+        ws4.mergeCells('B6:H6');
+        var vacioCell = ws4.getCell('B6');
+        vacioCell.value = 'No se registraron búsquedas individuales aún. Usá la opción [2] del menú ejecutar.bat para realizar una.';
+        vacioCell.font = { italic: true, color: { argb: 'FF777777' } };
+        vacioCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws4.getRow(6).height = 24;
+        rWs4 = 7;
+    } else {
+        itemsIndividual.forEach(function(it) {
+            ws4.getRow(rWs4).height = 22;
 
-    // Guardar el archivo Excel
+            ws4.getCell('B' + rWs4).value = it.fecha;
+            ws4.getCell('B' + rWs4).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws4.getCell('B' + rWs4).font = { size: 9 };
+
+            ws4.getCell('C' + rWs4).value = it.producto;
+            ws4.getCell('C' + rWs4).font = { bold: true, size: 9 };
+            ws4.getCell('C' + rWs4).alignment = { vertical: 'middle', horizontal: 'left' };
+
+            ws4.getCell('D' + rWs4).value = it.supermercado;
+            ws4.getCell('D' + rWs4).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws4.getCell('D' + rWs4).font = { size: 9 };
+
+            ws4.getCell('E' + rWs4).value = it.nombre;
+            ws4.getCell('E' + rWs4).alignment = { vertical: 'middle', horizontal: 'left' };
+            ws4.getCell('E' + rWs4).font = { size: 9 };
+
+            var preCell = ws4.getCell('F' + rWs4);
+            if (it.precio !== null) {
+                preCell.value = it.precio;
+                preCell.numFmt = '"$"#,##0.00';
+            } else {
+                preCell.value = it.precioStr || 'N/D';
+            }
+            preCell.alignment = { vertical: 'middle', horizontal: 'right' };
+            preCell.font = { bold: it.valido };
+
+            var estCell = ws4.getCell('G' + rWs4);
+            estCell.value = it.valido ? ' VALIDADA' : '❌ ' + it.estado;
+            estCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            estCell.font = { bold: true, size: 9, color: { argb: it.valido ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO } };
+            if (it.valido) {
+                estCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+            } else {
+                estCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROJO_PASTEL } };
+            }
+
+            var obsCell = ws4.getCell('H' + rWs4);
+            obsCell.value = it.motivo || '-';
+            obsCell.font = { size: 8, color: { argb: 'FF555555' } };
+            obsCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+            rWs4++;
+        });
+    }
+    aplicarBordes(ws4, 'B', 5, 'H', rWs4 - 1);
+
+    ws4.getColumn('A').width = 4;
+    ws4.getColumn('B').width = 14;
+    ws4.getColumn('C').width = 22;
+    ws4.getColumn('D').width = 16;
+    ws4.getColumn('E').width = 40;
+    ws4.getColumn('F').width = 16;
+    ws4.getColumn('G').width = 22;
+    ws4.getColumn('H').width = 45;
+
+
+    // ==============================================================================
+    // HOJA 5: ⚠️ DISPONIBILIDAD Y STOCK (PROBLEMAS Y RECHAZOS)
+    // ==============================================================================
+    var ws5 = workbook.addWorksheet('⚠️ Disponibilidad y Stock', { views: [{ showGridLines: true }] });
+
+    ws5.mergeCells('B2:H2');
+    var tWs5 = ws5.getCell('B2');
+    tWs5.value = '⚠️ REPORTE DE DISPONIBILIDAD: ARTÍCULOS SIN STOCK O RECHAZADOS POR VALIDACIÓN';
+    tWs5.font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
+    tWs5.alignment = { vertical: 'middle', horizontal: 'center' };
+    tWs5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB25E00' } };
+    ws5.getRow(2).height = 34;
+
+    ws5.mergeCells('B3:H3');
+    var stWs5 = ws5.getCell('B3');
+    stWs5.value = 'Diferenciación técnica entre SIN STOCK (agotado), NO ENCONTRADO (inexistente) y COINCIDENCIA NO VÁLIDA (sustitución rechazada).';
+    stWs5.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
+    stWs5.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws5.getRow(3).height = 18;
+
+    var hWs5 = [
+        { col: 'B', text: 'Fecha' },
+        { col: 'C', text: 'Modo' },
+        { col: 'D', text: 'Supermercado' },
+        { col: 'E', text: 'Producto Solicitado' },
+        { col: 'F', text: 'Nombre Devuelto' },
+        { col: 'G', text: 'Tipo de Incidencia' },
+        { col: 'H', text: 'Motivo del Rechazo / Estado' }
+    ];
+    ws5.getRow(5).height = 22;
+    hWs5.forEach(function(h) {
+        var cell = ws5.getCell(h.col + '5');
+        cell.value = h.text;
+        cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+    });
+
+    var itemsConProblemas = items.filter(function(x) { return !x.valido || x.estado !== 'VALIDADA'; });
+    var rWs5 = 6;
+
+    if (itemsConProblemas.length === 0) {
+        ws5.mergeCells('B6:H6');
+        var cleanCell = ws5.getCell('B6');
+        cleanCell.value = '🎉 Excelente: Todos los productos relevados tuvieron stock disponible y coincidencias válidas.';
+        cleanCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+        cleanCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws5.getRow(6).height = 24;
+        rWs5 = 7;
+    } else {
+        itemsConProblemas.forEach(function(it) {
+            ws5.getRow(rWs5).height = 22;
+
+            ws5.getCell('B' + rWs5).value = it.fecha;
+            ws5.getCell('B' + rWs5).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws5.getCell('B' + rWs5).font = { size: 9 };
+
+            ws5.getCell('C' + rWs5).value = (it.modo === 'compra_mes') ? 'Canasta' : 'Individual';
+            ws5.getCell('C' + rWs5).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws5.getCell('C' + rWs5).font = { size: 8 };
+
+            ws5.getCell('D' + rWs5).value = it.supermercado;
+            ws5.getCell('D' + rWs5).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws5.getCell('D' + rWs5).font = { bold: true, size: 9 };
+
+            ws5.getCell('E' + rWs5).value = it.producto;
+            ws5.getCell('E' + rWs5).font = { bold: true, size: 9 };
+            ws5.getCell('E' + rWs5).alignment = { vertical: 'middle', horizontal: 'left' };
+
+            ws5.getCell('F' + rWs5).value = it.nombre;
+            ws5.getCell('F' + rWs5).alignment = { vertical: 'middle', horizontal: 'left' };
+            ws5.getCell('F' + rWs5).font = { size: 9 };
+
+            var tipoCell = ws5.getCell('G' + rWs5);
+            tipoCell.value = it.estado;
+            tipoCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            tipoCell.font = { bold: true, size: 9 };
+            if (it.estado === 'SIN STOCK') {
+                tipoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AMARILLO_PASTEL } };
+                tipoCell.font = { bold: true, color: { argb: COLOR_AMARILLO_TEXTO } };
+            } else if (it.estado === 'COINCIDENCIA NO VÁLIDA') {
+                tipoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROJO_PASTEL } };
+                tipoCell.font = { bold: true, color: { argb: COLOR_ROJO_TEXTO } };
+            } else {
+                tipoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_GRIS_FONDO } };
+                tipoCell.font = { color: { argb: 'FF777777' } };
+            }
+
+            var motCell = ws5.getCell('H' + rWs5);
+            motCell.value = it.motivo || 'No disponible';
+            motCell.font = { size: 8, color: { argb: 'FF444444' } };
+            motCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+            rWs5++;
+        });
+    }
+    aplicarBordes(ws5, 'B', 5, 'H', rWs5 - 1);
+
+    ws5.getColumn('A').width = 4;
+    ws5.getColumn('B').width = 14;
+    ws5.getColumn('C').width = 14;
+    ws5.getColumn('D').width = 16;
+    ws5.getColumn('E').width = 22;
+    ws5.getColumn('F').width = 40;
+    ws5.getColumn('G').width = 24;
+    ws5.getColumn('H').width = 50;
+
+    // Guardar el libro consolidado
     await workbook.xlsx.writeFile(XLSX_PATH);
-    console.log('[OK] Reporte Excel profesional generado exitosamente en: ' + XLSX_PATH);
+    console.log('[OK] Reporte Excel con 5 hojas generado exitosamente en: ' + XLSX_PATH);
 }
 
 main().catch(console.error);

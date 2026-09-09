@@ -1,6 +1,10 @@
-producto
-yerba
-leche
-arroz
-fideos
-aceite
+producto,modo
+leche,compra_mes
+arroz,compra_mes
+fideos,compra_mes
+aceite,compra_mes
+yerba,compra_mes
+azucar,compra_mes
+cafe,compra_mes
+galletitas,compra_mes
+papel higienico,compra_mes
