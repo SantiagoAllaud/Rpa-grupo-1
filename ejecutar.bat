@@ -64,7 +64,7 @@ if %ERRORLEVEL% NEQ 0 (
         echo.
         pause
         exit /b 1
-    )
+)
     echo [OK] Dependencias instaladas exitosamente.
 )
 
@@ -110,14 +110,15 @@ echo Selecciona una opción:
 echo   [1] Procesar compra del mes (desde input.csv)
 echo   [2] Buscar producto individual (consulta interactiva)
 echo   [3] Abrir reporte Excel (reporte_supermercados.xlsx)
-echo   [4] Limpiar resultados / historial (sin alterar input.csv)
-echo   [5] Diagnóstico del sistema y pruebas unitarias
-echo   [6] Salir
+echo   [4] Editar lista de compra del mes (input.csv)
+echo   [5] Limpiar resultados / historial (sin alterar input.csv)
+echo   [6] Diagnóstico del sistema y pruebas unitarias
+echo   [7] Salir
 echo.
 echo (Tip: También podés escribir directamente el nombre del producto aquí)
 echo.
 set "OPCION=1"
-set /p "OPCION=Elige opción [1-6] o escribe el producto [1]: "
+set /p "OPCION=Elige opción [1-7] o escribe el producto [1]: "
 
 set "OPCION_FIRST="
 for /f "tokens=1" %%a in ("!OPCION!") do set "OPCION_FIRST=%%a"
@@ -125,9 +126,15 @@ for /f "tokens=1" %%a in ("!OPCION!") do set "OPCION_FIRST=%%a"
 if "!OPCION_FIRST!"=="1" goto :ejecutar_mes
 if "!OPCION_FIRST!"=="2" goto :pedir_individual
 if "!OPCION_FIRST!"=="3" goto :abrir_excel
-if "!OPCION_FIRST!"=="4" goto :menu_limpieza
-if "!OPCION_FIRST!"=="5" goto :ejecutar_diagnostico
-if "!OPCION_FIRST!"=="6" goto :salir
+if "!OPCION_FIRST!"=="4" goto :editar_input
+if "!OPCION_FIRST!"=="5" goto :menu_limpieza
+if "!OPCION_FIRST!"=="6" goto :ejecutar_diagnostico
+if "!OPCION_FIRST!"=="7" goto :salir
+if /i "!OPCION_FIRST!"=="editar" goto :editar_input
+if /i "!OPCION_FIRST!"=="edit" goto :editar_input
+if /i "!OPCION_FIRST!"=="input" goto :editar_input
+if /i "!OPCION_FIRST!"=="salir" goto :salir
+if /i "!OPCION_FIRST!"=="exit" goto :salir
 
 :: Si el usuario escribió directamente un producto (ej: "yerba playadito")
 set "PROD_MANUAL=%OPCION%"
@@ -140,6 +147,21 @@ if "%ARG1:~0,1%"=="-" (
     set "PROD_MANUAL=%*"
     goto :ejecutar_individual
 )
+
+:editar_input
+echo.
+echo ==============================================================================
+echo [INFO] Abriendo input.csv en el Bloc de Notas para su edición...
+echo ==============================================================================
+echo   - Agrega, quita o modifica los productos respetando el formato.
+echo   - Ejemplo de línea: pan lactal,compra_mes
+echo   - Guarda los cambios con Ctrl+G (o Archivo - Guardar).
+echo   - Regresa a esta consola y presiona una tecla cuando hayas terminado.
+echo ==============================================================================
+echo.
+start notepad.exe "input.csv"
+pause
+goto :menu
 
 :pedir_individual
 echo.
@@ -159,6 +181,9 @@ echo [INFO] Iniciando BÚSQUEDA INDIVIDUAL para: "!PROD_MANUAL!"
 echo [INFO] Se consultará Carrefour, COTO y Día %% sin modificar input.csv...
 echo ==============================================================================
 echo.
+
+:: Limpiar consulta individual anterior para que el reporte se enfoque en la nueva
+call node validador.js --limpiar 2 >nul 2>&1
 
 :: Crear temp_input.csv de forma 100%% segura usando validador.js (maneja comas, comillas y acentos RFC-4180)
 call node validador.js --crear-temp "!PROD_MANUAL!"

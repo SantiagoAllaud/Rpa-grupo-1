@@ -575,6 +575,10 @@ function limpiarResultados(opcion) {
 function crearTempInput(producto) {
     const fs = require('fs');
     const path = require('path');
+
+    // Limpiar consultas individuales previas para que cada búsqueda sea limpia y actualice a la nueva
+    limpiarResultados('2');
+
     var tempFile = path.join(__dirname, 'temp_input.csv');
     var q = (producto || '').trim();
     var esc = '"' + q.replace(/"/g, '""') + '"';

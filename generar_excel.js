@@ -671,110 +671,199 @@ async function main() {
 
 
     // ==============================================================================
-    // HOJA 4: 🔎 CONSULTAS INDIVIDUALES (HISTORIAL Y RESULTADOS)
+    // HOJA 4: 🔎 CONSULTAS INDIVIDUALES (ÚLTIMA BÚSQUEDA Y VEREDICTO CLARO)
     // ==============================================================================
     var ws4 = workbook.addWorksheet('🔎 Consultas Individuales', { views: [{ showGridLines: true }] });
 
-    ws4.mergeCells('B2:H2');
+    ws4.mergeCells('B2:G2');
     var tWs4 = ws4.getCell('B2');
-    tWs4.value = '🔎 HISTORIAL DE BÚSQUEDAS INDIVIDUALES Y VALIDACIONES EN VIVO';
+    tWs4.value = '🎯 CONSULTA INDIVIDUAL: ¿DÓNDE TE CONVIENE COMPRAR?';
     tWs4.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
     tWs4.alignment = { vertical: 'middle', horizontal: 'center' };
     tWs4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
     ws4.getRow(2).height = 34;
 
-    ws4.mergeCells('B3:H3');
-    var stWs4 = ws4.getCell('B3');
-    stWs4.value = 'Registro de consultas directas ingresadas por consola. Incluye validación estricta de marca vs genérica.';
-    stWs4.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
-    stWs4.alignment = { vertical: 'middle', horizontal: 'center' };
-    ws4.getRow(3).height = 18;
-
-    var hWs4 = [
-        { col: 'B', text: 'Fecha' },
-        { col: 'C', text: 'Producto Solicitado' },
-        { col: 'D', text: 'Supermercado' },
-        { col: 'E', text: 'Producto Encontrado' },
-        { col: 'F', text: 'Precio' },
-        { col: 'G', text: 'Estado Validación' },
-        { col: 'H', text: 'Observación Técnica' }
-    ];
-    ws4.getRow(5).height = 22;
-    hWs4.forEach(function(h) {
-        var cell = ws4.getCell(h.col + '5');
-        cell.value = h.text;
-        cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
-    });
-
-    var rWs4 = 6;
     if (itemsIndividual.length === 0) {
-        ws4.mergeCells('B6:H6');
-        var vacioCell = ws4.getCell('B6');
-        vacioCell.value = 'No se registraron búsquedas individuales aún. Usá la opción [2] del menú ejecutar.bat para realizar una.';
-        vacioCell.font = { italic: true, color: { argb: 'FF777777' } };
+        ws4.mergeCells('B4:G4');
+        var vacioCell = ws4.getCell('B4');
+        vacioCell.value = 'No se registraron consultas individuales aún. Usá la opción [2] de ejecutar.bat para realizar una búsqueda interactiva.';
+        vacioCell.font = { italic: true, color: { argb: 'FF777777' }, size: 10 };
         vacioCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        ws4.getRow(6).height = 24;
-        rWs4 = 7;
+        ws4.getRow(4).height = 30;
     } else {
-        itemsIndividual.forEach(function(it) {
-            ws4.getRow(rWs4).height = 22;
+        // Identificar los registros de la última consulta realizada
+        var ultimoItem = itemsIndividual[itemsIndividual.length - 1];
+        var ultimoProducto = ultimoItem.producto;
+        var ultimaFecha = ultimoItem.fecha;
 
-            ws4.getCell('B' + rWs4).value = it.fecha;
-            ws4.getCell('B' + rWs4).alignment = { vertical: 'middle', horizontal: 'center' };
-            ws4.getCell('B' + rWs4).font = { size: 9 };
+        var itemsUltimaConsulta = [];
+        for (var i = itemsIndividual.length - 1; i >= 0; i--) {
+            if (itemsIndividual[i].producto.toLowerCase().trim() === ultimoProducto.toLowerCase().trim()) {
+                itemsUltimaConsulta.unshift(itemsIndividual[i]);
+                if (itemsUltimaConsulta.length === 3) break;
+            } else {
+                break;
+            }
+        }
+        var itemsPrevios = itemsIndividual.slice(0, itemsIndividual.length - itemsUltimaConsulta.length);
 
-            ws4.getCell('C' + rWs4).value = it.producto;
-            ws4.getCell('C' + rWs4).font = { bold: true, size: 9 };
-            ws4.getCell('C' + rWs4).alignment = { vertical: 'middle', horizontal: 'left' };
+        var validosUltima = itemsUltimaConsulta.filter(function(x) { return x.valido && x.precio !== null && x.precio > 0; });
+        validosUltima.sort(function(a, b) { return a.precio - b.precio; });
 
-            ws4.getCell('D' + rWs4).value = it.supermercado;
-            ws4.getCell('D' + rWs4).alignment = { vertical: 'middle', horizontal: 'center' };
-            ws4.getCell('D' + rWs4).font = { size: 9 };
+        var ganadorUltima = validosUltima.length > 0 ? validosUltima[0] : null;
+        var masCaroUltima = validosUltima.length > 1 ? validosUltima[validosUltima.length - 1] : null;
+        var ahorroUltima = (ganadorUltima && masCaroUltima) ? (masCaroUltima.precio - ganadorUltima.precio) : 0;
+        var ahorroUltimaPct = (masCaroUltima && masCaroUltima.precio > 0) ? ((ahorroUltima / masCaroUltima.precio) * 100) : 0;
 
-            ws4.getCell('E' + rWs4).value = it.nombre;
-            ws4.getCell('E' + rWs4).alignment = { vertical: 'middle', horizontal: 'left' };
-            ws4.getCell('E' + rWs4).font = { size: 9 };
+        var intencion = validador.detectarIntencion(ultimoProducto);
+        var intencionTexto = intencion.tipo + (intencion.marca ? ' (Marca: ' + intencion.marca.toUpperCase() + ')' : '');
 
-            var preCell = ws4.getCell('F' + rWs4);
-            if (it.precio !== null) {
+        // 1. Tarjeta Destacada del Producto Consultado (Bien visible y legible)
+        ws4.mergeCells('B4:G4');
+        var prodCell = ws4.getCell('B4');
+        prodCell.value = '🔎 PRODUCTO CONSULTADO:  "' + ultimoProducto.toUpperCase() + '"';
+        prodCell.font = { name: 'Segoe UI', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+        prodCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+        prodCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws4.getRow(4).height = 36;
+
+        // Subtítulo con metadata técnica
+        ws4.mergeCells('B5:G5');
+        var stWs4 = ws4.getCell('B5');
+        stWs4.value = 'Intención detectada: ' + intencionTexto + '  │  Fecha: ' + ultimaFecha + '  │  Supermercados relevados: Carrefour, COTO y Día %';
+        stWs4.font = { name: 'Segoe UI', size: 9.5, italic: true, color: { argb: 'FF555555' } };
+        stWs4.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws4.getRow(5).height = 20;
+        aplicarBordes(ws4, 'B', 4, 'G', 5);
+
+        // 2. Banner de Veredicto Destacado (Ganador y Ahorro)
+        ws4.mergeCells('B7:G8');
+        var bannerCell = ws4.getCell('B7');
+        if (ganadorUltima) {
+            bannerCell.value = '🏆 TE CONVIENE COMPRAR EN: ' + ganadorUltima.supermercado + ' (' + validador.formatoMoneda(ganadorUltima.precio) + ')\n' +
+                (ahorroUltima > 0
+                    ? '💰 AHORRO POTENCIAL: ' + validador.formatoMoneda(ahorroUltima) + ' (' + ahorroUltimaPct.toFixed(0) + '% menos que en ' + masCaroUltima.supermercado + ')'
+                    : 'ℹ️ Solo ' + ganadorUltima.supermercado + ' tuvo el producto con coincidencia válida disponible.'
+                );
+            bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+            bannerCell.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+        } else {
+            bannerCell.value = '⚠️ NINGÚN SUPERMERCADO ARROJÓ UNA COINCIDENCIA VÁLIDA DISPONIBLE\nEl motor evitó sustituir con productos erróneos (marcas ajenas, frutas o artículos de limpieza).';
+            bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROJO_PASTEL } };
+            bannerCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: COLOR_ROJO_TEXTO } };
+        }
+        bannerCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        ws4.getRow(7).height = 26;
+        ws4.getRow(8).height = 26;
+        aplicarBordes(ws4, 'B', 7, 'G', 8);
+
+        // 3. Cabecera de la tabla comparativa activa
+        ws4.getRow(10).height = 26;
+        var hUlt = [
+            { col: 'B', text: 'Supermercado' },
+            { col: 'C', text: 'Precio Vigente' },
+            { col: 'D', text: 'Estado / Validación' },
+            { col: 'E', text: 'Producto Encontrado en Góndola' },
+            { col: 'F', text: 'Motivo / Regla Aplicada' },
+            { col: 'G', text: 'Enlace Web Directo' }
+        ];
+        hUlt.forEach(function(h) {
+            var cell = ws4.getCell(h.col + '10');
+            cell.value = h.text;
+            cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+        });
+
+        var rWs4 = 11;
+        itemsUltimaConsulta.forEach(function(it) {
+            ws4.getRow(rWs4).height = 26;
+            var esGanador = ganadorUltima && (it.supermercado === ganadorUltima.supermercado) && it.valido;
+
+            var supCell = ws4.getCell('B' + rWs4);
+            supCell.value = it.supermercado;
+            supCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            supCell.font = { name: 'Segoe UI', bold: true, size: 9.5 };
+
+            var preCell = ws4.getCell('C' + rWs4);
+            if (it.precio !== null && it.precio > 0) {
                 preCell.value = it.precio;
                 preCell.numFmt = '"$"#,##0.00';
             } else {
                 preCell.value = it.precioStr || 'N/D';
             }
             preCell.alignment = { vertical: 'middle', horizontal: 'right' };
-            preCell.font = { bold: it.valido };
 
-            var estCell = ws4.getCell('G' + rWs4);
-            estCell.value = it.valido ? ' VALIDADA' : '❌ ' + it.estado;
+            var estCell = ws4.getCell('D' + rWs4);
             estCell.alignment = { vertical: 'middle', horizontal: 'center' };
-            estCell.font = { bold: true, size: 9, color: { argb: it.valido ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO } };
-            if (it.valido) {
+
+            if (esGanador) {
+                preCell.font = { name: 'Segoe UI', bold: true, size: 10, color: { argb: COLOR_VERDE_TEXTO } };
+                estCell.value = '🏆 GANADOR';
                 estCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+                estCell.font = { name: 'Segoe UI', bold: true, size: 9.5, color: { argb: COLOR_VERDE_TEXTO } };
+            } else if (it.valido) {
+                preCell.font = { name: 'Segoe UI', bold: true, size: 9.5, color: { argb: 'FF333333' } };
+                estCell.value = ' VALIDADA';
+                estCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_CLARO } };
+                estCell.font = { name: 'Segoe UI', bold: true, size: 9.5, color: { argb: COLOR_AZUL_TITULO } };
             } else {
+                // Producto descartado (inválido / sin stock): PRECIO TACHADO Y EN GRIS
+                preCell.font = { name: 'Segoe UI', strike: true, italic: true, size: 9.5, color: { argb: 'FF888888' } };
+                preCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9EAE1' } };
+                estCell.value = '❌ ' + it.estado;
                 estCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROJO_PASTEL } };
+                estCell.font = { name: 'Segoe UI', bold: true, size: 9, color: { argb: COLOR_ROJO_TEXTO } };
             }
 
-            var obsCell = ws4.getCell('H' + rWs4);
-            obsCell.value = it.motivo || '-';
-            obsCell.font = { size: 8, color: { argb: 'FF555555' } };
-            obsCell.alignment = { vertical: 'middle', horizontal: 'left' };
+            var nomCell = ws4.getCell('E' + rWs4);
+            nomCell.value = it.nombre;
+            nomCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+            nomCell.font = { name: 'Segoe UI', size: 9.5, bold: esGanador };
+
+            var motCell = ws4.getCell('F' + rWs4);
+            motCell.value = it.motivo || (it.valido ? 'Coincidencia validada correctamente' : '-');
+            motCell.font = { name: 'Segoe UI', size: 8.5, color: { argb: it.valido ? 'FF444444' : COLOR_ROJO_TEXTO } };
+            motCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+
+            var lnkCell = ws4.getCell('G' + rWs4);
+            if (it.url && it.url.startsWith('http')) {
+                lnkCell.value = { text: '🔗 Ver en ' + it.supermercado, hyperlink: it.url };
+                lnkCell.font = { name: 'Segoe UI', color: { argb: 'FF0563C1' }, underline: true, size: 9 };
+            } else {
+                lnkCell.value = '-';
+            }
+            lnkCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            if (esGanador) {
+                supCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+                preCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+                nomCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+                motCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+                lnkCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+            }
 
             rWs4++;
         });
+        aplicarBordes(ws4, 'B', 10, 'G', rWs4 - 1);
+
+        // 4. Pie informativo limpio
+        var rTip = rWs4 + 1;
+        ws4.mergeCells('B' + rTip + ':G' + rTip);
+        var tipCell = ws4.getCell('B' + rTip);
+        tipCell.value = '💡 Tip: Esta hoja muestra exclusivamente la consulta activa. Al realizar una nueva consulta, se actualiza automáticamente.';
+        tipCell.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF666666' } };
+        tipCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws4.getRow(rTip).height = 22;
     }
-    aplicarBordes(ws4, 'B', 5, 'H', rWs4 - 1);
 
     ws4.getColumn('A').width = 4;
-    ws4.getColumn('B').width = 14;
-    ws4.getColumn('C').width = 22;
-    ws4.getColumn('D').width = 16;
-    ws4.getColumn('E').width = 40;
-    ws4.getColumn('F').width = 16;
+    ws4.getColumn('B').width = 18;
+    ws4.getColumn('C').width = 18;
+    ws4.getColumn('D').width = 26;
+    ws4.getColumn('E').width = 46;
+    ws4.getColumn('F').width = 46;
     ws4.getColumn('G').width = 22;
-    ws4.getColumn('H').width = 45;
 
 
     // ==============================================================================
