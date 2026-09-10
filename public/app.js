@@ -116,7 +116,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/api/input');
                 const data = await response.json();
                 if (data.success) {
-                    textareaInput.value = data.data;
+                    // Ocultar cabeceras y ,compra_mes para que sea mas amigable
+                    const lines = data.data.split('\n');
+                    const cleanLines = [];
+                    for(let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if(line) {
+                            cleanLines.push(line.split(',')[0]);
+                        }
+                    }
+                    textareaInput.value = cleanLines.join('\n');
                 } else {
                     textareaInput.value = "Error al cargar la lista.";
                 }
@@ -134,7 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnGuardarLista) {
         btnGuardarLista.addEventListener('click', async () => {
-            const contenido = textareaInput.value;
+            // Reconstruir el CSV internamente
+            const lineas = textareaInput.value.split('\n');
+            let contenido = "producto,modo\n";
+            lineas.forEach(l => {
+                const prod = l.trim();
+                if(prod) {
+                    contenido += `${prod},compra_mes\n`;
+                }
+            });
+
             try {
                 const response = await fetch('/api/input', {
                     method: 'POST',
