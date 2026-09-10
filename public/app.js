@@ -100,4 +100,57 @@ document.addEventListener('DOMContentLoaded', () => {
             executeAction('/api/limpiar', { tipo });
         });
     });
+
+    // Manejo del Modal de Edición de Lista
+    const btnEditarLista = document.getElementById('btn-editar-lista');
+    const editarModal = document.getElementById('editar-lista-modal');
+    const btnCerrarEditarModal = document.getElementById('btn-cerrar-editar-modal');
+    const btnGuardarLista = document.getElementById('btn-guardar-lista');
+    const textareaInput = document.getElementById('textarea-input');
+
+    if (btnEditarLista) {
+        btnEditarLista.addEventListener('click', async () => {
+            editarModal.classList.add('active');
+            textareaInput.value = "Cargando...";
+            try {
+                const response = await fetch('/api/input');
+                const data = await response.json();
+                if (data.success) {
+                    textareaInput.value = data.data;
+                } else {
+                    textareaInput.value = "Error al cargar la lista.";
+                }
+            } catch (e) {
+                textareaInput.value = "Error de conexión.";
+            }
+        });
+    }
+
+    if (btnCerrarEditarModal) {
+        btnCerrarEditarModal.addEventListener('click', () => {
+            editarModal.classList.remove('active');
+        });
+    }
+
+    if (btnGuardarLista) {
+        btnGuardarLista.addEventListener('click', async () => {
+            const contenido = textareaInput.value;
+            try {
+                const response = await fetch('/api/input', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contenido })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    editarModal.classList.remove('active');
+                    addLog(data.message);
+                } else {
+                    alert("Error al guardar: " + data.message);
+                }
+            } catch (e) {
+                alert("Error de conexión al guardar.");
+            }
+        });
+    }
 });

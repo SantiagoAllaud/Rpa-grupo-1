@@ -28,7 +28,10 @@
                     <div class="card-icon"><i class="fa-solid fa-basket-shopping"></i></div>
                     <h3>Compra del Mes</h3>
                     <p>Ejecuta el bot sobre tu lista completa (input.csv) y encuentra la mejor opción.</p>
-                    <button id="btn-compra-mes" class="btn primary"><i class="fa-solid fa-play"></i> Iniciar Proceso</button>
+                    <div class="btn-group mt-1">
+                        <button id="btn-compra-mes" class="btn primary"><i class="fa-solid fa-play"></i> Iniciar Proceso</button>
+                        <button id="btn-editar-lista" class="btn outline"><i class="fa-solid fa-list-ul"></i> Editar Lista</button>
+                    </div>
                 </div>
 
                 <!-- Tarjeta Búsqueda Individual -->
@@ -76,6 +79,19 @@
                 <button class="btn btn-clean" data-tipo="3">Todo el Historial</button>
             </div>
             <button id="btn-cerrar-modal" class="btn outline mt-1">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Edición de Lista -->
+    <div id="editar-lista-modal" class="modal">
+        <div class="modal-content glass-card" style="max-width: 500px;">
+            <h2>Editar Lista Mensual</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Edita el archivo input.csv directamente.</p>
+            <textarea id="textarea-input" style="width: 100%; height: 200px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; font-family: monospace; outline: none;"></textarea>
+            <div class="modal-buttons">
+                <button id="btn-guardar-lista" class="btn primary">Guardar Cambios</button>
+                <button id="btn-cerrar-editar-modal" class="btn outline mt-1">Cancelar</button>
+            </div>
         </div>
     </div>
 

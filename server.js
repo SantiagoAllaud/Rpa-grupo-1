@@ -80,6 +80,30 @@ app.post('/api/limpiar', async (req, res) => {
     }
 });
 
+app.get('/api/input', (req, res) => {
+    try {
+        if (fs.existsSync('input.csv')) {
+            const data = fs.readFileSync('input.csv', 'utf8');
+            res.json({ success: true, data });
+        } else {
+            res.json({ success: true, data: "producto,modo\n" });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.toString() });
+    }
+});
+
+app.post('/api/input', (req, res) => {
+    try {
+        const { contenido } = req.body;
+        if (typeof contenido !== 'string') throw new Error("Contenido inválido.");
+        fs.writeFileSync('input.csv', contenido, 'utf8');
+        res.json({ success: true, message: "Lista mensual actualizada correctamente." });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.toString() });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`=========================================`);
     console.log(`Servidor iniciado: http://localhost:${PORT}`);
