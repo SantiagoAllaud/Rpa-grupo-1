@@ -1,4 +1,31 @@
 modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status
-individual,cola secco,"Gaseosa Schweppes Zero Agua Tónica 1,5 lts","$ 3.600,00 - 20%",Carrefour,https://www.carrefour.com.ar/gaseosa-schweppes-zero-agua-tonica-1-5-lts-751724/p,2026-09-09,COINCIDENCIA NO VÁLIDA
-individual,cola secco,Gaseosa Cola Sin Azúcares Secco Bot 2.25 Ltr,"$1.875,00",COTO,https://www.coto.com.ar/productos/gaseosa-cola-sin-azucares-secco-bot-2-25-ltr-/_/R-00511272-00511272-200,2026-09-09,DISPONIBLE
-individual,cola secco,Gaseosa Coca-Cola Zero 2.25 Lt.,$ 5.900,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-zero-225-lt-121537/p,2026-09-09,DISPONIBLE
+compra_mes,leche,Leche Protein La Serenisima 1L,"$ 2.340,00",Carrefour,https://www.carrefour.com.ar/leche-protein-la-serenisima-1l-676752/p,2026-09-10,DISPONIBLE
+compra_mes,leche,No encontrado,N/D,COTO,https://www.coto.com.ar/productos/leche,2026-09-10,NO ENCONTRADO
+compra_mes,leche,Leche Semi Descremada DIA Larga Vida 1 Lt.,$ 1.700,Día %,https://diaonline.supermercadosdia.com.ar/leche-semi-descremada-dia-larga-vida-1-lt-504/p,2026-09-10,DISPONIBLE
+compra_mes,arroz,Arroz largo fino Molinos Ala 1 kg.,"$ 1.940,00",Carrefour,https://www.carrefour.com.ar/arroz-largo-fino-molinos-ala-1-kg/p,2026-09-10,DISPONIBLE
+compra_mes,arroz,Arroz Largo Fino LUCCHETTI 1kg,"$1.999,00",COTO,https://www.coto.com.ar/productos/arroz-largo-fino-lucchetti-1kg-/_/R-00571989-00571989-200,2026-09-10,DISPONIBLE
+compra_mes,arroz,Arroz Parboil Molinos Ala 1 Kg.,"$ 1.488,50",Día %,https://diaonline.supermercadosdia.com.ar/arroz-parboil-molinos-ala-1-kg-33019/p,2026-09-10,DISPONIBLE
+compra_mes,fideos,Fideos tallarin N5 Lucchetti 500 g.,"$ 1.749,00",Carrefour,https://www.carrefour.com.ar/fideos-tallarin-n5-lucchetti-500-g-726311/p,2026-09-10,DISPONIBLE
+compra_mes,fideos,Fideos Spaghetti N° 7 LUCCHETTI 500g,"$1.750,00",COTO,https://www.coto.com.ar/productos/fideos-spaghetti-n-7-lucchetti-500g-/_/R-00573917-00573917-200,2026-09-10,DISPONIBLE
+compra_mes,fideos,Fideos Tirabuzon N28 Matarazzo 500 Gr.,$ 1.240,Día %,https://diaonline.supermercadosdia.com.ar/fideos-tirabuzon-n28-matarazzo-500-gr-38574/p,2026-09-10,DISPONIBLE
+compra_mes,aceite,Aceite de girasol alto omega Carrefour Classic pet 1.5 lts,"$ 5.405,00 c/u",Carrefour,https://www.carrefour.com.ar/aceite-de-girasol-alto-omega-carrefour-classic-pet-1-5-lts-680457/p,2026-09-10,DISPONIBLE
+compra_mes,aceite,Aceite Girasol CAÑUELAS Botella 1.5 L,"$6.530,00",COTO,https://www.coto.com.ar/productos/aceite-girasol-canuelas-botella-1-5-l-/_/R-00099437-00099437-200,2026-09-10,DISPONIBLE
+compra_mes,aceite,"Aceite de Girasol Dia 1,5 Lt.",$ 4.600,Día %,https://diaonline.supermercadosdia.com.ar/aceite-de-girasol-dia-15-lt-24114/p,2026-09-10,DISPONIBLE
+compra_mes,yerba,Yerba mate Playadito suave con palo 1 kg.,"$ 5.209,00",Carrefour,https://www.carrefour.com.ar/yerba-mate-playadito-suave-con-palo-1-kg/p,2026-09-10,DISPONIBLE
+compra_mes,yerba,Yerba Mate 4 Flex Mañanita Paq 1 Kgm,"$5.370,00",COTO,https://www.coto.com.ar/productos/yerba-mate-4-flex-mananita-paq-1-kgm-/_/R-00499475-00499475-200,2026-09-10,DISPONIBLE
+compra_mes,yerba,Yerba Mate Mañanita 4 Flex 1 Kg.,$ 3.790,Día %,https://diaonline.supermercadosdia.com.ar/yerba-mate-mananita-4-flex-1-kg-269667/p,2026-09-10,DISPONIBLE
+compra_mes,azucar,Azúcar común Azucel tipo A bolsa 1 kg.,"$ 1.390,00",Carrefour,https://www.carrefour.com.ar/azucar-comun-azucel-tipo-a-bolsa-1-kg/p,2026-09-10,DISPONIBLE
+compra_mes,azucar,Azúcar Superior Real LEDESMA 1kg,"$1.567,00",COTO,https://www.coto.com.ar/productos/azucar-superior-real-ledesma-1kg-/_/R-00218834-00218834-200,2026-09-10,DISPONIBLE
+compra_mes,azucar,Azucar Ledesma Refinado Superior 1 Kg.,$ 1.470,Día %,https://diaonline.supermercadosdia.com.ar/azucar-ledesma-refinado-superior-1-kg-129208/p,2026-09-10,DISPONIBLE
+compra_mes,cafe,Nescafé Dolca Suave 170 grs,"$ 10.210,00",Carrefour,https://www.carrefour.com.ar/nescafe-dolca-suave-170-grs-729427/p,2026-09-10,DISPONIBLE
+compra_mes,cafe,Cafe Tostado Molido Super Cabrales 500 Grm,"$29.671,00",COTO,https://www.coto.com.ar/productos/cafe-tostado-molido-super-cabrales-500-grm-/_/R-00542979-00542979-200,2026-09-10,DISPONIBLE
+compra_mes,cafe,Cafe Instantáneo Nescafe Dolca Mixes Caramel Doypack X 125 Gr.,$ 3.042,Día %,https://diaonline.supermercadosdia.com.ar/cafe-instantaneo-nescafe-dolca-mixes-caramel-doypack-x-125-gr-312066/p,2026-09-10,DISPONIBLE
+compra_mes,galletitas,Galletitas clásicas Traviata x5 108 g,"$ 3.160,00",Carrefour,https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p,2026-09-10,DISPONIBLE
+compra_mes,galletitas,Galletitas PEPITOS Con Chips De Chocolate 357g. Pack X 3 Unidades De 119g.,"$6.280,00",COTO,https://www.coto.com.ar/productos/galletitas-pepitos-con-chips-de-chocolate-357g-pack-x-3-unidades-de-119g-/_/R-00532284-00532284-200,2026-09-10,DISPONIBLE
+compra_mes,galletitas,Galletitas Oreo Rellenas con Crema Sabor Original 354 Gr.,$ 6.649,Día %,https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-354-gr-271630/p,2026-09-10,DISPONIBLE
+compra_mes,papel higienico,Papel higiénico doble hoja Higienol plus x4 30 mts,"$ 4.250,00",Carrefour,https://www.carrefour.com.ar/papel-higienico-doble-hoja-higienol-plus-x4-30-mts-736162/p,2026-09-10,DISPONIBLE
+compra_mes,papel higienico,Papel Higiénico HIGIENOL Plus Fusión Doble Hoja 30 M 4 Un,"$3.445,49",COTO,https://www.coto.com.ar/productos/papel-higienico-higienol-plus-fusion-doble-hoja-30-m-4-un-/_/R-00580544-00580544-200,2026-09-10,DISPONIBLE
+compra_mes,papel higienico,Papel Higiénico Doble Hoja 30mts 6 Ud.,$ 2.910,Día %,https://diaonline.supermercadosdia.com.ar/papel-higienico-doble-hoja-30mts-6-ud-834/p,2026-09-10,DISPONIBLE
+individual,Coca Cola 2.25L,Gaseosa Coca-Cola Zero 600 ml,"$ 2.600,00",Carrefour,https://www.carrefour.com.ar/gaseosa-coca-cola-zero-600-ml-763995/p,2026-09-10,DISPONIBLE
+individual,Coca Cola 2.25L,Gaseosa Zero COCA COLA 1.25l,"$2.632,00",COTO,https://www.coto.com.ar/productos/gaseosa-zero-coca-cola-1-25l-/_/R-00487535-00487535-200,2026-09-10,DISPONIBLE
+individual,Coca Cola 2.25L,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar/Coca%20Cola%202.25L,2026-09-10,NO ENCONTRADO

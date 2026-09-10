@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot RPA Supermercados</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <div class="glass-container">
+        <header>
+            <h1><i class="fa-solid fa-robot"></i> RPA Comparador</h1>
+            <p>Optimizador inteligente de precios en supermercados</p>
+        </header>
+
+        <main>
+            <div class="grid-cards">
+                <!-- Tarjeta Compra Mensual -->
+                <div class="card action-card">
+                    <div class="card-icon"><i class="fa-solid fa-basket-shopping"></i></div>
+                    <h3>Compra del Mes</h3>
+                    <p>Ejecuta el bot sobre tu lista completa (input.csv) y encuentra la mejor opción.</p>
+                    <button id="btn-compra-mes" class="btn primary"><i class="fa-solid fa-play"></i> Iniciar Proceso</button>
+                </div>
+
+                <!-- Tarjeta Búsqueda Individual -->
+                <div class="card action-card">
+                    <div class="card-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                    <h3>Búsqueda Rápida</h3>
+                    <p>Busca un producto específico al instante en todos los supermercados.</p>
+                    <div class="input-group">
+                        <input type="text" id="input-producto" placeholder="Ej: Coca Cola 2.25L">
+                        <button id="btn-buscar-individual" class="btn secondary"><i class="fa-solid fa-search"></i></button>
+                    </div>
+                </div>
+
+                <!-- Tarjeta Utilidades -->
+                <div class="card utilities-card">
+                    <div class="card-icon"><i class="fa-solid fa-file-excel"></i></div>
+                    <h3>Reportes y Utilidades</h3>
+                    <div class="btn-group">
+                        <button id="btn-abrir-excel" class="btn outline"><i class="fa-solid fa-file-excel"></i> Ver Reporte</button>
+                        <button id="btn-limpiar" class="btn danger"><i class="fa-solid fa-trash"></i> Limpiar Historial</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de estado (Consola) -->
+            <div class="status-panel">
+                <div class="status-header">
+                    <span><i class="fa-solid fa-terminal"></i> Estado del Sistema</span>
+                    <span id="status-indicator" class="indicator idle">Listo</span>
+                </div>
+                <div id="log-container" class="log-container">
+                    <p class="log-msg">Bienvenido al Bot RPA. Selecciona una acción para comenzar...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Limpieza -->
+    <div id="limpiar-modal" class="modal">
+        <div class="modal-content glass-card">
+            <h2>¿Qué deseas limpiar?</h2>
+            <div class="modal-buttons">
+                <button class="btn btn-clean" data-tipo="1">Lista Mensual</button>
+                <button class="btn btn-clean" data-tipo="2">Búsquedas Individuales</button>
+                <button class="btn btn-clean" data-tipo="3">Todo el Historial</button>
+            </div>
+            <button id="btn-cerrar-modal" class="btn outline mt-1">Cancelar</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
