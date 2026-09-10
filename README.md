@@ -208,7 +208,15 @@ git clone https://github.com/SantiagoAllaud/Rpa-grupo-1.git
 cd "Rpa-grupo-1/Rpa programa"
 npm install
 ```
-*(Esto instalará `exceljs` para la generación de reportes).*
+*(Esto instalará `exceljs` y dependencias adicionales como `express`).*
+
+### Paso 4: Iniciar la Interfaz Gráfica Web (¡Recomendado!)
+Para utilizar el nuevo **Dashboard Web** con botones y diseño moderno:
+1. Haz doble clic en el archivo `interfaz.bat`.
+2. Esto encenderá el servidor y abrirá automáticamente tu navegador web apuntando a `http://localhost:3000`.
+3. Desde la web podrás controlar todo el bot sin usar la consola negra (Búsqueda Individual, Compra del Mes, Limpieza, etc).
+
+*(Nota: Si prefieres la consola de texto clásica, sigue utilizando `ejecutar.bat` en su lugar).*
 
 ---
 
