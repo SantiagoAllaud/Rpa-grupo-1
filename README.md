@@ -23,7 +23,7 @@
 7. [Modo Compra del Mes (Uso Detallado)](#7-modo-compra-del-mes-uso-detallado)
 8. [Modo Búsqueda Individual (Uso Detallado)](#8-modo-búsqueda-individual-uso-detallado)
 9. [Reglas de Validación Estricta y Detección de Intención](#9-reglas-de-validación-estricta-y-detección-de-intención)
-10. [Explicación de las 5 Hojas del Reporte Excel](#10-explicación-de-las-5-hojas-del-reporte-excel)
+10. [Explicación de las 4 Hojas del Reporte Excel](#10-explicación-de-las-4-hojas-del-reporte-excel)
 11. [Manejo de Productos Sin Stock](#11-manejo-de-productos-sin-stock)
 12. [Diferenciación entre Estados de Disponibilidad](#12-diferenciación-entre-estados-de-disponibilidad)
 13. [Funcionamiento del Historial y Persistencia](#13-funcionamiento-del-historial-y-persistencia)
@@ -51,8 +51,8 @@ Este bot RPA actúa como un agente inteligente de software que:
 1. **Navega de forma autónoma** los catálogos públicos de las tiendas online utilizando Google Chrome y TagUI.
 2. **Extrae en tiempo real** el nombre exacto del artículo, precio vigente, enlace directo a la publicación y estado de stock en el DOM.
 3. **Evalúa semánticamente** la coincidencia a través de un motor de validación (`validador.js`) que distingue entre búsquedas específicas (marca, variedad, tamaño) y búsquedas genéricas (categoría abierta).
-4. **Calcula la canasta económica óptima**: Determina el supermercado ganador por costo total acumulado y calcula el ahorro máximo posible comprando cada artículo en su tienda más barata.
-5. **Consolida la información** en dos formatos: persistencia estructurada (`resultados.csv`) y un reporte analítico visual de 5 hojas en Microsoft Excel (`reporte_supermercados.xlsx`).
+4. **Calcula la canasta económica óptima**: Determina el supermercado ganador por costo total acumulado (ponderando cantidades requeridas) y calcula el ahorro máximo posible comprando cada artículo en su tienda más barata.
+5. **Consolida la información** en dos formatos: persistencia estructurada (`resultados.csv` de 9 columnas) y un reporte analítico visual de 4 hojas en Microsoft Excel (`reporte_supermercados.xlsx`).
 
 ---
 
@@ -73,13 +73,16 @@ El robot opera sobre tres plataformas con arquitecturas web y motores de renderi
 ```
 Rpa programa/
 ├── ejecutar.bat                # Lanzador por lotes interactivo con menú de 6 opciones y diagnóstico para Windows.
+├── interfaz.bat                # Lanzador de la interfaz web moderna con servidor local Node.js.
+├── server.js                   # Servidor Express con Server-Sent Events (SSE) para streaming en vivo del RPA.
+├── public/                     # Frontend moderno (index.html, styles.css, app.js) con monitor y CRUD visual.
 ├── supermercados.tag           # Script central de automatización TagUI (control de Chrome y extracción DOM).
-├── validador.js                # Motor de validación semántica, detección de intención y reporte terminal.
-├── generar_excel.js            # Generador del reporte profesional en Excel (5 hojas con estilos y KPIs).
-├── input.csv                   # Archivo editable con la lista predefinida para la Compra del Mes.
-├── resultados.csv              # Persistencia estructurada (8 columnas: modo, producto, precio, stock, etc.).
-├── reporte_supermercados.xlsx  # Reporte final visual generado para el usuario final.
-├── package.json                # Definición de dependencias de Node.js (exceljs).
+├── validador.js                # Motor de validación semántica, manejo de cantidades y suite de 20 tests.
+├── generar_excel.js            # Generador del reporte profesional en Excel (4 hojas con estilos y KPIs).
+├── input.csv                   # Archivo editable con la canasta mensual (formato: producto,cantidad,modo).
+├── resultados.csv              # Persistencia estructurada (9 columnas: modo, producto, precio, stock, cantidad, etc.).
+├── reporte_supermercados.xlsx  # Reporte final visual consolidado en 4 hojas analíticas.
+├── package.json                # Dependencias del proyecto (exceljs, express, cors).
 ├── package-lock.json           # Bloqueo de versiones de dependencias.
 ├── node_modules/               # Módulos instalados de Node.js.
 ├── .gitignore                  # Exclusión de temporales, logs y node_modules para control de versiones.
@@ -87,11 +90,12 @@ Rpa programa/
 ```
 
 ### Detalle de Responsabilidad por Archivo:
-- **`ejecutar.bat`**: Menú amigable en Windows (soporta UTF-8 y codificación CRLF). Incluye validaciones previas de entorno (TagUI en PATH, Node.js, npm, ExcelJS y archivos esenciales). Ofrece 6 opciones: Compra del Mes, Búsqueda Individual, Abrir Excel, Limpieza de Historial, Diagnóstico del Sistema con pruebas unitarias, y Salir.
-- **`supermercados.tag`**: Realiza la automatización de la interfaz gráfica web en Google Chrome. Codifica los parámetros con `encodeURIComponent` para soportar términos compuestos, inyecta JavaScript para extraer datos limpios del DOM y persiste cada registro con 8 columnas en `resultados.csv`.
-- **`validador.js`**: Normaliza cadenas (elimina tildes, puntuación y mayúsculas), reconoce marcas argentinas comunes (Secco, Manaos, Coca Cola, La Serenísima, Lucchetti, etc.), extrae volúmenes o pesos (`2.25L`, `1Kg`) y valida que el producto encontrado coincida con lo pedido sin aceptar falsos positivos. Incluye reporte interactivo para la terminal.
-- **`generar_excel.js`**: Procesa `resultados.csv` mediante la librería `exceljs`. Realiza el análisis matemático del costo de canasta y genera un archivo `.xlsx` estilizado con paletas de color corporativas, bordes, formatos de moneda argentina y enlaces directos.
-- **`input.csv`**: Lista de artículos que integran la compra recurrente mensual del hogar. Puede modificarse libremente agregando o quitando filas.
+- **`ejecutar.bat`**: Menú amigable en Windows (soporta UTF-8 y codificación CRLF). Incluye validaciones previas de entorno (TagUI en PATH, Node.js, npm, ExcelJS y archivos esenciales). Ofrece 6 opciones: Compra del Mes, Búsqueda Individual, Abrir Excel (4 hojas), Limpieza de Historial, Diagnóstico del Sistema con suite de pruebas, y Salir.
+- **`interfaz.bat` / `server.js`**: Servidor web local en puerto 3000 con endpoints REST y streaming SSE (`/api/stream`) para visualizar paso a paso y en vivo las decisiones del bot, estado de tiendas y modal CRUD visual de canasta mensual sin tocar CSV crudo.
+- **`supermercados.tag`**: Realiza la automatización de la interfaz gráfica web en Google Chrome. Extrae datos limpios del DOM, ordena candidatos válidos de menor a mayor precio y persiste cada registro con 9 columnas (`cantidad` incluida) en `resultados.csv`.
+- **`validador.js`**: Normaliza cadenas, reconoce marcas y presentaciones estrictas (ej: 2.25L vs 2L o 1.5L), parsea y guarda `input.csv` en formato `producto,cantidad,modo`, asocia cantidades a resultados y ejecuta 20 tests automatizados (`node validador.js --test`).
+- **`generar_excel.js`**: Procesa `resultados.csv` mediante la librería `exceljs`. Realiza el análisis matemático considerando multiplicadores de cantidad (`precio * cantidad`), generando un archivo `.xlsx` estilizado de exactamente 4 hojas.
+- **`input.csv`**: Lista de artículos de la compra mensual con formato `producto,cantidad,modo`. Compatible con el formato clásico de 2 columnas `producto,modo` asumiendo cantidad 1.
 
 ---
 
@@ -139,20 +143,19 @@ Rpa programa/
                    ▼                                             ▼
           Terminal en Vivo                               Persistencia Local
      (Muestra precios, validación,                         resultados.csv
-      ganador y ahorro en pantalla)                    (8 columnas con estado)
+      ganador y ahorro en pantalla)                   (9 columnas con cantidades)
                                                                  │
                                                                  ▼
                                                       ┌─────────────────────┐
                                                       │  generar_excel.js   │
-                                                      │  - Costo Canasta    │
+                                                      │  - Subtotales (P*Q) │
                                                       │  - Compra Óptima    │
-                                                      │  - Rankings         │
                                                       │  - Historial        │
-                                                      │  - Stock Issues     │
+                                                      │  - Stock & Rechazos │
                                                       └──────────┬──────────┘
                                                                  ▼
                                                     reporte_supermercados.xlsx
-                                                    (5 Hojas con diseño pro)
+                                                    (4 Hojas con diseño pro)
 ```
 
 ### Flujo del Modo Búsqueda Individual
@@ -172,10 +175,10 @@ Rpa programa/
      • Día % devolvió "Shampoo Pantene"   ──► ❌ COINCIDENCIA NO VÁLIDA (Categoría ajena)
               │
               ▼
-   Alerta en Terminal: "Ningún supermercado arrojó coincidencia válida. No se sustituyó."
+   Alerta en Terminal / Web: "Ningún supermercado arrojó coincidencia válida. No se sustituyó."
               │
               ▼
-   Actualiza resultados.csv y reporte_supermercados.xlsx (Hojas 4 y 5)
+   Actualiza resultados.csv y reporte_supermercados.xlsx (Hojas 3 y 4)
 ```
 
 ---
@@ -286,33 +289,31 @@ Se activa cuando la consulta no menciona marcas particulares (ej: *arroz*, *lech
 
 ---
 
-## 10. Explicación de las 5 Hojas del Reporte Excel
+## 10. Explicación de las 4 Hojas del Reporte Excel
 
-El archivo `reporte_supermercados.xlsx` cuenta con 5 pestañas con formato condicional y fórmulas:
+El archivo `reporte_supermercados.xlsx` cuenta con exactamente 4 pestañas profesionales con formato condicional, fórmulas y ponderación matemática por cantidades:
 
 ### Hoja 1: 🏆 Conclusiones
-- **Tarjetas KPI:** Muestra el Supermercado Recomendado para la canasta completa, el Costo Total de la Canasta Ganadora, el Costo de la Compra Combinada Óptima y el Ahorro Máximo Potencial.
-- **Tabla de Evaluación por Supermercado:** Compara el costo total de la compra en cada súper, cuántos productos tuvieron stock disponible y cuántos precios mínimos ganó cada uno.
-- **Tabla de Ganadores por Producto:** Detalla el producto más barato para cada ítem cotizado con enlace directo.
+- **Tarjetas KPI:** Muestra el Supermercado Recomendado para la canasta completa ponderada, el Costo Total de la Canasta Ganadora, el Costo de la Compra Combinada Óptima y el Ahorro Máximo Potencial.
+- **Tabla de Evaluación por Supermercado:** Compara el costo total acumulado (`∑ precio * cantidad`), cantidad de productos con stock y cantidad de ítems ganados por cada tienda.
+- **Tabla de Ganadores por Producto:** Detalla el producto más barato para cada ítem, con cantidad solicitada, precio unitario, subtotal ponderado y enlace web directo.
+- **⚠️ Sección Productos con Problemas:** Cuadro visible integrado directamente en Conclusiones que consolida métricas críticas (total problemas, faltantes de stock, rechazos semánticos) y lista cada incidencia con su motivo.
 - **Bloque Narrativo:** Resumen ejecutivo redactado por el bot con recomendaciones para el comprador.
 
 ### Hoja 2: 🛒 Canasta Mensual
-- **Matriz Comparativa Horizontal:** Filas por artículo solicitado y columnas para Carrefour, COTO y Día %.
-- **Celdas en Verde:** Resaltan visualmente la celda del supermercado que ofrece el menor precio en cada fila.
-- **Fila Total al Pie:** Suma del costo de canasta por supermercado, costo de compra óptima combinada y ahorro total.
+- **Matriz Comparativa Horizontal:** Filas por artículo solicitado con columna explícita de **Cantidad**.
+- **Cálculo de Subtotales Reales:** Cada celda computa y visualiza tanto el precio unitario relevado como el subtotal ponderado (`precio * cantidad`).
+- **Celdas en Verde Pastel:** Resaltan visualmente la celda del supermercado que ofrece el menor precio válido en cada fila.
+- **Fila Total al Pie:** Suma ponderada del costo de canasta por supermercado, costo de compra óptima combinada y ahorro total.
 
-### Hoja 3: 📊 Ranking Menor a Mayor
-- **Tabla Consolidada:** Lista todos los artículos encontrados ordenados estrictamente por precio ascendente.
-- **Medallas de Podio:** Distintivos `🥇 1° MÁS BARATO`, `🥈 2° Puesto`, `🥉 3° Puesto` con formatos numéricos `$ #,##0.00`.
+### Hoja 3: 🔎 Consultas Individuales
+- **Historial de Búsquedas Unitarias:** Registra cada consulta interactiva realizada desde la terminal o frontend web, con fecha, supermercado, producto devuelto, precio, validación y link directo.
 
-### Hoja 4: 🔎 Consultas Individuales
-- **Historial de Búsquedas Unitarias:** Registra cada consulta interactiva realizada desde la terminal con fecha, supermercado, producto devuelto, precio y estado de validación.
-
-### Hoja 5: ⚠️ Disponibilidad y Stock
-- **Control de Calidad:** Lista exclusivamente aquellos productos que presentaron incidencias:
+### Hoja 4: ⚠️ Disponibilidad y Stock
+- **Control de Calidad y Auditoría Técnica:** Detalle exhaustivo de todas las incidencias registradas:
   - Artículos sin stock (`SIN STOCK`).
-  - Artículos inexistentes en la tienda (`NO ENCONTRADO`).
-  - Productos descartados por validación semántica (`COINCIDENCIA NO VÁLIDA`) con la justificación técnica del rechazo.
+  - Artículos inexistentes en el catálogo (`NO ENCONTRADO`).
+  - Productos descartados por validación semántica o de presentación (`COINCIDENCIA NO VÁLIDA`) con la justificación técnica del descarte.
 
 ---
 
@@ -322,7 +323,7 @@ Cuando un producto está agotado en la tienda online:
 1. El script `supermercados.tag` inspecciona selectores DOM como botones deshabilitados, etiquetas `"Agotado"`, `"Sin stock"` o clases CSS `unavailable`.
 2. Asigna el estado `SIN STOCK` en `resultados.csv`.
 3. El módulo `validador.js` excluye automáticamente ese producto de la competencia por el precio más bajo, evitando que una oferta ficticia sin stock gane la comparativa.
-4. Se registra en la Hoja 5 del Excel para advertir al usuario.
+4. Se registra tanto en la sección de problemas de la **Hoja 1 (Conclusiones)** como en la **Hoja 4 (Disponibilidad y Stock)** del Excel para total advertencia del usuario.
 
 ---
 
@@ -341,15 +342,16 @@ El sistema tipifica con rigor cuatro estados posibles para cada consulta:
 
 ## 13. Funcionamiento del Historial y Persistencia
 
-La persistencia se realiza en `resultados.csv` con codificación UTF-8:
+La persistencia se realiza en `resultados.csv` con codificación UTF-8 (9 columnas):
 ```csv
-modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status
-compra_mes,yerba,Yerba mate Playadito suave con palo 1 kg.,"$ 5.209,00",Carrefour,https://...,2026-09-08,DISPONIBLE
-compra_mes,yerba,Yerba Mate 4 Flex Mañanita Paq 1 Kgm,"$5.370,00",COTO,https://...,2026-09-08,DISPONIBLE
-compra_mes,yerba,Yerba Mate Mañanita 4 Flex 1 Kg.,$ 3.790,Día %,https://...,2026-09-08,DISPONIBLE
-individual,leche serenisima,Leche Protein La Serenisima 1L,"$ 3.119,00",Carrefour,https://...,2026-09-08,DISPONIBLE
+modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad
+compra_mes,yerba,Yerba mate Playadito suave con palo 1 kg.,"$ 5.209,00",Carrefour,https://...,2026-09-08,DISPONIBLE,2
+compra_mes,yerba,Yerba Mate 4 Flex Mañanita Paq 1 Kgm,"$5.370,00",COTO,https://...,2026-09-08,DISPONIBLE,2
+compra_mes,yerba,Yerba Mate Mañanita 4 Flex 1 Kg.,$ 3.790,Día %,https://...,2026-09-08,DISPONIBLE,2
+individual,leche serenisima,Leche Protein La Serenisima 1L,"$ 3.119,00",Carrefour,https://...,2026-09-08,DISPONIBLE,1
 ```
 - Cada nueva consulta se agrega al final del archivo sin sobreescribir las anteriores.
+- La columna `cantidad` permite ponderar el gasto real en la canasta mensual y en el reporte Excel.
 - La columna `modo` permite segregar analíticamente los datos de la compra del mes de las consultas rápidas.
 
 ---
@@ -387,6 +389,19 @@ Desde el menú principal de `ejecutar.bat`, la opción `[4] Limpiar resultados /
 ### 5. La ventana de CMD se cerraba inmediatamente al ejecutar `ejecutar.bat`
 - **Causa:** Archivos `.bat` guardados con saltos de línea estilo UNIX (`LF`) o ejecutados desde un directorio relativo diferente al hacer doble clic.
 - **Solución:** `ejecutar.bat` fue formateado estrictamente con saltos de línea Windows CRLF (`\r\n`), inicia con `cd /d "%~dp0"` y `setlocal EnableExtensions EnableDelayedExpansion`, e incluye pausas informativas y diagnóstico integrado (`[5]`) para que nunca se cierre sin previo aviso.
+
+### 6. Suite de Pruebas Automatizadas (20 Tests Unitarios e Integradores)
+El sistema cuenta con una suite integral de 20 pruebas automáticas que verifican todas las reglas de negocio, cálculos de cantidad, validaciones y diseño de 4 hojas del Excel:
+```bash
+node validador.js --test
+```
+La suite valida exhaustivamente:
+- **Normalización y Marcas:** Limpieza de diacríticos y reconocimiento de marcas argentinas líderes.
+- **Intención de Búsqueda:** Clasificación precisa entre consultas `ESPECIFICA` y `GENERICA`.
+- **Presentación Estricta:** Regla infalible donde `2.25L` solo acepta equivalentes exactos (`2250ml`, `2,25 litros`) y rechaza tajantemente `2L`, `1.5L` o `500ml`.
+- **Estructura CSV de Entrada:** Soporte nativo de `producto,cantidad,modo`, retrocompatibilidad con formato de 2 columnas y consolidación de duplicados.
+- **Ponderación de Cantidades:** Cálculo real de subtotales `precio * cantidad` en canastas, compra combinada y ganadores.
+- **Arquitectura Excel de 4 Hojas:** Verificación de que el reporte genera exactamente 4 hojas (`🏆 Conclusiones`, `🛒 Canasta Mensual`, `🔎 Consultas Individuales`, `⚠️ Disponibilidad y Stock`), eliminando por completo "Ranking Menor a Mayor" e integrando los productos con problemas directamente en la primera hoja.
 
 ---
 

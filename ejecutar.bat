@@ -89,8 +89,8 @@ if not exist "generar_excel.js" (
     exit /b 1
 )
 if not exist "input.csv" (
-    echo [AVISO] No se encontró input.csv. Creando canasta básica mensual por defecto...
-    (echo producto,modo& echo leche,compra_mes& echo arroz,compra_mes& echo fideos,compra_mes& echo aceite,compra_mes& echo yerba,compra_mes& echo azucar,compra_mes& echo cafe,compra_mes& echo galletitas,compra_mes& echo papel higienico,compra_mes) > input.csv
+    echo [AVISO] No se encontró input.csv. Creando canasta básica mensual por defecto con cantidades...
+    (echo producto,cantidad,modo& echo leche,2,compra_mes& echo arroz,1,compra_mes& echo fideos,4,compra_mes& echo aceite,2,compra_mes& echo yerba,1,compra_mes& echo azucar,1,compra_mes& echo cafe,1,compra_mes& echo galletitas,2,compra_mes& echo papel higienico,1,compra_mes) > input.csv
 )
 
 :: 5. Argumentos directos por línea de comandos (ej: ejecutar.bat "gaseosa secco pomelo")
@@ -113,12 +113,13 @@ echo   [3] Abrir reporte Excel (reporte_supermercados.xlsx)
 echo   [4] Editar lista de compra del mes (input.csv)
 echo   [5] Limpiar resultados / historial (sin alterar input.csv)
 echo   [6] Diagnóstico del sistema y pruebas unitarias
-echo   [7] Salir
+echo   [7] Iniciar Interfaz Web / Frontend (Dashboard en navegador)
+echo   [8] Salir
 echo.
 echo (Tip: También podés escribir directamente el nombre del producto aquí)
 echo.
 set "OPCION=1"
-set /p "OPCION=Elige opción [1-7] o escribe el producto [1]: "
+set /p "OPCION=Elige opción [1-8] o escribe el producto [1]: "
 
 set "OPCION_FIRST="
 for /f "tokens=1" %%a in ("!OPCION!") do set "OPCION_FIRST=%%a"
@@ -129,7 +130,12 @@ if "!OPCION_FIRST!"=="3" goto :abrir_excel
 if "!OPCION_FIRST!"=="4" goto :editar_input
 if "!OPCION_FIRST!"=="5" goto :menu_limpieza
 if "!OPCION_FIRST!"=="6" goto :ejecutar_diagnostico
-if "!OPCION_FIRST!"=="7" goto :salir
+if "!OPCION_FIRST!"=="7" goto :abrir_interfaz
+if "!OPCION_FIRST!"=="8" goto :salir
+if /i "!OPCION_FIRST!"=="web" goto :abrir_interfaz
+if /i "!OPCION_FIRST!"=="interfaz" goto :abrir_interfaz
+if /i "!OPCION_FIRST!"=="front" goto :abrir_interfaz
+if /i "!OPCION_FIRST!"=="frontend" goto :abrir_interfaz
 if /i "!OPCION_FIRST!"=="editar" goto :editar_input
 if /i "!OPCION_FIRST!"=="edit" goto :editar_input
 if /i "!OPCION_FIRST!"=="input" goto :editar_input
@@ -224,7 +230,7 @@ echo.
 call tagui supermercados.tag input.csv
 
 echo.
-echo [INFO] Procesando datos y generando reporte Excel con 5 hojas...
+echo [INFO] Procesando datos y generando reporte Excel con 4 hojas...
 call node generar_excel.js
 
 if exist "reporte_supermercados.xlsx" (
@@ -356,6 +362,14 @@ echo Diagnóstico finalizado con éxito.
 echo ==============================================================================
 echo.
 pause
+goto :menu
+
+:abrir_interfaz
+echo.
+echo ==============================================================================
+echo [INFO] Iniciando Interfaz Web (Frontend Dashboard)...
+echo ==============================================================================
+call interfaz.bat
 goto :menu
 
 :salir

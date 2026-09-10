@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot RPA Supermercados</title>
+    <title>Bot RPA Supermercados - Comparador Inteligente 2026</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -17,8 +17,9 @@
 
     <div class="glass-container">
         <header>
-            <h1><i class="fa-solid fa-robot"></i> RPA Comparador</h1>
-            <p>Optimizador inteligente de precios en supermercados</p>
+            <div class="badge-header">UTN FRCU 2026 • AUTOMATIZACIÓN RPA</div>
+            <h1><i class="fa-solid fa-robot"></i> RPA Comparador de Supermercados</h1>
+            <p>Optimizador inteligente de precios en Carrefour, COTO y Día % con cálculo real de cantidades</p>
         </header>
 
         <main>
@@ -27,10 +28,10 @@
                 <div class="card action-card">
                     <div class="card-icon"><i class="fa-solid fa-basket-shopping"></i></div>
                     <h3>Compra del Mes</h3>
-                    <p>Ejecuta el bot sobre tu lista completa (input.csv) y encuentra la mejor opción.</p>
+                    <p>Releva tu canasta mensual con cantidades, calcula la opción óptima y encuentra faltantes.</p>
                     <div class="btn-group mt-1">
                         <button id="btn-compra-mes" class="btn primary"><i class="fa-solid fa-play"></i> Iniciar Proceso</button>
-                        <button id="btn-editar-lista" class="btn outline"><i class="fa-solid fa-list-ul"></i> Editar Lista</button>
+                        <button id="btn-editar-lista" class="btn outline"><i class="fa-solid fa-list-check"></i> 🛒 Canasta del Mes</button>
                     </div>
                 </div>
 
@@ -38,60 +39,194 @@
                 <div class="card action-card">
                     <div class="card-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
                     <h3>Búsqueda Rápida</h3>
-                    <p>Busca un producto específico al instante en todos los supermercados.</p>
+                    <p>Consulta un producto específico en vivo en las 3 cadenas sin alterar la canasta mensual.</p>
                     <div class="input-group">
-                        <input type="text" id="input-producto" placeholder="Ej: Coca Cola 2.25L">
-                        <button id="btn-buscar-individual" class="btn secondary"><i class="fa-solid fa-search"></i></button>
+                        <input type="text" id="input-producto" placeholder="Ej: Coca Cola 2.25L, Arroz Ala 1kg...">
+                        <button id="btn-buscar-individual" class="btn secondary" title="Buscar"><i class="fa-solid fa-search"></i></button>
+                    </div>
+                    <!-- Filtros de búsqueda rápida -->
+                    <div class="filter-container mt-1">
+                        <span class="filter-label">Filtro:</span>
+                        <div class="filter-buttons">
+                            <button class="filter-btn active" data-filter="Todos">Todos</button>
+                            <button class="filter-btn" data-filter="Carrefour">Carrefour</button>
+                            <button class="filter-btn" data-filter="COTO">COTO</button>
+                            <button class="filter-btn" data-filter="Día %">Día %</button>
+                        </div>
+                    </div>
+                    <!-- Término visible de búsqueda -->
+                    <div id="quick-search-term-box" class="search-term-box" style="display: none;">
+                        <span class="search-term-lbl"><i class="fa-solid fa-tag"></i> Término:</span>
+                        <span id="quick-search-term-val" class="search-term-val">-</span>
                     </div>
                 </div>
 
                 <!-- Tarjeta Utilidades -->
                 <div class="card utilities-card">
                     <div class="card-icon"><i class="fa-solid fa-file-excel"></i></div>
-                    <h3>Reportes y Utilidades</h3>
-                    <div class="btn-group">
-                        <button id="btn-abrir-excel" class="btn outline"><i class="fa-solid fa-file-excel"></i> Ver Reporte</button>
+                    <h3>Reporte y Limpieza</h3>
+                    <p>Accede al reporte analítico consolidado en Excel (4 hojas) o administra tu historial.</p>
+                    <div class="btn-group mt-1">
+                        <button id="btn-abrir-excel" class="btn outline"><i class="fa-solid fa-file-excel"></i> Abrir Excel (4 Hojas)</button>
                         <button id="btn-limpiar" class="btn danger"><i class="fa-solid fa-trash"></i> Limpiar Historial</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Panel de estado (Consola) -->
+            <!-- PANEL DE DECISIONES DEL RPA EN TIEMPO REAL -->
+            <section class="live-panel" id="live-panel">
+                <div class="live-header">
+                    <div class="live-title">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>🤖 RPA EN EJECUCIÓN</span>
+                    </div>
+                    <div class="live-status-group">
+                        <span id="live-cycle-state" class="badge-cycle">EN ESPERA</span>
+                        <span id="status-indicator" class="indicator idle">Listo</span>
+                    </div>
+                </div>
+
+                <div class="live-product-banner">
+                    <span class="lbl-prod">PRODUCTO EN RELEVAMIENTO:</span>
+                    <strong id="live-current-product">Ninguno activo</strong>
+                </div>
+
+                <!-- Tarjetas de supermercados en vivo -->
+                <div class="live-stores-grid">
+                    <!-- Carrefour -->
+                    <div class="store-live-card" id="card-carrefour">
+                        <div class="store-card-header">
+                            <span class="store-name"><i class="fa-solid fa-cart-shopping"></i> Carrefour</span>
+                            <span class="store-badge" id="badge-carrefour">En espera</span>
+                        </div>
+                        <div class="store-card-body">
+                            <div class="info-row"><span class="k">Buscando:</span><span class="v" id="search-carrefour">-</span></div>
+                            <div class="info-row"><span class="k">Encontrado:</span><span class="v name" id="found-carrefour">-</span></div>
+                            <div class="info-row"><span class="k">Precio:</span><span class="v price" id="price-carrefour">-</span></div>
+                            <div class="info-row"><span class="k">Validación:</span><span class="v" id="val-carrefour">-</span></div>
+                        </div>
+                    </div>
+
+                    <!-- COTO -->
+                    <div class="store-live-card" id="card-coto">
+                        <div class="store-card-header">
+                            <span class="store-name"><i class="fa-solid fa-store"></i> COTO</span>
+                            <span class="store-badge" id="badge-coto">En espera</span>
+                        </div>
+                        <div class="store-card-body">
+                            <div class="info-row"><span class="k">Buscando:</span><span class="v" id="search-coto">-</span></div>
+                            <div class="info-row"><span class="k">Encontrado:</span><span class="v name" id="found-coto">-</span></div>
+                            <div class="info-row"><span class="k">Precio:</span><span class="v price" id="price-coto">-</span></div>
+                            <div class="info-row"><span class="k">Validación:</span><span class="v" id="val-coto">-</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Día % -->
+                    <div class="store-live-card" id="card-dia">
+                        <div class="store-card-header">
+                            <span class="store-name"><i class="fa-solid fa-tags"></i> Día %</span>
+                            <span class="store-badge" id="badge-dia">En espera</span>
+                        </div>
+                        <div class="store-card-body">
+                            <div class="info-row"><span class="k">Buscando:</span><span class="v" id="search-dia">-</span></div>
+                            <div class="info-row"><span class="k">Encontrado:</span><span class="v name" id="found-dia">-</span></div>
+                            <div class="info-row"><span class="k">Precio:</span><span class="v price" id="price-dia">-</span></div>
+                            <div class="info-row"><span class="k">Validación:</span><span class="v" id="val-dia">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cuadro de Decisión del RPA -->
+                <div class="decision-container" id="decision-container">
+                    <div class="decision-header">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>🧠 DECISIÓN DEL COMPARADOR</span>
+                    </div>
+                    <div class="decision-body">
+                        <div class="decision-main">
+                            <div class="winner-row">
+                                <span class="winner-lbl">Supermercado Ganador:</span>
+                                <strong id="decision-winner" class="winner-val">-</strong>
+                            </div>
+                            <div class="reason-row">
+                                <span class="reason-lbl">Motivo:</span>
+                                <span id="decision-reason" class="reason-val">-</span>
+                            </div>
+                        </div>
+                        <div class="decision-ranking-box">
+                            <span class="ranking-lbl">Ranking de Precios Válidos:</span>
+                            <div id="decision-ranking-list" class="ranking-items">
+                                <span class="no-data">Esperando comparativa...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel de estado (Consola virtual) -->
             <div class="status-panel">
                 <div class="status-header">
-                    <span><i class="fa-solid fa-terminal"></i> Estado del Sistema</span>
-                    <span id="status-indicator" class="indicator idle">Listo</span>
+                    <span><i class="fa-solid fa-terminal"></i> Registro de Actividad y Logs</span>
+                    <button id="btn-limpiar-consola" class="btn-sm-clear" title="Limpiar"><i class="fa-solid fa-eraser"></i></button>
                 </div>
                 <div id="log-container" class="log-container">
-                    <p class="log-msg">Bienvenido al Bot RPA. Selecciona una acción para comenzar...</p>
+                    <p class="log-msg">Bienvenido al Bot RPA Comparador. Listo para operar...</p>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Modal de Limpieza -->
-    <div id="limpiar-modal" class="modal">
-        <div class="modal-content glass-card">
-            <h2>¿Qué deseas limpiar?</h2>
-            <div class="modal-buttons">
-                <button class="btn btn-clean" data-tipo="1">Lista Mensual</button>
-                <button class="btn btn-clean" data-tipo="2">Búsquedas Individuales</button>
-                <button class="btn btn-clean" data-tipo="3">Todo el Historial</button>
+    <!-- MODAL DE EDICIÓN VISUAL DE CANASTA MENSUAL -->
+    <div id="editar-lista-modal" class="modal">
+        <div class="modal-content glass-card modal-canasta">
+            <div class="modal-top">
+                <h2><i class="fa-solid fa-basket-shopping"></i> 🛒 CANASTA DEL MES</h2>
+                <button id="btn-cerrar-x" class="btn-close-modal">&times;</button>
             </div>
-            <button id="btn-cerrar-modal" class="btn outline mt-1">Cancelar</button>
+            <p class="modal-sub">Administra los productos y sus cantidades requeridas para la compra mensual.</p>
+
+            <div class="canasta-table-container">
+                <table class="canasta-table">
+                    <thead>
+                        <tr>
+                            <th>Producto Solicitado</th>
+                            <th class="th-cant">Cantidad</th>
+                            <th class="th-act">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="canasta-tbody">
+                        <!-- Generado por app.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Formulario para agregar producto -->
+            <div class="agregar-form">
+                <input type="text" id="nuevo-prod-nombre" placeholder="Nombre del producto (ej: Leche, Arroz, Fideos...)">
+                <input type="number" id="nuevo-prod-cant" min="1" value="1" title="Cantidad" placeholder="Cant.">
+                <button id="btn-agregar-prod" class="btn secondary"><i class="fa-solid fa-plus"></i> Agregar</button>
+            </div>
+
+            <div id="canasta-feedback" class="canasta-msg" style="display: none;"></div>
+
+            <div class="modal-buttons-row">
+                <button id="btn-guardar-canasta" class="btn primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Canasta</button>
+                <button id="btn-cerrar-editar-modal" class="btn outline">Cancelar</button>
+            </div>
         </div>
     </div>
 
-    <!-- Modal de Edición de Lista -->
-    <div id="editar-lista-modal" class="modal">
-        <div class="modal-content glass-card" style="max-width: 500px;">
-            <h2>Editar Lista Mensual</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Escribe <strong>un producto por línea</strong>. (El formato CSV se generará solo).</p>
-            <textarea id="textarea-input" placeholder="Ej: leche la serenisima\nfideos matarrazo..." style="width: 100%; height: 200px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; font-family: monospace; outline: none;"></textarea>
+    <!-- MODAL DE LIMPIEZA -->
+    <div id="limpiar-modal" class="modal">
+        <div class="modal-content glass-card">
+            <h2>¿Qué deseas limpiar?</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem;">(Nota: Tu archivo input.csv nunca se modificará ni se borrará)</p>
             <div class="modal-buttons">
-                <button id="btn-guardar-lista" class="btn primary">Guardar Cambios</button>
-                <button id="btn-cerrar-editar-modal" class="btn outline mt-1">Cancelar</button>
+                <button class="btn btn-clean" data-tipo="1"><i class="fa-solid fa-rotate-left"></i> Registros de Compra del Mes</button>
+                <button class="btn btn-clean" data-tipo="2"><i class="fa-solid fa-magnifying-glass"></i> Historial de Búsquedas Individuales</button>
+                <button class="btn btn-clean" data-tipo="3"><i class="fa-solid fa-trash-can"></i> Todo el Historial de Resultados</button>
             </div>
+            <button id="btn-cerrar-modal" class="btn outline mt-1">Cancelar</button>
         </div>
     </div>
 
