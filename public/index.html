@@ -39,9 +39,22 @@
                     <div class="card-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
                     <h3>Búsqueda Rápida</h3>
                     <p>Busca un producto específico al instante en todos los supermercados.</p>
-                    <div class="input-group">
-                        <input type="text" id="input-producto" placeholder="Ej: Coca Cola 2.25L">
-                        <button id="btn-buscar-individual" class="btn secondary"><i class="fa-solid fa-search"></i></button>
+                    <div class="search-form-grid">
+                        <div class="form-field">
+                            <label for="input-producto"><i class="fa-solid fa-tag"></i> Producto</label>
+                            <input type="text" id="input-producto" placeholder="Ej: Gaseosa Secco Pomelo, Leche, Arroz">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-field" style="flex: 1;">
+                                <label for="input-cantidad"><i class="fa-solid fa-hashtag"></i> Cantidad</label>
+                                <input type="number" id="input-cantidad" value="1" min="1" step="1">
+                            </div>
+                            <div class="form-field" style="flex: 1.5;">
+                                <label for="input-unidad"><i class="fa-solid fa-scale-balanced"></i> Unidad</label>
+                                <input type="text" id="input-unidad" placeholder="Default: 2L / 1kg">
+                            </div>
+                        </div>
+                        <button id="btn-buscar-individual" class="btn secondary mt-1"><i class="fa-solid fa-search"></i> Buscar Producto</button>
                     </div>
                 </div>
 
@@ -66,6 +79,108 @@
                     <p class="log-msg">Bienvenido al Bot RPA. Selecciona una acción para comenzar...</p>
                 </div>
             </div>
+
+            <!-- Visor en Vivo RPA (Estilo Reproductor YouTube) -->
+            <div class="player-panel" id="player-panel">
+                <div class="player-header">
+                    <div class="player-header-left">
+                        <span class="live-badge" id="player-live-badge"><i class="fa-solid fa-circle"></i> EN VIVO</span>
+                        <span class="player-title"><i class="fa-brands fa-chrome"></i> RPA — EJECUCIÓN DEL BOT</span>
+                    </div>
+                    <div class="player-view-switcher" id="player-view-switcher">
+                        <button type="button" class="btn-player-tab active" id="tab-stream-view" title="Ver ejecución en vivo"><i class="fa-solid fa-video"></i> Stream Bot</button>
+                        <button type="button" class="btn-player-tab" id="tab-results-view" title="Ver resultados interactivos y Excel"><i class="fa-solid fa-table-list"></i> Resultados & Excel</button>
+                    </div>
+                    <div class="player-header-right">
+                        <span id="player-status-badge" class="player-status idle">RPA EN ESPERA</span>
+                    </div>
+                </div>
+                <div class="player-screen-wrapper" id="player-screen-wrapper">
+                    <!-- Google Chrome Browser Frame Mockup -->
+                    <div class="chrome-window" id="chrome-window">
+                        <!-- 1. Chrome Tab Bar -->
+                        <div class="chrome-top-bar">
+                            <div class="chrome-tabs-container">
+                                <div class="chrome-tab active" id="chrome-active-tab">
+                                    <span class="chrome-tab-icon" id="chrome-tab-icon"><i class="fa-brands fa-chrome" style="color: #4285f4;"></i></span>
+                                    <span class="chrome-tab-text" id="chrome-tab-title">Google Chrome — Bot RPA</span>
+                                    <span class="chrome-tab-close" title="Cerrar pestaña">&times;</span>
+                                </div>
+                                <div class="chrome-tab-add" title="Nueva pestaña"><i class="fa-solid fa-plus"></i></div>
+                            </div>
+                            <div class="chrome-window-actions">
+                                <button type="button" class="chrome-win-btn win-min" title="Minimizar">&#8212;</button>
+                                <button type="button" class="chrome-win-btn win-max" title="Maximizar">&#9633;</button>
+                                <button type="button" class="chrome-win-btn win-close" title="Cerrar">&times;</button>
+                            </div>
+                        </div>
+
+                        <!-- 2. Chrome Navigation Bar & Omnibox -->
+                        <div class="chrome-nav-bar">
+                            <div class="chrome-nav-controls">
+                                <button type="button" class="chrome-icon-btn" id="chrome-back-btn" title="Atrás"><i class="fa-solid fa-arrow-left"></i></button>
+                                <button type="button" class="chrome-icon-btn" id="chrome-fwd-btn" title="Adelante"><i class="fa-solid fa-arrow-right"></i></button>
+                                <button type="button" class="chrome-icon-btn" id="chrome-reload-btn" title="Volver a cargar"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                            <div class="chrome-omnibox" id="chrome-omnibox">
+                                <span class="chrome-security-badge" id="chrome-security-badge" title="La conexión es segura">
+                                    <i class="fa-solid fa-lock"></i>
+                                </span>
+                                <span class="chrome-url-prefix">https://</span>
+                                <input type="text" class="chrome-url-input" id="chrome-address-input" value="www.carrefour.com.ar" readonly spellcheck="false" />
+                                <span class="chrome-star-btn" title="Guardar en marcadores"><i class="fa-regular fa-star"></i></span>
+                            </div>
+                            <div class="chrome-tools">
+                                <span class="chrome-tool-icon" title="Extensiones"><i class="fa-solid fa-puzzle-piece"></i></span>
+                                <span class="chrome-tool-icon chrome-avatar" title="Perfil de Bot RPA"><i class="fa-solid fa-circle-user"></i></span>
+                                <span class="chrome-tool-icon" title="Opciones de Chrome"><i class="fa-solid fa-ellipsis-vertical"></i></span>
+                            </div>
+                        </div>
+
+                        <!-- 3. Chrome Bookmarks Bar -->
+                        <div class="chrome-bookmarks-bar">
+                            <div class="chrome-bookmark" id="bm-carrefour" title="Ir a Carrefour">
+                                <i class="fa-solid fa-cart-shopping" style="color: #3b82f6;"></i> <span>Carrefour</span>
+                            </div>
+                            <div class="chrome-bookmark" id="bm-coto" title="Ir a COTO">
+                                <i class="fa-solid fa-basket-shopping" style="color: #ef4444;"></i> <span>COTO Digital</span>
+                            </div>
+                            <div class="chrome-bookmark" id="bm-dia" title="Ir a Día %">
+                                <i class="fa-solid fa-percent" style="color: #f59e0b;"></i> <span>Día %</span>
+                            </div>
+                            <div class="chrome-bookmark" id="bm-reporte" title="Ver Reporte Excel">
+                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> <span>Reporte Excel</span>
+                            </div>
+                        </div>
+
+                        <!-- 4. Chrome Viewport (Contenido del Canvas o iframe) -->
+                        <div class="chrome-viewport" id="chrome-viewport">
+                            <canvas id="rpa-stream-canvas" width="1280" height="720"></canvas>
+                            <iframe id="player-interactive-frame" src="/visor-proceso.html" title="Resultados Interactivos y Excel"></iframe>
+                            <div class="player-overlay" id="player-overlay">
+                                <div class="overlay-content">
+                                    <div class="overlay-icon" id="overlay-icon"><i class="fa-brands fa-chrome" style="color: #4285f4;"></i></div>
+                                    <h3 id="overlay-title">RPA EN ESPERA</h3>
+                                    <p id="overlay-subtitle">Inicia una búsqueda o Compra del Mes para comenzar</p>
+                                    <div class="overlay-spinner" id="overlay-spinner" style="display:none;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="player-controls">
+                    <button type="button" class="player-control-btn" id="btn-player-play" title="Reproducir"><i class="fa-solid fa-play"></i></button>
+                    <div class="player-progress-container" id="player-progress-container">
+                        <div class="player-progress-bar">
+                            <div class="player-progress-fill" id="player-progress-fill"></div>
+                            <div class="player-progress-thumb"></div>
+                        </div>
+                    </div>
+                    <span class="player-time" id="player-time">00:00</span>
+                    <button type="button" class="player-control-btn" title="Audio"><i class="fa-solid fa-volume-high"></i></button>
+                    <button type="button" class="player-control-btn" id="btn-player-fullscreen" title="Pantalla completa"><i class="fa-solid fa-expand"></i></button>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -82,15 +197,39 @@
         </div>
     </div>
 
-    <!-- Modal de Edición de Lista -->
+    <!-- Modal de Edición de Lista Interactiva -->
     <div id="editar-lista-modal" class="modal">
-        <div class="modal-content glass-card" style="max-width: 500px;">
-            <h2>Editar Lista Mensual</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Escribe <strong>un producto por línea</strong>. (El formato CSV se generará solo).</p>
-            <textarea id="textarea-input" placeholder="Ej: leche la serenisima\nfideos matarrazo..." style="width: 100%; height: 200px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; font-family: monospace; outline: none;"></textarea>
+        <div class="modal-content glass-card modal-lista-dialog">
+            <div class="modal-header-flex">
+                <h2><i class="fa-solid fa-list-check" style="color: #6366f1; margin-right: 0.5rem;"></i> Editar Canasta Mensual</h2>
+                <button type="button" class="btn-modal-close" id="btn-cerrar-x-modal" title="Cerrar">&times;</button>
+            </div>
+            <p class="modal-subtitle">
+                Configura cada producto con su <strong>cantidad</strong> y <strong>unidad</strong>. Si omites la cantidad será <strong>1</strong>. Si omites la unidad se tomará el <strong>valor típico</strong> del supermercado (ej: 2L para gaseosas, 500g para arroz/fideos, 1kg para azúcar).
+            </p>
+            <div class="modal-table-container">
+                <table class="modal-table" id="modal-table-canasta">
+                    <thead>
+                        <tr>
+                            <th style="width: 46%;">Producto</th>
+                            <th style="width: 22%;">Cantidad</th>
+                            <th style="width: 24%;">Unidad</th>
+                            <th style="width: 8%; text-align: center;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-tbody-canasta">
+                        <!-- Filas generadas dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-add-row-bar">
+                <button type="button" class="btn outline btn-sm" id="btn-agregar-fila-modal">
+                    <i class="fa-solid fa-plus"></i> Agregar Producto
+                </button>
+            </div>
             <div class="modal-buttons">
-                <button id="btn-guardar-lista" class="btn primary">Guardar Cambios</button>
-                <button id="btn-cerrar-editar-modal" class="btn outline mt-1">Cancelar</button>
+                <button id="btn-guardar-lista" class="btn primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Lista</button>
+                <button id="btn-cerrar-editar-modal" class="btn outline">Cancelar</button>
             </div>
         </div>
     </div>

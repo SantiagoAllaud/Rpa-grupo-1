@@ -1,16 +1,69 @@
 const express = require('express');
+const http = require('http');
+const { WebSocketServer } = require('ws');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+function getValidador() {
+    try {
+        delete require.cache[require.resolve('./validador.js')];
+    } catch(e) {}
+    return require('./validador.js');
+}
+
+function getRpaRunner() {
+    try {
+        delete require.cache[require.resolve('./rpa_runner.js')];
+    } catch(e) {}
+    return require('./rpa_runner.js');
+}
 
 const app = express();
+const server = http.createServer(app);
 const PORT = 3000;
+
+// Servidor WebSocket integrado en /ws/rpa-stream
+const wss = new WebSocketServer({ server, path: '/ws/rpa-stream' });
+const wsClients = new Set();
+
+// Control de concurrencia: máximo 1 ejecución simultánea
+let isRpaRunning = false;
+let ultimoProcesoData = null;
+
+wss.on('connection', (ws) => {
+    wsClients.add(ws);
+    // Enviar estado actual al cliente que recién se conecta
+    if (isRpaRunning) {
+        ws.send(JSON.stringify({ type: 'status', state: 'live', message: 'Navegador RPA conectado' }));
+    } else {
+        ws.send(JSON.stringify({ type: 'status', state: 'idle', message: 'RPA en espera' }));
+    }
+
+    ws.on('close', () => {
+        wsClients.delete(ws);
+    });
+
+    ws.on('error', () => {
+        wsClients.delete(ws);
+    });
+});
+
+function broadcast(msgObj) {
+    const payload = JSON.stringify(msgObj);
+    for (const ws of wsClients) {
+        if (ws.readyState === ws.OPEN) {
+            try {
+                ws.send(payload);
+            } catch (e) {}
+        }
+    }
+}
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 function runCommand(command) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         exec(command, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error ejecutando: ${command}`);
@@ -23,35 +76,224 @@ function runCommand(command) {
     });
 }
 
-app.post('/api/compra-mes', async (req, res) => {
+// Endpoint para obtener último proceso (usado por visor-proceso.html si no hay query param)
+app.get('/api/ultimo-proceso', (req, res) => {
+    res.json({ success: true, data: ultimoProcesoData });
+});
+
+// Endpoint para obtener todos los datos procesados para el mini-navegador interactivo
+app.get('/api/datos-completos', (req, res) => {
     try {
-        console.log("Iniciando compra del mes...");
-        await runCommand('tagui supermercados.tag input.csv');
-        await runCommand('node generar_excel.js');
-        res.json({ success: true, message: "Compra del mes finalizada exitosamente. Reporte generado." });
-    } catch (e) {
-        res.status(500).json({ success: false, message: e.toString() });
+        const csvPath = path.join(__dirname, 'resultados.csv');
+        if (!fs.existsSync(csvPath)) {
+            return res.json({ success: true, items: [], ultimoProceso: ultimoProcesoData });
+        }
+        const vEngine = getValidador();
+        const items = vEngine.leerResultadosCSV(csvPath);
+        items.forEach(it => {
+            const v = vEngine.validarCoincidencia(it.producto, it);
+            it.estado = v.estado;
+            it.valido = v.valido;
+            it.motivo = v.motivo;
+            it.intencion = v.intencion;
+        });
+        res.json({ success: true, items, ultimoProceso: ultimoProcesoData });
+    } catch(e) {
+        res.status(500).json({ success: false, message: e.message });
     }
 });
 
-app.post('/api/buscar-individual', async (req, res) => {
+// Endpoint para descargar reporte_supermercados.xlsx
+app.get('/api/descargar-excel', (req, res) => {
+    const file = path.join(__dirname, 'reporte_supermercados.xlsx');
+    if (fs.existsSync(file)) {
+        res.download(file, 'reporte_supermercados.xlsx');
+    } else {
+        res.status(404).send('Reporte no encontrado');
+    }
+});
+
+// Endpoint para descargar resultados.csv
+app.get('/api/descargar-csv', (req, res) => {
+    const file = path.join(__dirname, 'resultados.csv');
+    if (fs.existsSync(file)) {
+        res.download(file, 'resultados.csv');
+    } else {
+        res.status(404).send('Archivo CSV no encontrado');
+    }
+});
+
+// Endpoint para leer contenido de resultados.csv
+app.get('/api/csv-raw', (req, res) => {
     try {
-        const producto = req.body.producto;
-        if (!producto) {
-            return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
+        const file = path.join(__dirname, 'resultados.csv');
+        if (fs.existsSync(file)) {
+            const data = fs.readFileSync(file, 'utf8');
+            res.json({ success: true, csv: data });
+        } else {
+            res.json({ success: true, csv: '' });
         }
+    } catch(e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Endpoint para Compra del Mes
+app.post('/api/compra-mes', async (req, res) => {
+    if (isRpaRunning) {
+        return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
+    }
+
+    isRpaRunning = true;
+    broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
+
+    try {
+        console.log("Iniciando compra del mes...");
         
-        console.log(`Iniciando búsqueda para: ${producto}`);
-        await runCommand('node validador.js --limpiar 2');
-        await runCommand(`node validador.js --crear-temp "${producto}"`);
-        await runCommand('tagui supermercados.tag temp_input.csv');
-        if (fs.existsSync('temp_input.csv')) fs.unlinkSync('temp_input.csv');
+        // Leer input.csv
+        let itemsCanasta = [];
+        if (fs.existsSync('input.csv')) {
+            const lines = fs.readFileSync('input.csv', 'utf8').split('\n');
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const parts = line.split(',');
+                    const prod = parts[0] ? parts[0].trim() : '';
+                    const cant = parts[1] ? (parseInt(parts[1], 10) || 1) : 1;
+                    const unid = parts[2] ? parts[2].trim() : '';
+                    if (prod) itemsCanasta.push({ producto: prod, cantidad: cant, unidad: unid });
+                }
+            }
+        }
+
+        if (itemsCanasta.length === 0) {
+            itemsCanasta = [
+                { producto: 'leche', cantidad: 1, unidad: '1L' },
+                { producto: 'arroz', cantidad: 1, unidad: '1kg' },
+                { producto: 'fideos', cantidad: 1, unidad: '500g' },
+                { producto: 'aceite', cantidad: 1, unidad: '1.5L' }
+            ];
+        }
+
+        broadcast({ type: 'log', message: `Iniciando compra mensual para ${itemsCanasta.length} productos...` });
+
+        const resultados = await getRpaRunner().runRPA({
+            modo: 'compra_mes',
+            items: itemsCanasta,
+            onFrame: (base64Data) => {
+                broadcast({ type: 'frame', data: base64Data });
+            },
+            onStatus: (st) => {
+                if (st.type === 'log') {
+                    broadcast({ type: 'log', message: st.message });
+                } else if (st.type === 'progress') {
+                    broadcast({ type: 'progress', percent: st.percent, message: st.message });
+                    broadcast({ type: 'log', message: st.message });
+                } else if (st.type === 'connected') {
+                    broadcast({ type: 'status', state: 'live', message: st.message });
+                } else if (st.type === 'finished') {
+                    broadcast({ type: 'status', state: 'finished', message: st.message });
+                } else if (st.type === 'nav') {
+                    broadcast(st);
+                }
+            }
+        });
+
+        ultimoProcesoData = {
+            producto: 'Compra del Mes',
+            cantidad: itemsCanasta.length,
+            unidad: 'ítems',
+            items: resultados
+        };
+
+        // Generar Excel consolidado
+        await runCommand('node generar_excel.js');
+
+        res.json({
+            success: true,
+            message: "Compra del mes finalizada exitosamente. Reporte generado."
+        });
+    } catch (e) {
+        console.error("Error en compra del mes:", e);
+        broadcast({ type: 'status', state: 'error', message: 'RPA FINALIZADO CON ERROR: ' + e.message });
+        res.status(500).json({ success: false, message: e.toString() });
+    } finally {
+        isRpaRunning = false;
+        setTimeout(() => {
+            broadcast({ type: 'status', state: 'idle', message: 'RPA en espera' });
+        }, 5000);
+    }
+});
+
+// Endpoint para Búsqueda Individual
+app.post('/api/buscar-individual', async (req, res) => {
+    if (isRpaRunning) {
+        return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
+    }
+
+    const { producto, cantidad = 1, unidad = '' } = req.body;
+    if (!producto || !producto.trim()) {
+        return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
+    }
+
+    const cantNum = parseInt(cantidad, 10) > 0 ? parseInt(cantidad, 10) : 1;
+
+    isRpaRunning = true;
+    broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
+
+    try {
+        console.log(`Iniciando búsqueda para: ${producto} (x${cantNum} ${unidad})`);
+        broadcast({ type: 'log', message: `Búsqueda individual: "${producto}" (Cantidad: ${cantNum}, Unidad: ${unidad || 'Automática'})` });
+
+        // Limpieza de consulta previa
+        getValidador().limpiarResultados('2');
+
+        const resultados = await getRpaRunner().runRPA({
+            modo: 'individual',
+            items: [{ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() }],
+            onFrame: (base64Data) => {
+                broadcast({ type: 'frame', data: base64Data });
+            },
+            onStatus: (st) => {
+                if (st.type === 'log') {
+                    broadcast({ type: 'log', message: st.message });
+                } else if (st.type === 'progress') {
+                    broadcast({ type: 'progress', percent: st.percent, message: st.message });
+                    broadcast({ type: 'log', message: st.message });
+                } else if (st.type === 'connected') {
+                    broadcast({ type: 'status', state: 'live', message: st.message });
+                } else if (st.type === 'finished') {
+                    broadcast({ type: 'status', state: 'finished', message: st.message });
+                } else if (st.type === 'nav') {
+                    broadcast(st);
+                }
+            }
+        });
+
+        ultimoProcesoData = {
+            producto: producto.trim(),
+            cantidad: cantNum,
+            unidad: unidad.trim(),
+            items: resultados
+        };
+
+        // Reporte en consola y actualización de Excel
         await runCommand(`node validador.js --reporte-individual "${producto}"`);
         await runCommand('node generar_excel.js');
-        
-        res.json({ success: true, message: "Búsqueda individual completada. Reporte actualizado." });
+
+        res.json({
+            success: true,
+            message: `Búsqueda de "${producto}" completada. Reporte Excel actualizado.`
+        });
     } catch (e) {
+        console.error("Error en búsqueda individual:", e);
+        broadcast({ type: 'status', state: 'error', message: 'RPA FINALIZADO CON ERROR: ' + e.message });
         res.status(500).json({ success: false, message: e.toString() });
+    } finally {
+        isRpaRunning = false;
+        setTimeout(() => {
+            broadcast({ type: 'status', state: 'idle', message: 'RPA en espera' });
+        }, 5000);
     }
 });
 
@@ -104,8 +346,9 @@ app.post('/api/input', (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`=========================================`);
     console.log(`Servidor iniciado: http://localhost:${PORT}`);
+    console.log(`WebSocket Stream: ws://localhost:${PORT}/ws/rpa-stream`);
     console.log(`=========================================`);
 });

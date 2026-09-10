@@ -25,6 +25,10 @@ echo Iniciando Servidor del Bot RPA (Web UI)...
 echo Por favor, no cierres esta ventana mientras uses el sistema.
 echo ==============================================================================
 
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3000 ^| findstr LISTENING 2^>nul') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+
 start /B node server.js
 ping 127.0.0.1 -n 3 >nul 2>&1
 start http://localhost:3000
