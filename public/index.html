@@ -80,96 +80,30 @@
                 </div>
             </div>
 
-            <!-- Visor en Vivo RPA (Estilo Reproductor YouTube) -->
+            <!-- Visor en Vivo RPA (Reproductor Moderno del Chrome Real) -->
             <div class="player-panel" id="player-panel">
                 <div class="player-header">
                     <div class="player-header-left">
                         <span class="live-badge" id="player-live-badge"><i class="fa-solid fa-circle"></i> EN VIVO</span>
-                        <span class="player-title"><i class="fa-brands fa-chrome"></i> RPA — EJECUCIÓN DEL BOT</span>
-                    </div>
-                    <div class="player-view-switcher" id="player-view-switcher">
-                        <button type="button" class="btn-player-tab active" id="tab-stream-view" title="Ver ejecución en vivo"><i class="fa-solid fa-video"></i> Stream Bot</button>
-                        <button type="button" class="btn-player-tab" id="tab-results-view" title="Ver resultados interactivos y Excel"><i class="fa-solid fa-table-list"></i> Resultados & Excel</button>
+                        <span class="player-title"><i class="fa-solid fa-desktop"></i> NAVEGADOR DEL RPA</span>
                     </div>
                     <div class="player-header-right">
                         <span id="player-status-badge" class="player-status idle">RPA EN ESPERA</span>
                     </div>
                 </div>
                 <div class="player-screen-wrapper" id="player-screen-wrapper">
-                    <!-- Google Chrome Browser Frame Mockup -->
-                    <div class="chrome-window" id="chrome-window">
-                        <!-- 1. Chrome Tab Bar -->
-                        <div class="chrome-top-bar">
-                            <div class="chrome-tabs-container">
-                                <div class="chrome-tab active" id="chrome-active-tab">
-                                    <span class="chrome-tab-icon" id="chrome-tab-icon"><i class="fa-brands fa-chrome" style="color: #4285f4;"></i></span>
-                                    <span class="chrome-tab-text" id="chrome-tab-title">Google Chrome — Bot RPA</span>
-                                    <span class="chrome-tab-close" title="Cerrar pestaña">&times;</span>
-                                </div>
-                                <div class="chrome-tab-add" title="Nueva pestaña"><i class="fa-solid fa-plus"></i></div>
-                            </div>
-                            <div class="chrome-window-actions">
-                                <button type="button" class="chrome-win-btn win-min" title="Minimizar">&#8212;</button>
-                                <button type="button" class="chrome-win-btn win-max" title="Maximizar">&#9633;</button>
-                                <button type="button" class="chrome-win-btn win-close" title="Cerrar">&times;</button>
-                            </div>
-                        </div>
-
-                        <!-- 2. Chrome Navigation Bar & Omnibox -->
-                        <div class="chrome-nav-bar">
-                            <div class="chrome-nav-controls">
-                                <button type="button" class="chrome-icon-btn" id="chrome-back-btn" title="Atrás"><i class="fa-solid fa-arrow-left"></i></button>
-                                <button type="button" class="chrome-icon-btn" id="chrome-fwd-btn" title="Adelante"><i class="fa-solid fa-arrow-right"></i></button>
-                                <button type="button" class="chrome-icon-btn" id="chrome-reload-btn" title="Volver a cargar"><i class="fa-solid fa-rotate-right"></i></button>
-                            </div>
-                            <div class="chrome-omnibox" id="chrome-omnibox">
-                                <span class="chrome-security-badge" id="chrome-security-badge" title="La conexión es segura">
-                                    <i class="fa-solid fa-lock"></i>
-                                </span>
-                                <span class="chrome-url-prefix">https://</span>
-                                <input type="text" class="chrome-url-input" id="chrome-address-input" value="www.carrefour.com.ar" readonly spellcheck="false" />
-                                <span class="chrome-star-btn" title="Guardar en marcadores"><i class="fa-regular fa-star"></i></span>
-                            </div>
-                            <div class="chrome-tools">
-                                <span class="chrome-tool-icon" title="Extensiones"><i class="fa-solid fa-puzzle-piece"></i></span>
-                                <span class="chrome-tool-icon chrome-avatar" title="Perfil de Bot RPA"><i class="fa-solid fa-circle-user"></i></span>
-                                <span class="chrome-tool-icon" title="Opciones de Chrome"><i class="fa-solid fa-ellipsis-vertical"></i></span>
-                            </div>
-                        </div>
-
-                        <!-- 3. Chrome Bookmarks Bar -->
-                        <div class="chrome-bookmarks-bar">
-                            <div class="chrome-bookmark" id="bm-carrefour" title="Ir a Carrefour">
-                                <i class="fa-solid fa-cart-shopping" style="color: #3b82f6;"></i> <span>Carrefour</span>
-                            </div>
-                            <div class="chrome-bookmark" id="bm-coto" title="Ir a COTO">
-                                <i class="fa-solid fa-basket-shopping" style="color: #ef4444;"></i> <span>COTO Digital</span>
-                            </div>
-                            <div class="chrome-bookmark" id="bm-dia" title="Ir a Día %">
-                                <i class="fa-solid fa-percent" style="color: #f59e0b;"></i> <span>Día %</span>
-                            </div>
-                            <div class="chrome-bookmark" id="bm-reporte" title="Ver Reporte Excel">
-                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> <span>Reporte Excel</span>
-                            </div>
-                        </div>
-
-                        <!-- 4. Chrome Viewport (Contenido del Canvas o iframe) -->
-                        <div class="chrome-viewport" id="chrome-viewport">
-                            <canvas id="rpa-stream-canvas" width="1280" height="720"></canvas>
-                            <iframe id="player-interactive-frame" src="/visor-proceso.html" title="Resultados Interactivos y Excel"></iframe>
-                            <div class="player-overlay" id="player-overlay">
-                                <div class="overlay-content">
-                                    <div class="overlay-icon" id="overlay-icon"><i class="fa-brands fa-chrome" style="color: #4285f4;"></i></div>
-                                    <h3 id="overlay-title">RPA EN ESPERA</h3>
-                                    <p id="overlay-subtitle">Inicia una búsqueda o Compra del Mes para comenzar</p>
-                                    <div class="overlay-spinner" id="overlay-spinner" style="display:none;"></div>
-                                </div>
-                            </div>
+                    <canvas id="rpa-stream-canvas" width="1280" height="720"></canvas>
+                    <div class="player-overlay" id="player-overlay">
+                        <div class="overlay-content">
+                            <div class="overlay-icon" id="overlay-icon"><i class="fa-solid fa-tv"></i></div>
+                            <h3 id="overlay-title">RPA EN ESPERA</h3>
+                            <p id="overlay-subtitle">Inicia una búsqueda o Compra del Mes para observar el navegador en vivo</p>
+                            <div class="overlay-spinner" id="overlay-spinner" style="display:none;"></div>
                         </div>
                     </div>
                 </div>
                 <div class="player-controls">
-                    <button type="button" class="player-control-btn" id="btn-player-play" title="Reproducir"><i class="fa-solid fa-play"></i></button>
+                    <button type="button" class="player-control-btn" id="btn-player-play" title="Transmisión"><i class="fa-solid fa-play"></i></button>
                     <div class="player-progress-container" id="player-progress-container">
                         <div class="player-progress-bar">
                             <div class="player-progress-fill" id="player-progress-fill"></div>

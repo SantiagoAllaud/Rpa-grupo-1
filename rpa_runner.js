@@ -136,43 +136,7 @@ async function eliminarCookies(page) {
     } catch (e) {}
 }
 
-// Barra visual tipo Omnibox que muestra el tipeo de la URL en el stream
-async function mostrarTipeoUrl(page, url, delayMs = 25) {
-    try {
-        await page.evaluate((targetUrl) => {
-            let bar = document.getElementById('__rpa_url_bar');
-            if (!bar) {
-                bar = document.createElement('div');
-                bar.id = '__rpa_url_bar';
-                bar.style.cssText = 'position:fixed; top:0; left:0; right:0; height:46px; background:linear-gradient(90deg, #0f172a, #1e293b); border-bottom:2px solid #6366f1; z-index:2147483647; display:flex; align-items:center; padding:0 18px; font-family:monospace; font-size:14px; color:#f8fafc; box-shadow:0 6px 20px rgba(0,0,0,0.6); gap:12px;';
-                bar.innerHTML = `
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444;"></span>
-                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#f59e0b;"></span>
-                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
-                    </div>
-                    <div style="flex:1; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:6px 12px; display:flex; align-items:center; gap:8px; overflow:hidden;">
-                        <span style="color:#10b981; font-weight:700;">🔒 HTTPS</span>
-                        <span id="__rpa_url_text" style="color:#e2e8f0; font-weight:600; white-space:nowrap;"></span>
-                        <span id="__rpa_cursor" style="display:inline-block; width:7px; height:15px; background:#6366f1;"></span>
-                    </div>
-                    <span style="background:#4f46e5; color:#ffffff; padding:4px 10px; border-radius:5px; font-size:11px; font-weight:700; letter-spacing:0.5px;">IR ↵</span>
-                `;
-                document.body.appendChild(bar);
-            }
-        }, url);
 
-        for (let i = 1; i <= url.length; i++) {
-            const sub = url.substring(0, i);
-            await page.evaluate((text) => {
-                const el = document.getElementById('__rpa_url_text');
-                if (el) el.textContent = text;
-            }, sub);
-            await sleep(delayMs);
-        }
-        await sleep(350);
-    } catch (e) {}
-}
 
 // Función principal de ejecución RPA
 async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatus = null }) {
@@ -251,10 +215,8 @@ async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatu
             // ==============================================================
             // 1. CARREFOUR ARGENTINA
             // ==============================================================
-            if (onStatus) onStatus({ type: 'nav', url: 'https://www.carrefour.com.ar', title: `Carrefour Argentina — Buscando "${prodClean}"`, store: 'carrefour' });
             if (onStatus) onStatus({ type: 'log', message: `[Carrefour] Ingresando a la tienda para buscar: "${prodClean}"` });
             try {
-                await mostrarTipeoUrl(page, 'https://www.carrefour.com.ar');
                 await page.goto('https://www.carrefour.com.ar', { waitUntil: 'domcontentloaded', timeout: 30000 });
                 await eliminarCookies(page);
                 await sleep(1500);
@@ -265,13 +227,10 @@ async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatu
                 const foundInput = await page.$(searchSelector);
                 if (foundInput) {
                     await humanType(page, searchSelector, prodClean, 75);
-                    if (onStatus) onStatus({ type: 'nav', url: `https://www.carrefour.com.ar/${prodUrl}`, title: `${prodClean} — Carrefour Argentina`, store: 'carrefour' });
                     await page.keyboard.press('Enter');
                     await sleep(4000);
                     await eliminarCookies(page);
                 } else {
-                    if (onStatus) onStatus({ type: 'nav', url: `https://www.carrefour.com.ar/${prodUrl}`, title: `${prodClean} — Carrefour Argentina`, store: 'carrefour' });
-                    await mostrarTipeoUrl(page, `https://www.carrefour.com.ar/${prodUrl}`);
                     await page.goto(`https://www.carrefour.com.ar/${prodUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
                     await eliminarCookies(page);
                     await sleep(3500);
@@ -431,10 +390,8 @@ async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatu
             // ==============================================================
             // 2. COTO DIGITAL
             // ==============================================================
-            if (onStatus) onStatus({ type: 'nav', url: 'https://www.coto.com.ar', title: `COTO Digital — Buscando "${prodClean}"`, store: 'coto' });
             if (onStatus) onStatus({ type: 'log', message: `[COTO] Ingresando a la tienda para buscar: "${prodClean}"` });
             try {
-                await mostrarTipeoUrl(page, 'https://www.coto.com.ar');
                 await page.goto('https://www.coto.com.ar', { waitUntil: 'domcontentloaded', timeout: 30000 });
                 await eliminarCookies(page);
                 await sleep(1500);
@@ -443,13 +400,10 @@ async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatu
                 const cotoInput = await page.$('input#search, input[placeholder*="Buscar" i], input[type="search"]');
                 if (cotoInput) {
                     await humanType(page, 'input#search, input[placeholder*="Buscar" i], input[type="search"]', prodClean, 75);
-                    if (onStatus) onStatus({ type: 'nav', url: `https://www.coto.com.ar/productos/${prodUrl}`, title: `${prodClean} — COTO Digital`, store: 'coto' });
                     await page.keyboard.press('Enter');
                     await sleep(4000);
                     await eliminarCookies(page);
                 } else {
-                    if (onStatus) onStatus({ type: 'nav', url: `https://www.coto.com.ar/productos/${prodUrl}`, title: `${prodClean} — COTO Digital`, store: 'coto' });
-                    await mostrarTipeoUrl(page, `https://www.coto.com.ar/productos/${prodUrl}`);
                     await page.goto(`https://www.coto.com.ar/productos/${prodUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
                     await eliminarCookies(page);
                     await sleep(3500);
@@ -612,10 +566,8 @@ async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatu
             // ==============================================================
             // 3. DÍA %
             // ==============================================================
-            if (onStatus) onStatus({ type: 'nav', url: 'https://diaonline.supermercadosdia.com.ar', title: `Supermercados DÍA % — Buscando "${prodClean}"`, store: 'dia' });
             if (onStatus) onStatus({ type: 'log', message: `[Día %] Ingresando a la tienda para buscar: "${prodClean}"` });
             try {
-                await mostrarTipeoUrl(page, 'https://diaonline.supermercadosdia.com.ar');
                 await page.goto('https://diaonline.supermercadosdia.com.ar', { waitUntil: 'domcontentloaded', timeout: 30000 });
                 await eliminarCookies(page);
                 await sleep(1500);
@@ -624,13 +576,10 @@ async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatu
                 const diaInput = await page.$('input[placeholder*="Buscar" i], input[type="search"]');
                 if (diaInput) {
                     await humanType(page, 'input[placeholder*="Buscar" i], input[type="search"]', prodClean, 75);
-                    if (onStatus) onStatus({ type: 'nav', url: `https://diaonline.supermercadosdia.com.ar/${prodUrl}`, title: `${prodClean} — Supermercados DÍA %`, store: 'dia' });
                     await page.keyboard.press('Enter');
                     await sleep(4000);
                     await eliminarCookies(page);
                 } else {
-                    if (onStatus) onStatus({ type: 'nav', url: `https://diaonline.supermercadosdia.com.ar/${prodUrl}`, title: `${prodClean} — Supermercados DÍA %`, store: 'dia' });
-                    await mostrarTipeoUrl(page, `https://diaonline.supermercadosdia.com.ar/${prodUrl}`);
                     await page.goto(`https://diaonline.supermercadosdia.com.ar/${prodUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
                     await eliminarCookies(page);
                     await sleep(3500);
@@ -798,55 +747,32 @@ async function runRPA({ modo = 'individual', items = [], onFrame = null, onStatu
         }
 
         // ==============================================================
-        // FASE 2 Y 3: COMPARACIÓN EN VIVO Y CONSTRUCCIÓN VISUAL DE EXCEL
+        // FASE 2: GENERACIÓN DEL REPORTE EXCEL REAL (ExcelJS)
         // ==============================================================
         if (onStatus) {
             onStatus({
                 type: 'progress',
-                percent: 85,
-                message: 'Iniciando motor de comparación y estructuración de reporte...'
+                percent: 90,
+                message: 'Generando reporte_supermercados.xlsx con ExcelJS...'
             });
+            onStatus({ type: 'log', message: 'Generando reporte_supermercados.xlsx...' });
         }
 
-        const primerItem = items[0] || {};
-        const prodPrincipal = (typeof primerItem === 'string') ? primerItem : primerItem.producto;
-        const cantPrincipal = primerItem.cantidad || 1;
-        const unidPrincipal = primerItem.unidad || '';
-
-        const payloadObj = {
-            producto: prodPrincipal,
-            cantidad: cantPrincipal,
-            unidad: unidPrincipal,
-            items: resultadosSesion
-        };
-
-        const jsonStr = JSON.stringify(payloadObj);
-        const b64Data = Buffer.from(jsonStr).toString('base64');
-        const visorUrl = `http://localhost:3000/visor-proceso.html?data=${b64Data}`;
-
-        try {
-            await page.goto(visorUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-            await sleep(4500); // Dar tiempo a que el usuario aprecie la comparativa y armado en el stream
-        } catch (e) {
-            console.error('[WARN] Error cargando visor-proceso en Chrome:', e.message);
-        }
-
-        // En paralelo generar el archivo Excel en disco
-        if (onStatus) onStatus({ type: 'log', message: 'Generando reporte_supermercados.xlsx...' });
         try {
             execSync('node generar_excel.js', { cwd: __dirname, stdio: 'pipe' });
-            if (onStatus) onStatus({ type: 'log', message: '✓ Archivo Excel generado y sincronizado.' });
+            if (onStatus) onStatus({ type: 'log', message: '✓ Archivo Excel generado: reporte_supermercados.xlsx (listo para abrir o descargar)' });
         } catch (e) {
             console.error('[ERROR generando Excel]:', e.message);
+            if (onStatus) onStatus({ type: 'log', message: `[WARN] Error generando Excel: ${e.message}` });
         }
 
-        await sleep(2000);
+        await sleep(1000);
 
         if (onStatus) {
             onStatus({
                 type: 'finished',
                 percent: 100,
-                message: 'Ejecución completada con éxito. Reporte Excel disponible.'
+                message: '✓ RPA FINALIZADO. Reporte Excel real disponible.'
             });
         }
 

@@ -28,118 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerTime = document.getElementById('player-time');
     const btnPlayerFullscreen = document.getElementById('btn-player-fullscreen');
     const playerScreenWrapper = document.getElementById('player-screen-wrapper');
-    const tabStreamView = document.getElementById('tab-stream-view');
-    const tabResultsView = document.getElementById('tab-results-view');
-    const interactiveFrame = document.getElementById('player-interactive-frame');
-
-    // Elementos de la Ventana de Google Chrome
-    const chromeAddressInput = document.getElementById('chrome-address-input');
-    const chromeTabTitle = document.getElementById('chrome-tab-title');
-    const chromeTabIcon = document.getElementById('chrome-tab-icon');
-    const chromeReloadBtn = document.getElementById('chrome-reload-btn');
-    const bmCarrefour = document.getElementById('bm-carrefour');
-    const bmCoto = document.getElementById('bm-coto');
-    const bmDia = document.getElementById('bm-dia');
-    const bmReporte = document.getElementById('bm-reporte');
 
     let streamTimer = null;
     let streamSeconds = 0;
     let ws = null;
     let currentRpaState = 'idle';
 
-    // Actualiza la barra de direcciones y pestaña de Google Chrome
-    function updateChromeNav(url, title, store) {
-        if (chromeAddressInput && url) {
-            const displayUrl = url.replace(/^https?:\/\//, '');
-            chromeAddressInput.value = displayUrl;
-        }
-        if (chromeTabTitle && title) {
-            chromeTabTitle.textContent = title;
-        }
-        if (chromeTabIcon) {
-            if (store === 'carrefour') {
-                chromeTabIcon.innerHTML = '<i class="fa-solid fa-cart-shopping" style="color: #3b82f6;"></i>';
-            } else if (store === 'coto') {
-                chromeTabIcon.innerHTML = '<i class="fa-solid fa-basket-shopping" style="color: #ef4444;"></i>';
-            } else if (store === 'dia') {
-                chromeTabIcon.innerHTML = '<i class="fa-solid fa-percent" style="color: #f59e0b;"></i>';
-            } else if (store === 'reporte') {
-                chromeTabIcon.innerHTML = '<i class="fa-solid fa-file-excel" style="color: #10b981;"></i>';
-            } else {
-                chromeTabIcon.innerHTML = '<i class="fa-brands fa-chrome" style="color: #4285f4;"></i>';
-            }
-        }
-    }
-
-    // Alternar entre Stream en Vivo e Informe Interactivo (mini-navegador)
-    function switchPlayerView(mode) {
-        if (mode === 'results') {
-            if (tabStreamView) tabStreamView.classList.remove('active');
-            if (tabResultsView) tabResultsView.classList.add('active');
-            if (playerCanvas) playerCanvas.style.display = 'none';
-            if (playerOverlay) playerOverlay.classList.add('hidden');
-            if (interactiveFrame) {
-                interactiveFrame.style.display = 'block';
-                // Recargar iframe con timestamp para asegurar datos frescos
-                if (!interactiveFrame.src || interactiveFrame.src.endsWith('/visor-proceso.html')) {
-                    interactiveFrame.src = '/visor-proceso.html?t=' + Date.now();
-                }
-            }
-            updateChromeNav('http://localhost:3000/visor-proceso.html', 'Resultados & Reporte Excel — Bot RPA', 'reporte');
-        } else {
-            if (tabResultsView) tabResultsView.classList.remove('active');
-            if (tabStreamView) tabStreamView.classList.add('active');
-            if (interactiveFrame) interactiveFrame.style.display = 'none';
-            if (playerCanvas) playerCanvas.style.display = 'block';
-            if (playerOverlay && currentRpaState !== 'live') {
-                playerOverlay.classList.remove('hidden');
-            }
-            if (currentRpaState === 'idle') {
-                updateChromeNav('www.carrefour.com.ar', 'Google Chrome — Bot RPA', 'google');
-            }
-        }
-    }
-
-    if (tabStreamView) {
-        tabStreamView.addEventListener('click', () => switchPlayerView('stream'));
-    }
-    if (tabResultsView) {
-        tabResultsView.addEventListener('click', () => switchPlayerView('results'));
-    }
-
-    // Interacciones de la barra de Chrome
-    if (bmCarrefour) {
-        bmCarrefour.addEventListener('click', () => {
-            switchPlayerView('stream');
-            updateChromeNav('https://www.carrefour.com.ar', 'Carrefour Argentina', 'carrefour');
-        });
-    }
-    if (bmCoto) {
-        bmCoto.addEventListener('click', () => {
-            switchPlayerView('stream');
-            updateChromeNav('https://www.coto.com.ar', 'COTO Digital', 'coto');
-        });
-    }
-    if (bmDia) {
-        bmDia.addEventListener('click', () => {
-            switchPlayerView('stream');
-            updateChromeNav('https://diaonline.supermercadosdia.com.ar', 'Supermercados DÍA %', 'dia');
-        });
-    }
-    if (bmReporte) {
-        bmReporte.addEventListener('click', () => {
-            switchPlayerView('results');
-        });
-    }
-    if (chromeReloadBtn) {
-        chromeReloadBtn.addEventListener('click', () => {
-            if (interactiveFrame && tabResultsView && tabResultsView.classList.contains('active')) {
-                interactiveFrame.src = '/visor-proceso.html?t=' + Date.now();
-            }
-        });
-    }
-
-    // Conectar WebSocket
+    // Conectar WebSocket para Stream en Vivo del Navegador Real
     function connectStream() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/rpa-stream`;
@@ -157,8 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderFrame(msg.data);
                 } else if (msg.type === 'status') {
                     handlePlayerStatus(msg.state, msg.message);
-                } else if (msg.type === 'nav') {
-                    updateChromeNav(msg.url, msg.title, msg.store);
                 } else if (msg.type === 'progress') {
                     if (typeof msg.percent === 'number') {
                         playerProgressFill.style.width = `${msg.percent}%`;
@@ -183,11 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     connectStream();
 
-    // Dibujar frame en el canvas
+    // Dibujar frame en el canvas en tiempo real
     function renderFrame(base64Data) {
         const img = new Image();
         img.onload = () => {
             canvasCtx.drawImage(img, 0, 0, playerCanvas.width, playerCanvas.height);
+            if (playerOverlay && !playerOverlay.classList.contains('hidden')) {
+                playerOverlay.classList.add('hidden');
+            }
         };
         img.src = 'data:image/jpeg;base64,' + base64Data;
     }
@@ -212,18 +108,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Manejador de estados del reproductor
+    // Manejador de estados del reproductor conforme a las especificaciones
     function handlePlayerStatus(state, message) {
         currentRpaState = state;
         if (state === 'live') {
-            switchPlayerView('stream');
             playerOverlay.classList.add('hidden');
             playerLiveBadge.className = 'live-badge';
             playerStatusBadge.className = 'player-status live';
-            playerStatusBadge.textContent = 'NAVEGADOR CONECTADO';
+            playerStatusBadge.textContent = '🔴 EN VIVO — NAVEGADOR CONECTADO';
             startTimer();
         } else if (state === 'connecting') {
-            switchPlayerView('stream');
             playerOverlay.classList.remove('hidden');
             overlayTitle.textContent = '🔴 EN VIVO';
             overlaySubtitle.textContent = message || 'Conectando con el navegador Google Chrome...';
@@ -231,28 +125,26 @@ document.addEventListener('DOMContentLoaded', () => {
             overlayIcon.style.display = 'none';
             playerLiveBadge.className = 'live-badge';
             playerStatusBadge.className = 'player-status connecting';
-            playerStatusBadge.textContent = 'CONECTANDO...';
-            playerProgressFill.style.width = '10%';
+            playerStatusBadge.textContent = '🔴 EN VIVO — CONECTANDO...';
+            playerProgressFill.style.width = '15%';
             startTimer();
         } else if (state === 'finished') {
             stopTimer();
             playerProgressFill.style.width = '100%';
             playerLiveBadge.className = 'live-badge inactive';
             playerStatusBadge.className = 'player-status finished';
-            playerStatusBadge.textContent = '✓ FINALIZADO';
-            
-            // Recargar el visor de reportes interactivo con los últimos datos y cambiar a vista interactiva
-            if (interactiveFrame) {
-                interactiveFrame.src = '/visor-proceso.html?t=' + Date.now();
-            }
-            setTimeout(() => {
-                switchPlayerView('results');
-            }, 1000);
+            playerStatusBadge.textContent = '✓ RPA FINALIZADO';
+        } else if (state === 'stream_warn') {
+            playerStatusBadge.className = 'player-status error';
+            playerStatusBadge.textContent = '⚠ VISUALIZACIÓN NO DISPONIBLE';
+            overlayTitle.textContent = '⚠ VISUALIZACIÓN NO DISPONIBLE';
+            overlaySubtitle.textContent = message || 'El RPA continúa ejecutándose pero la transmisión no está disponible.';
+            overlaySpinner.style.display = 'none';
+            overlayIcon.style.display = 'block';
         } else if (state === 'error') {
             stopTimer();
-            switchPlayerView('stream');
             playerOverlay.classList.remove('hidden');
-            overlayTitle.textContent = 'RPA FINALIZADO CON ERROR';
+            overlayTitle.textContent = 'ERROR EN LA EJECUCIÓN';
             overlaySubtitle.textContent = message || 'Se produjo un error en la ejecución del bot.';
             overlaySpinner.style.display = 'none';
             overlayIcon.style.display = 'block';
@@ -287,17 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isError) p.classList.add('log-error');
         logContainer.appendChild(p);
         logContainer.scrollTop = logContainer.scrollHeight;
-
-        // Sincronización secundaria del navegador Chrome con base en logs
-        if (typeof msg === 'string') {
-            if (msg.includes('[Carrefour]')) {
-                updateChromeNav('https://www.carrefour.com.ar', 'Carrefour Argentina — Bot RPA', 'carrefour');
-            } else if (msg.includes('[COTO]')) {
-                updateChromeNav('https://www.coto.com.ar', 'COTO Digital — Bot RPA', 'coto');
-            } else if (msg.includes('[Día %]') || msg.includes('[Dia %]')) {
-                updateChromeNav('https://diaonline.supermercadosdia.com.ar', 'Supermercados DÍA % — Bot RPA', 'dia');
-            }
-        }
     }
 
     // Cambiar estado visual

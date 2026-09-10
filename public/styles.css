@@ -471,16 +471,16 @@ header p {
     background: rgba(239, 68, 68, 0.15);
 }
 
-/* Pantalla del Reproductor y Marco de Google Chrome */
+/* Pantalla del Reproductor Moderno para el Chrome Real */
 .player-screen-wrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 10;
-    background: #17191d;
-    display: flex;
-    flex-direction: column;
+    aspect-ratio: 16 / 9;
+    background: #000000;
     overflow: hidden;
-    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .player-screen-wrapper:fullscreen {
@@ -488,297 +488,6 @@ header p {
     height: 100vh;
     aspect-ratio: unset;
     border-radius: 0;
-}
-
-/* Ventana de Google Chrome */
-.chrome-window {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: #1e2025;
-    overflow: hidden;
-}
-
-/* 1. Barra de Pestañas Superior */
-.chrome-top-bar {
-    background: #181a1f;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 0.5rem 0 0.75rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    user-select: none;
-}
-
-.chrome-tabs-container {
-    display: flex;
-    align-items: flex-end;
-    height: 100%;
-    gap: 4px;
-    overflow: hidden;
-}
-
-.chrome-tab {
-    background: #23272e;
-    color: #f1f5f9;
-    height: 30px;
-    padding: 0 12px;
-    border-radius: 8px 8px 0 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    max-width: 260px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-left: 1px solid rgba(255, 255, 255, 0.06);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
-    position: relative;
-}
-
-.chrome-tab-icon {
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-}
-
-.chrome-tab-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #e2e8f0;
-}
-
-.chrome-tab-close {
-    font-size: 0.95rem;
-    color: #94a3b8;
-    margin-left: 4px;
-    cursor: pointer;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, color 0.15s;
-}
-
-.chrome-tab-close:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-}
-
-.chrome-tab-add {
-    color: #94a3b8;
-    font-size: 0.75rem;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    margin-bottom: 2px;
-    transition: background 0.15s, color 0.15s;
-}
-
-.chrome-tab-add:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-}
-
-.chrome-window-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.chrome-win-btn {
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-    width: 28px;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.15s;
-}
-
-.chrome-win-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-}
-
-.chrome-win-btn.win-close:hover {
-    background: #ef4444;
-    color: #fff;
-}
-
-/* 2. Barra de Navegación y Omnibox */
-.chrome-nav-bar {
-    background: #23272e;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    padding: 0 0.75rem;
-    gap: 0.65rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.chrome-nav-controls {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-}
-
-.chrome-icon-btn {
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-}
-
-.chrome-icon-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f8fafc;
-}
-
-.chrome-omnibox {
-    flex-grow: 1;
-    background: #181a1f;
-    height: 28px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    align-items: center;
-    padding: 0 0.75rem;
-    gap: 0.4rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.chrome-omnibox:focus-within {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
-}
-
-.chrome-security-badge {
-    font-size: 0.72rem;
-    color: #10b981;
-    display: flex;
-    align-items: center;
-}
-
-.chrome-url-prefix {
-    font-size: 0.76rem;
-    color: #64748b;
-    font-family: 'JetBrains Mono', monospace;
-}
-
-.chrome-url-input {
-    flex-grow: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: #f1f5f9;
-    font-size: 0.78rem;
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.2px;
-}
-
-.chrome-star-btn {
-    color: #94a3b8;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: color 0.15s;
-}
-
-.chrome-star-btn:hover {
-    color: #f59e0b;
-}
-
-.chrome-tools {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.chrome-tool-icon {
-    color: #94a3b8;
-    font-size: 0.82rem;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-}
-
-.chrome-tool-icon:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f8fafc;
-}
-
-.chrome-tool-icon.chrome-avatar {
-    color: #818cf8;
-    font-size: 1.1rem;
-}
-
-/* 3. Barra de Marcadores */
-.chrome-bookmarks-bar {
-    background: #23272e;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    padding: 0 0.85rem;
-    gap: 0.85rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 0.72rem;
-    color: #94a3b8;
-    user-select: none;
-}
-
-.chrome-bookmark {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 2px 7px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-}
-
-.chrome-bookmark:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #f8fafc;
-}
-
-/* 4. Viewport del Navegador */
-.chrome-viewport {
-    flex-grow: 1;
-    position: relative;
-    width: 100%;
-    min-height: 0;
-    background: #000;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 #rpa-stream-canvas {
@@ -1118,4 +827,298 @@ header p {
     padding: 0.4rem 0.85rem;
     font-size: 0.8rem;
 }
+
+/* ==========================================================================
+   REPRODUCTOR DE VIDEO MODERNO (VISOR DEL CHROME REAL DEL RPA)
+   ========================================================================== */
+.player-panel {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    margin-top: 2rem;
+    overflow: hidden;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+    transition: border-color 0.3s ease;
+}
+
+.player-panel:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1.25rem;
+    background: rgba(15, 23, 42, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.live-badge i {
+    font-size: 0.5rem;
+    animation: livePulse 1.8s infinite ease-in-out;
+}
+
+.live-badge.inactive {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+}
+
+.live-badge.inactive i {
+    animation: none;
+    color: #64748b;
+}
+
+@keyframes livePulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(1.3); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.player-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.player-title i {
+    color: var(--primary);
+}
+
+.player-header-right {
+    display: flex;
+    align-items: center;
+}
+
+.player-status {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.28rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.player-status.idle {
+    background: rgba(100, 116, 139, 0.15);
+    border-color: rgba(100, 116, 139, 0.3);
+    color: #94a3b8;
+}
+
+.player-status.connecting {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+}
+
+.player-status.live {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: #fca5a5;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+}
+
+.player-status.finished {
+    background: rgba(34, 197, 94, 0.18);
+    border-color: rgba(34, 197, 94, 0.45);
+    color: #86efac;
+}
+
+.player-status.error {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #f87171;
+}
+
+/* Pantalla del Reproductor */
+.player-screen-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #020617;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#rpa-stream-canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+.player-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.player-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.overlay-content {
+    text-align: center;
+    padding: 2rem;
+    max-width: 480px;
+}
+
+.overlay-icon {
+    font-size: 3rem;
+    color: #6366f1;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+}
+
+.overlay-content h3 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.02em;
+}
+
+.overlay-content p {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+.overlay-spinner {
+    width: 42px;
+    height: 42px;
+    margin: 1.25rem auto 0;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spinOverlay 0.9s linear infinite;
+}
+
+@keyframes spinOverlay {
+    to { transform: rotate(360deg); }
+}
+
+/* Barra de Controles Inferior del Reproductor */
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(15, 23, 42, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player-control-btn {
+    background: transparent;
+    border: none;
+    color: #cbd5e1;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-control-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.player-progress-container {
+    flex: 1;
+    padding: 0.5rem 0;
+    cursor: default;
+}
+
+.player-progress-bar {
+    position: relative;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+    overflow: visible;
+}
+
+.player-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, #6366f1, #ec4899);
+    border-radius: 9999px;
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+    transition: width 0.4s ease;
+}
+
+.player-time {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+    min-width: 44px;
+    text-align: center;
+}
+
+/* Modo Pantalla Completa */
+.player-screen-wrapper:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    background: #000000;
+}
+
+.player-screen-wrapper:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    background: #000000;
+}
+
 

@@ -18,13 +18,28 @@ function getRpaRunner() {
     return require('./rpa_runner.js');
 }
 
+process.on('uncaughtException', (err) => {
+    console.error('[UNCAUGHT EXCEPTION]:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[UNHANDLED REJECTION]:', reason);
+});
+
 const app = express();
 const server = http.createServer(app);
 const PORT = 3000;
 
+server.on('error', (err) => {
+    console.error('[HTTP SERVER ERROR]:', err);
+});
+
 // Servidor WebSocket integrado en /ws/rpa-stream
 const wss = new WebSocketServer({ server, path: '/ws/rpa-stream' });
 const wsClients = new Set();
+
+wss.on('error', (err) => {
+    console.error('[WSS ERROR]:', err);
+});
 
 // Control de concurrencia: máximo 1 ejecución simultánea
 let isRpaRunning = false;
@@ -209,14 +224,18 @@ app.post('/api/compra-mes', async (req, res) => {
         // Generar Excel consolidado
         await runCommand('node generar_excel.js');
 
-        res.json({
-            success: true,
-            message: "Compra del mes finalizada exitosamente. Reporte generado."
-        });
+        if (!res.headersSent && !res.destroyed) {
+            res.json({
+                success: true,
+                message: "Compra del mes finalizada exitosamente. Reporte generado."
+            });
+        }
     } catch (e) {
         console.error("Error en compra del mes:", e);
         broadcast({ type: 'status', state: 'error', message: 'RPA FINALIZADO CON ERROR: ' + e.message });
-        res.status(500).json({ success: false, message: e.toString() });
+        if (!res.headersSent && !res.destroyed) {
+            res.status(500).json({ success: false, message: e.toString() });
+        }
     } finally {
         isRpaRunning = false;
         setTimeout(() => {
@@ -281,14 +300,18 @@ app.post('/api/buscar-individual', async (req, res) => {
         await runCommand(`node validador.js --reporte-individual "${producto}"`);
         await runCommand('node generar_excel.js');
 
-        res.json({
-            success: true,
-            message: `Búsqueda de "${producto}" completada. Reporte Excel actualizado.`
-        });
+        if (!res.headersSent && !res.destroyed) {
+            res.json({
+                success: true,
+                message: `Búsqueda de "${producto}" completada. Reporte Excel actualizado.`
+            });
+        }
     } catch (e) {
         console.error("Error en búsqueda individual:", e);
         broadcast({ type: 'status', state: 'error', message: 'RPA FINALIZADO CON ERROR: ' + e.message });
-        res.status(500).json({ success: false, message: e.toString() });
+        if (!res.headersSent && !res.destroyed) {
+            res.status(500).json({ success: false, message: e.toString() });
+        }
     } finally {
         isRpaRunning = false;
         setTimeout(() => {
