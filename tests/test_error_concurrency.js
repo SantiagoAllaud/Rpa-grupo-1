@@ -33,8 +33,8 @@ async function testConcurrency() {
         .then(r => console.log('[RPA 1 terminado]:', r.statusCode))
         .catch(e => console.log('[RPA 1 error]:', e.message));
 
-    // Esperar 1.5s para que el primer RPA adquiera el lock isRpaRunning = true
-    await new Promise(r => setTimeout(r, 1500));
+    // Esperar 250ms para que el primer RPA adquiera el lock isRpaRunning = true
+    await new Promise(r => setTimeout(r, 250));
 
     // Intentar lanzar el segundo RPA mientras el primero sigue ejecutándose
     console.log('[RPA 2] Intentando lanzar segundo RPA concurrente...');

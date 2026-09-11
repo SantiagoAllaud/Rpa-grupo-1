@@ -69,6 +69,21 @@ public class MouseHelper {
     [DllImport("user32.dll")]
     public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
 
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    public static extern bool BringWindowToTop(IntPtr hWnd);
+
     public static IntPtr GetChromeHwnd() {
         IntPtr found = IntPtr.Zero;
         try {
@@ -77,8 +92,15 @@ public class MouseHelper {
                     System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
                     GetClassName(hWnd, sb, sb.Capacity);
                     if (sb.ToString() == "Chrome_WidgetWin_1") {
-                        found = hWnd;
-                        return false;
+                        RECT r;
+                        if (GetWindowRect(hWnd, out r)) {
+                            int w = r.Right - r.Left;
+                            int h = r.Bottom - r.Top;
+                            if (w >= 400 && h >= 300) {
+                                found = hWnd;
+                                return false; // Encontrada la ventana principal del navegador
+                            }
+                        }
                     }
                 }
                 return true;
@@ -87,26 +109,134 @@ public class MouseHelper {
         return found;
     }
 
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr OpenDesktop(string lpszDesktop, uint dwFlags, bool fInherit, uint dwDesiredAccess);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SetThreadDesktop(IntPtr hDesktop);
+
+    public static void AttachToDefaultDesktop() {
+        try {
+            IntPtr hDesk = OpenDesktop("default", 0, false, 0x01FF);
+            if (hDesk != IntPtr.Zero) {
+                SetThreadDesktop(hDesk);
+            }
+        } catch {}
+    }
+
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+    public const int KEYEVENTF_KEYUP = 0x0002;
+    public const byte VK_MENU = 0x12;
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+
+    public const int SW_MAXIMIZE = 3;
+
     public static bool FocusChrome() {
         try {
             IntPtr hwnd = GetChromeHwnd();
             if (hwnd != IntPtr.Zero) {
-                ShowWindow(hwnd, SW_RESTORE);
-                SetForegroundWindow(hwnd);
+                keybd_event(VK_MENU, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                ShowWindow(hwnd, SW_MAXIMIZE);
+                BringWindowToTop(hwnd);
+                bool ok = SetForegroundWindow(hwnd);
                 Thread.Sleep(180);
-                return true;
+                return ok;
             }
         } catch {}
         return false;
     }
 
+    public static string StateFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "failsafe.state");
+    public static string FlagFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "failsafe.flag");
+
+    public static void SetFailsafeState(bool isMoving, int x, int y) {
+        try {
+            using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite))
+            using (var sw = new System.IO.StreamWriter(fs)) {
+                sw.Write((isMoving ? "1" : "0") + "," + x + "," + y);
+            }
+        } catch {}
+    }
+
+    public static void TriggerFailsafe(int x, int y) {
+        try {
+            using (var fs = new System.IO.FileStream(FlagFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite))
+            using (var sw = new System.IO.StreamWriter(fs)) {
+                sw.Write("USER_MOUSE_INTERVENTION," + x + "," + y);
+            }
+        } catch {}
+        Console.WriteLine("USER_MOUSE_INTERVENTION");
+        Environment.Exit(99);
+    }
+
+    public static void RunWatchdog() {
+        AttachToDefaultDesktop();
+        if (System.IO.File.Exists(FlagFilePath)) {
+            try { System.IO.File.Delete(FlagFilePath); } catch {}
+        }
+
+        POINT initPos = GetPosition();
+        SetFailsafeState(false, initPos.X, initPos.Y);
+
+        while (true) {
+            Thread.Sleep(30);
+            POINT cur = GetPosition();
+
+            bool isMoving = false;
+            int expX = cur.X, expY = cur.Y;
+
+            if (System.IO.File.Exists(StateFilePath)) {
+                try {
+                    using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
+                    using (var sr = new System.IO.StreamReader(fs)) {
+                        string content = sr.ReadToEnd().Trim();
+                        string[] parts = content.Split(',');
+                        if (parts.Length >= 3) {
+                            isMoving = parts[0] == "1";
+                            expX = int.Parse(parts[1]);
+                            expY = int.Parse(parts[2]);
+                        }
+                    }
+                } catch {}
+            }
+
+            if (isMoving) {
+                // Durante movimiento activo del robot: tolerancia de trayectoria
+                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
+                if (dist > 50.0) {
+                    TriggerFailsafe(cur.X, cur.Y);
+                    return;
+                }
+            } else {
+                // Durante reposo / espera del robot: cualquier movimiento de más de 14px aborta de inmediato
+                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
+                if (dist > 14.0) {
+                    TriggerFailsafe(cur.X, cur.Y);
+                    return;
+                }
+            }
+        }
+    }
+
     // Movimiento con curvas de Bézier cúbicas y aceleración/desaceleración humana
     public static void MoveSmooth(int targetX, int targetY, int durationMs) {
         POINT start = GetPosition();
-        if (start.X == targetX && start.Y == targetY) return;
+        if (start.X == targetX && start.Y == targetY) {
+            SetFailsafeState(false, targetX, targetY);
+            return;
+        }
+
+        SetFailsafeState(true, start.X, start.Y);
 
         if (durationMs <= 30) {
             SetCursorPos(targetX, targetY);
+            SetFailsafeState(false, targetX, targetY);
             return;
         }
 
@@ -122,10 +252,19 @@ public class MouseHelper {
 
         int steps = Math.Max((int)(durationMs / 12), 18);
         int sleepPerStep = Math.Max(durationMs / steps, 8);
+        int lastSetX = start.X;
+        int lastSetY = start.Y;
 
         for (int i = 1; i <= steps; i++) {
+            // Regla estricta: Detección de intervención física del usuario durante el movimiento
+            POINT current = GetPosition();
+            double userDeviation = Math.Sqrt(Math.Pow(current.X - lastSetX, 2) + Math.Pow(current.Y - lastSetY, 2));
+            if (i > 1 && userDeviation > 35.0) {
+                TriggerFailsafe(current.X, current.Y);
+                return;
+            }
+
             double tLinear = (double)i / steps;
-            // Easing cúbico ease-in-out para movimiento natural
             double t = tLinear < 0.5 
                 ? 4.0 * tLinear * tLinear * tLinear 
                 : 1.0 - Math.Pow(-2.0 * tLinear + 2.0, 3.0) / 2.0;
@@ -139,11 +278,15 @@ public class MouseHelper {
             double px = uuu * start.X + 3 * uu * t * cp1X + 3 * u * tt * cp2X + ttt * targetX;
             double py = uuu * start.Y + 3 * uu * t * cp1Y + 3 * u * tt * cp2Y + ttt * targetY;
 
-            SetCursorPos((int)Math.Round(px), (int)Math.Round(py));
+            lastSetX = (int)Math.Round(px);
+            lastSetY = (int)Math.Round(py);
+            SetFailsafeState(true, lastSetX, lastSetY);
+            SetCursorPos(lastSetX, lastSetY);
             Thread.Sleep(sleepPerStep);
         }
 
         SetCursorPos(targetX, targetY);
+        SetFailsafeState(false, targetX, targetY);
         Thread.Sleep(50);
     }
 
@@ -157,6 +300,8 @@ public class MouseHelper {
         Thread.Sleep(110);
         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         Thread.Sleep(120);
+        POINT p = GetPosition();
+        SetFailsafeState(false, p.X, p.Y);
     }
 
     // Convierte coordenadas CSS del viewport al escritorio físico. Puppeteer sólo
@@ -192,12 +337,16 @@ public class MouseHelper {
     // pixels positivos representan un desplazamiento hacia abajo, como la rueda.
     public static void ScrollVisible(int pixels, int steps, int delayMs) {
         FocusChrome();
+        POINT p = GetPosition();
+        SetFailsafeState(false, p.X, p.Y);
         int count = Math.Max(1, Math.Abs(pixels) / Math.Max(1, steps * 90));
         int direction = pixels >= 0 ? -120 : 120;
         for (int i = 0; i < count; i++) {
             mouse_event(MOUSEEVENTF_WHEEL, 0, 0, direction, 0);
             Thread.Sleep(Math.Max(delayMs, 40));
         }
+        POINT pEnd = GetPosition();
+        SetFailsafeState(false, pEnd.X, pEnd.Y);
     }
 
     // Arrastre fluido de sliders y rangos
@@ -210,37 +359,40 @@ public class MouseHelper {
         Thread.Sleep(150);
         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         Thread.Sleep(120);
+        POINT p = GetPosition();
+        SetFailsafeState(false, p.X, p.Y);
     }
 
-    // Escritura progresiva letra por letra visible
+    // Escritura progresiva letra por letra visible (sin utilizar clipboard)
     public static void TypeText(string text, int charDelayMs) {
         if (string.IsNullOrEmpty(text)) return;
+        POINT p = GetPosition();
+        SetFailsafeState(false, p.X, p.Y);
         foreach (char c in text) {
             string s = c.ToString();
             try {
-                if (char.IsLetterOrDigit(c) || c == ' ' || c == '.' || c == '/' || c == '-' || c == ':' || c == '_' || c == '?') {
-                    SendKeys.SendWait(s);
-                } else if (s == "{" || s == "}" || s == "(" || s == ")" || s == "+" || s == "^" || s == "%" || s == "~") {
+                if (s == "{" || s == "}" || s == "(" || s == ")" || s == "+" || s == "^" || s == "%" || s == "~") {
                     SendKeys.SendWait("{" + s + "}");
                 } else {
-                    Clipboard.SetText(s);
-                    SendKeys.SendWait("^v");
+                    SendKeys.SendWait(s);
                 }
             } catch {
                 try {
-                    Clipboard.SetText(s);
-                    SendKeys.SendWait("^v");
+                    SendKeys.SendWait(s);
                 } catch {}
             }
             Thread.Sleep(Math.Max(charDelayMs, 15));
         }
+        POINT pEnd = GetPosition();
+        SetFailsafeState(false, pEnd.X, pEnd.Y);
     }
 
     // Navegación 100% VISIBLE por la barra de direcciones de Chrome:
-    // Mueve el cursor a la barra de direcciones -> Selecciona con Alt+D -> Tipea URL carácter por carácter -> Enter
+    // 1. Foco en Chrome -> 2. Mover mouse a Omnibox -> 3. Click real -> 4. Ctrl+L para seleccionar todo -> 5. Pausa -> 6. Tipeo carácter por carácter -> 7. Enter
     public static void NavigateOmnibox(string url, int typingDelayMs) {
+        // 1. Llevar Chrome al frente
         FocusChrome();
-        Thread.Sleep(150);
+        Thread.Sleep(200);
 
         IntPtr hwnd = GetChromeHwnd();
         int targetX = 500;
@@ -249,32 +401,42 @@ public class MouseHelper {
         if (hwnd != IntPtr.Zero) {
             RECT rect;
             GetWindowRect(hwnd, out rect);
-            targetX = rect.Left + Math.Min(550, Math.Max(350, (rect.Right - rect.Left) / 2));
+            int winWidth = Math.Max(100, rect.Right - rect.Left);
+            targetX = rect.Left + Math.Min(600, Math.Max(winWidth / 4, winWidth / 2));
             targetY = Math.Max(50, rect.Top + 55);
         }
 
-        // 1. Mover el cursor físico hacia la barra de direcciones
+        // 2. Mover físicamente el mouse hacia la barra de direcciones
         MoveSmooth(targetX, targetY, 450);
         Thread.Sleep(100);
 
-        // 2. Enfocar y seleccionar la barra de direcciones con Alt+D (atajo universal de Chrome)
-        try {
-            SendKeys.SendWait("%d");
-            Thread.Sleep(150);
-        } catch {}
-
-        // Click suave en la barra para asegurar foco visual
+        // 3. Hacer click real sobre la barra para activar el foco
         Click(targetX, targetY, 150);
         Thread.Sleep(150);
 
-        // 3. Tipeo progresivo de la URL
-        TypeText(url, typingDelayMs);
-        Thread.Sleep(200);
+        // 4. Utilizar Ctrl+L o Alt+D para seleccionar TODA la URL actual
+        try {
+            SendKeys.SendWait("^l");
+        } catch {
+            try {
+                SendKeys.SendWait("%d");
+            } catch {}
+        }
 
-        // 4. Presionar Enter para iniciar la navegación
+        // 5. Esperar unos milisegundos para asegurar la selección (NO hacer un segundo click después de esto)
+        Thread.Sleep(180);
+
+        // 6. Escribir la nueva URL carácter por carácter (reemplaza visualmente la selección anterior)
+        TypeText(url, typingDelayMs);
+        Thread.Sleep(150);
+
+        // 7. Presionar Enter para iniciar la navegación
         try {
             SendKeys.SendWait("{ENTER}");
         } catch {}
+
+        POINT finalPos = GetPosition();
+        SetFailsafeState(false, finalPos.X, finalPos.Y);
     }
 
     [STAThread]
@@ -283,6 +445,16 @@ public class MouseHelper {
             SetProcessDPIAware();
         } catch {}
 
+        Thread t = new Thread(() => {
+            AttachToDefaultDesktop();
+            Run(args);
+        });
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+        t.Join();
+    }
+
+    public static void Run(string[] args) {
         if (args.Length == 0) {
             Console.WriteLine("MouseHelper v2.0 - Windows Native Cursor & Automation Controller");
             Console.WriteLine("Usage: mouse_helper <cmd> [args...]");
@@ -305,6 +477,10 @@ public class MouseHelper {
 
         try {
             switch (cmd) {
+                case "watchdog": {
+                    RunWatchdog();
+                    break;
+                }
                 case "pos": {
                     POINT p = GetPosition();
                     Console.WriteLine(p.X + "," + p.Y);

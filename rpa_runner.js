@@ -27,12 +27,69 @@ const CONFIG = {
     SCROLL_STEP_DELAY: 350     // Pausa entre pasos de scroll progresivo
 };
 
-// Control de aborto global e instantáneo (Kill-Switch)
-let isAborted = false;
-let activeBrowser = null;
+// Control de aborto global e instantáneo (Kill-Switch y FailSafe de Movimiento de Mouse)
+const FAILSAFE_FLAG_PATH = path.join(__dirname, 'failsafe.flag');
+const FAILSAFE_STATE_PATH = path.join(__dirname, 'failsafe.state');
 
-function abortCurrentRun() {
+let isAborted = false;
+let abortReason = null;
+let activeBrowser = null;
+let watchdogProcess = null;
+
+function startMouseWatchdog(onFailsafe) {
+    stopMouseWatchdog();
+    try {
+        const { spawn } = require('child_process');
+        watchdogProcess = spawn(MOUSE_HELPER_PATH, ['watchdog'], {
+            windowsHide: true,
+            stdio: ['ignore', 'pipe', 'pipe']
+        });
+
+        if (watchdogProcess.stdout) {
+            watchdogProcess.stdout.on('data', (data) => {
+                const str = data.toString();
+                if (str.includes('USER_MOUSE_INTERVENTION')) {
+                    console.warn('[FAILSAFE] 🛑 Movimiento manual de mouse detectado por watchdog.');
+                    abortCurrentRun('USER_MOUSE_INTERVENTION');
+                    if (onFailsafe) onFailsafe('USER_MOUSE_INTERVENTION');
+                }
+            });
+        }
+
+        watchdogProcess.on('exit', (code) => {
+            if (code === 99 || fs.existsSync(FAILSAFE_FLAG_PATH)) {
+                console.warn('[FAILSAFE] 🛑 Watchdog finalizó tras detectar intervención manual del mouse.');
+                abortCurrentRun('USER_MOUSE_INTERVENTION');
+                if (onFailsafe) onFailsafe('USER_MOUSE_INTERVENTION');
+            }
+        });
+    } catch (e) {
+        console.error('[FAILSAFE] Error al iniciar watchdog de mouse:', e);
+    }
+}
+
+function stopMouseWatchdog() {
+    if (watchdogProcess) {
+        try {
+            watchdogProcess.kill();
+        } catch (e) {}
+        watchdogProcess = null;
+    }
+    try {
+        if (fs.existsSync(FAILSAFE_FLAG_PATH)) fs.unlinkSync(FAILSAFE_FLAG_PATH);
+    } catch (e) {}
+    try {
+        if (fs.existsSync(FAILSAFE_STATE_PATH)) fs.unlinkSync(FAILSAFE_STATE_PATH);
+    } catch (e) {}
+}
+
+function abortCurrentRun(reason = 'RPA_ABORTED_BY_USER') {
     isAborted = true;
+    abortReason = reason;
+    if (watchdogProcess) {
+        try { watchdogProcess.kill(); } catch (e) {}
+        watchdogProcess = null;
+    }
     try {
         require('child_process').execSync('taskkill /F /IM mouse_helper.exe', { windowsHide: true, stdio: 'ignore' });
     } catch (e) {}
@@ -45,8 +102,11 @@ function abortCurrentRun() {
 }
 
 function checkAborted() {
+    if (!isAborted && fs.existsSync(FAILSAFE_FLAG_PATH)) {
+        abortCurrentRun('USER_MOUSE_INTERVENTION');
+    }
     if (isAborted) {
-        throw new Error('RPA_ABORTED_BY_USER');
+        throw new Error(abortReason || 'RPA_ABORTED_BY_USER');
     }
 }
 
@@ -258,8 +318,14 @@ function runMouseHelper(args) {
     if (!fs.existsSync(MOUSE_HELPER_PATH)) {
         throw new Error('No se encontró mouse_helper.exe; no se permite un fallback invisible.');
     }
+    checkAborted();
     const result = spawnSync(MOUSE_HELPER_PATH, args, { windowsHide: true, encoding: 'utf8', timeout: 30000 });
+    if (fs.existsSync(FAILSAFE_FLAG_PATH) || (result.stdout && result.stdout.includes('USER_MOUSE_INTERVENTION')) || result.status === 99) {
+        abortCurrentRun('USER_MOUSE_INTERVENTION');
+        throw new Error('USER_MOUSE_INTERVENTION');
+    }
     if (result.error || result.status !== 0) {
+        checkAborted();
         throw new Error(`mouse_helper.exe no pudo ejecutar ${args[0]}.`);
     }
     return (result.stdout || '').trim();
@@ -275,29 +341,64 @@ function viewportArgs(command, pos, durationMs) {
 // ==============================================================================
 
 // 1. Navegación Visible por la Barra de Direcciones de Chrome
-async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELAY) {
+async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELAY, maxAttempts = 2) {
     checkAborted();
-    // No hay page.goto(): esta es la única vía de navegación del motor de producción.
-    runMouseHelper(['nav', targetUrl, Math.max(typingDelay, 25).toString()]);
+    const targetHost = new URL(targetUrl).hostname;
 
-    // Esperar navegación generada por el Enter en la barra de direcciones
-    let arrived = false;
-    for (let t = 0; t < 80; t++) {
-        await sleep(250);
-        const curUrl = page.url();
-        if (curUrl.includes(new URL(targetUrl).hostname)) {
-            arrived = true;
-            break;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        checkAborted();
+        try {
+            console.log(`[RPA] Navegación visible hacia ${targetUrl} (Intento ${attempt}/${maxAttempts})...`);
+
+            // Asegurar que Chrome esté al frente antes de manipular la Omnibox
+            try {
+                await page.bringToFront();
+            } catch (e) {}
+            runMouseHelper(['focus']);
+            await sleep(200);
+
+            // Secuencia física real de mouse_helper.exe: Omnibox -> click -> Ctrl+L -> TypeText -> Enter
+            runMouseHelper(['nav', targetUrl, Math.max(typingDelay, 25).toString()]);
+
+            // Esperar que la navegación se concrete por el Enter en la barra de direcciones
+            let arrived = false;
+            for (let t = 0; t < 80; t++) {
+                await sleep(250);
+                checkAborted();
+                const curUrl = page.url();
+                if (curUrl.includes(targetHost)) {
+                    arrived = true;
+                    break;
+                }
+            }
+
+            if (arrived) {
+                console.log(`[RPA] Navegación visible a ${targetHost} confirmada exitosamente.`);
+                await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+                await asegurarCursorEnPagina(page);
+                await eliminarCookies(page);
+                return;
+            }
+
+            console.warn(`[RPA] ⚠️ Intento ${attempt} no alcanzó la URL destino ${targetHost}. URL actual: ${page.url()}`);
+        } catch (err) {
+            if (err.message === 'RPA_ABORTED_BY_USER' || isAborted) throw err;
+            console.error(`[RPA] ⚠️ Error en intento ${attempt} de navegación visible: ${err.message}`);
+        }
+
+        // Si falló el primer intento, registrar error, recuperar el foco de Chrome y reintentar la navegación visible
+        if (attempt < maxAttempts) {
+            console.log(`[RPA] Recuperando foco de Chrome para reintentar la navegación visible a ${targetUrl}...`);
+            try {
+                await page.bringToFront();
+            } catch (e) {}
+            runMouseHelper(['focus']);
+            await sleep(600);
         }
     }
 
-    if (!arrived) {
-        throw new Error(`La navegación visible no llegó a ${new URL(targetUrl).hostname}.`);
-    }
-
-    await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
-    await asegurarCursorEnPagina(page);
-    await eliminarCookies(page);
+    // Está estrictamente prohibido recurrir a page.goto() como solución silenciosa.
+    throw new Error(`La navegación visible no llegó a ${targetHost} tras ${maxAttempts} intentos.`);
 }
 
 // 2. Movimiento Visible hacia un Elemento
@@ -824,12 +925,24 @@ async function runRPA({
     onStatus = null
 }) {
     isAborted = false;
+    abortReason = null;
     asegurarCSV();
     const chromePath = getChromePath();
     const fechaHoy = getFechaHoy();
 
     const currentTypingDelay = typingDelay || CONFIG.TYPING_DELAY;
     const currentMouseDuration = mouseDuration || CONFIG.MOUSE_MOVE_DURATION;
+
+    // Regla estricta: Detección activa de cualquier movimiento físico del mouse
+    startMouseWatchdog((reason) => {
+        if (onStatus) {
+            onStatus({
+                type: 'error',
+                state: 'aborted',
+                message: '🛑 Regla estricta activada: Se detectó movimiento manual del mouse. El proceso de automatización se ha detenido de inmediato.'
+            });
+        }
+    });
 
     if (onStatus) {
         onStatus({
@@ -1013,15 +1126,27 @@ async function runRPA({
         await sleep(1500);
         return resultadosSesion;
     } catch (error) {
+        if (error.message === 'USER_MOUSE_INTERVENTION' || abortReason === 'USER_MOUSE_INTERVENTION' || fs.existsSync(FAILSAFE_FLAG_PATH)) {
+            console.warn('[RPA] 🛑 PROCESO TERMINADO: Regla estricta activada por movimiento manual del mouse.');
+            if (onStatus) {
+                onStatus({
+                    type: 'error',
+                    state: 'aborted',
+                    message: '🛑 Regla estricta activada: Se detectó movimiento manual del mouse. El proceso de automatización se ha detenido de inmediato.'
+                });
+            }
+            throw new Error('USER_MOUSE_INTERVENTION');
+        }
         if (error.message === 'RPA_ABORTED_BY_USER' || isAborted) {
             console.log('[RPA] Ejecución detenida por el usuario.');
-            if (onStatus) onStatus({ type: 'error', message: 'RPA detenido inmediatamente por el usuario.' });
-            return resultadosSesion;
+            if (onStatus) onStatus({ type: 'error', state: 'aborted', message: 'RPA detenido inmediatamente por el usuario.' });
+            throw new Error('RPA_ABORTED_BY_USER');
         }
         console.error('Error durante la ejecución del RPA:', error);
         if (onStatus) onStatus({ type: 'error', message: error.message });
         throw error;
     } finally {
+        stopMouseWatchdog();
         activeBrowser = null;
         if (browser && !isAborted) {
             try {

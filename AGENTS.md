@@ -1,5 +1,10 @@
 # 🤖 AGENTS.md — Instrucciones Técnicas para Agentes de Programación
 
+# Reglas de Ejecución Local
+- Este agente solo debe operar dentro del directorio raíz de 'Rpa programa'.
+- Tienes autorización para compilar el helper C#, correr scripts .bat y ejecutar pruebas con Puppeteer y TagUI sin solicitar confirmaciones intermedias de plan.
+- No intentes acceder a rutas fuera de este workspace.
+
 > **Audiencia:** Este documento está dirigido exclusivamente a agentes de IA y desarrolladores de software que deban inspeccionar, mantener, refactorizar o extender este repositorio. Describe la arquitectura interna real, contratos de interfaz, dependencias críticas, reglas de negocio inmutables y el estado técnico actual.
 
 ---
@@ -201,6 +206,7 @@ tagui supermercados.tag input.csv
 5. **Cierre preventivo de Excel en Windows:** Antes de escribir en `reporte_supermercados.xlsx`, siempre asegurarse de que el archivo no esté bloqueado por el proceso de Microsoft Excel.
 6. **Kill-Switch y control de aborto:** Toda función que realice pausas o bucles debe invocar `checkAborted()` para respetar cancelaciones inmediatas del usuario.
 7. **Respetar formato CRLF en scripts `.bat`:** Los archivos `.bat` en Windows deben conservarse con saltos de línea Windows (`CRLF`) para evitar que el intérprete de comandos falle al leer bloques condicionales.
+8. **Regla Estricta FailSafe de Movimiento del Mouse:** Si el usuario mueve físicamente el mouse en cualquier momento durante la ejecución del RPA, el proceso DEBE abortar de inmediato (< 0.05s), cerrar Google Chrome y terminar la corrida completa limpiamente, sin continuar a otros supermercados ni generar/abrir el reporte Excel.
 
 ---
 
@@ -335,6 +341,7 @@ Antes de dar por concluida cualquier modificación en el código:
   - **Dashboard Web (`http://localhost:3000`):** Conexión WebSocket `/ws/rpa-stream`, streaming de logs y telemetría, sliders de velocidad, controles de demostración, modal interactivo de edición de canasta, monitor de pasos de supermercados, botón Kill-Switch para abortar RPA, enlace al visor de resultados y footer con créditos UTN 100% funcionales.
   - **Validación Semántica (`validador.js`):** Detección de intención específica vs genérica, exclusión estricta de marcas ajenas y categorías incompatibles 100% funcional. CSV con 10 columnas consistentes en limpieza parcial.
   - **Reporte Excel (`generar_excel.js`):** Las 5 hojas se generan con formatos condicionales, medallas y cálculo matemático de canasta ganadora y compra combinada óptima: 🏆 Conclusiones, 🛒 Canasta Mensual, 📊 Ranking Menor a Mayor, 🔎 Consultas Individuales, ⚠️ Disponibilidad y Stock.
+  - **Regla Estricta FailSafe de Mouse:** Supervisor watchdog en `mouse_helper.exe watchdog` y detección activa de desvío en `MoveSmooth` (> 35px en movimiento, > 14px en reposo) que detiene inmediatamente el RPA, cierra Google Chrome y emite aviso por WebSocket ante cualquier movimiento manual del mouse por parte del usuario.
   - **TagUI (`supermercados.tag`):** Script preservado y compatible para los requerimientos de la cátedra.
 - **Qué está parcialmente funcionando:**
   - Nada parcial. Todos los módulos funcionan al 100%.

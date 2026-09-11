@@ -90,6 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (mainProgressFill) mainProgressFill.style.width = '100%';
                         } else if (msg.state === 'idle') {
                             monitorStatusText.textContent = 'RPA EN ESPERA';
+                        } else if (msg.state === 'aborted') {
+                            monitorStatusText.textContent = (msg.message && msg.message.includes('mouse'))
+                                ? '🛑 DETENIDO: MOVIMIENTO DE MOUSE'
+                                : '🛑 RPA DETENIDO';
                         } else if (msg.state === 'error') {
                             monitorStatusText.textContent = 'ERROR EN LA EJECUCIÓN';
                         }

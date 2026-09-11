@@ -228,6 +228,9 @@ app.post('/api/compra-mes', async (req, res) => {
                     broadcast({ type: 'status', state: 'finished', message: st.message });
                 } else if (st.type === 'nav') {
                     broadcast(st);
+                } else if (st.type === 'error') {
+                    broadcast({ type: 'status', state: st.state || 'error', message: st.message });
+                    broadcast({ type: 'log', message: st.message });
                 }
             }
         });
@@ -258,9 +261,24 @@ app.post('/api/compra-mes', async (req, res) => {
         }
     } catch (e) {
         console.error("Error en compra del mes:", e);
-        broadcast({ type: 'status', state: 'error', message: 'RPA FINALIZADO CON ERROR: ' + e.message });
+        const isFailsafe = e.message && e.message.includes('USER_MOUSE_INTERVENTION');
+        const isAborted = e.message && e.message.includes('RPA_ABORTED_BY_USER');
+
+        let errMsg = 'RPA FINALIZADO CON ERROR: ' + e.message;
+        let state = 'error';
+
+        if (isFailsafe) {
+            errMsg = '🛑 Regla estricta activada: Se detectó movimiento manual del mouse. El proceso de automatización se ha detenido de inmediato.';
+            state = 'aborted';
+        } else if (isAborted) {
+            errMsg = 'RPA detenido inmediatamente por el usuario.';
+            state = 'aborted';
+        }
+
+        broadcast({ type: 'status', state, message: errMsg });
+        broadcast({ type: 'log', message: errMsg });
         if (!res.headersSent && !res.destroyed) {
-            res.status(500).json({ success: false, message: e.toString() });
+            res.status(isFailsafe || isAborted ? 400 : 500).json({ success: false, message: errMsg });
         }
     } finally {
         isRpaRunning = false;
@@ -316,6 +334,9 @@ app.post('/api/buscar-individual', async (req, res) => {
                     broadcast({ type: 'status', state: 'finished', message: st.message });
                 } else if (st.type === 'nav') {
                     broadcast(st);
+                } else if (st.type === 'error') {
+                    broadcast({ type: 'status', state: st.state || 'error', message: st.message });
+                    broadcast({ type: 'log', message: st.message });
                 }
             }
         });
@@ -347,9 +368,24 @@ app.post('/api/buscar-individual', async (req, res) => {
         }
     } catch (e) {
         console.error("Error en búsqueda individual:", e);
-        broadcast({ type: 'status', state: 'error', message: 'RPA FINALIZADO CON ERROR: ' + e.message });
+        const isFailsafe = e.message && e.message.includes('USER_MOUSE_INTERVENTION');
+        const isAborted = e.message && e.message.includes('RPA_ABORTED_BY_USER');
+
+        let errMsg = 'RPA FINALIZADO CON ERROR: ' + e.message;
+        let state = 'error';
+
+        if (isFailsafe) {
+            errMsg = '🛑 Regla estricta activada: Se detectó movimiento manual del mouse. El proceso de automatización se ha detenido de inmediato.';
+            state = 'aborted';
+        } else if (isAborted) {
+            errMsg = 'RPA detenido inmediatamente por el usuario.';
+            state = 'aborted';
+        }
+
+        broadcast({ type: 'status', state, message: errMsg });
+        broadcast({ type: 'log', message: errMsg });
         if (!res.headersSent && !res.destroyed) {
-            res.status(500).json({ success: false, message: e.toString() });
+            res.status(isFailsafe || isAborted ? 400 : 500).json({ success: false, message: errMsg });
         }
     } finally {
         isRpaRunning = false;
