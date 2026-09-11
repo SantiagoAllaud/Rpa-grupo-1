@@ -7,6 +7,9 @@ using System.Windows.Forms;
 
 public class MouseHelper {
     [DllImport("user32.dll")]
+    public static extern bool SetProcessDPIAware();
+
+    [DllImport("user32.dll")]
     public static extern bool SetCursorPos(int X, int Y);
 
     [DllImport("user32.dll")]
@@ -26,6 +29,12 @@ public class MouseHelper {
 
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
 
     public const int MOUSEEVENTF_LEFTDOWN = 0x02;
     public const int MOUSEEVENTF_LEFTUP = 0x04;
@@ -48,9 +57,6 @@ public class MouseHelper {
         public int Bottom;
     }
 
-    [DllImport("user32.dll")]
-    public static extern bool IsWindowVisible(IntPtr hWnd);
-
     public static POINT GetPosition() {
         POINT p;
         GetCursorPos(out p);
@@ -61,9 +67,6 @@ public class MouseHelper {
 
     [DllImport("user32.dll")]
     public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
 
     public static IntPtr GetChromeHwnd() {
         IntPtr found = IntPtr.Zero;
@@ -89,7 +92,7 @@ public class MouseHelper {
             if (hwnd != IntPtr.Zero) {
                 ShowWindow(hwnd, SW_RESTORE);
                 SetForegroundWindow(hwnd);
-                Thread.Sleep(150);
+                Thread.Sleep(180);
                 return true;
             }
         } catch {}
@@ -116,7 +119,7 @@ public class MouseHelper {
         double cp2X = start.X + (targetX - start.X) * 0.75 + (rnd.NextDouble() - 0.5) * deviation;
         double cp2Y = start.Y + (targetY - start.Y) * 0.75 + (rnd.NextDouble() - 0.5) * deviation;
 
-        int steps = Math.Max((int)(durationMs / 12), 15);
+        int steps = Math.Max((int)(durationMs / 12), 18);
         int sleepPerStep = Math.Max(durationMs / steps, 8);
 
         for (int i = 1; i <= steps; i++) {
@@ -143,16 +146,16 @@ public class MouseHelper {
         Thread.Sleep(50);
     }
 
-    // Clic humano visible con pequeña pausa entre down y up
+    // Clic humano visible con pausa realista entre down y up
     public static void Click(int? x, int? y, int durationMs = 400) {
         if (x.HasValue && y.HasValue) {
             MoveSmooth(x.Value, y.Value, durationMs);
         }
-        Thread.Sleep(80);
-        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-        Thread.Sleep(90);
-        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         Thread.Sleep(100);
+        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+        Thread.Sleep(110);
+        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+        Thread.Sleep(120);
     }
 
     // Arrastre fluido de sliders y rangos
@@ -167,13 +170,13 @@ public class MouseHelper {
         Thread.Sleep(120);
     }
 
-    // Escritura progresiva letra por letra
+    // Escritura progresiva letra por letra visible
     public static void TypeText(string text, int charDelayMs) {
         if (string.IsNullOrEmpty(text)) return;
         foreach (char c in text) {
             string s = c.ToString();
             try {
-                if (char.IsLetterOrDigit(c) || c == ' ') {
+                if (char.IsLetterOrDigit(c) || c == ' ' || c == '.' || c == '/' || c == '-' || c == ':' || c == '_' || c == '?') {
                     SendKeys.SendWait(s);
                 } else if (s == "{" || s == "}" || s == "(" || s == ")" || s == "+" || s == "^" || s == "%" || s == "~") {
                     SendKeys.SendWait("{" + s + "}");
@@ -187,28 +190,46 @@ public class MouseHelper {
                     SendKeys.SendWait("^v");
                 } catch {}
             }
-            Thread.Sleep(Math.Max(charDelayMs, 10));
+            Thread.Sleep(Math.Max(charDelayMs, 15));
         }
     }
 
-    // Navegación visible por la barra de direcciones de Chrome (sin mover el mouse físico del usuario)
+    // Navegación 100% VISIBLE por la barra de direcciones de Chrome:
+    // Mueve el cursor a la barra de direcciones -> Selecciona con Alt+D -> Tipea URL carácter por carácter -> Enter
     public static void NavigateOmnibox(string url, int typingDelayMs) {
         FocusChrome();
-        Thread.Sleep(250);
+        Thread.Sleep(150);
 
-        // Seleccionar todo garantizando enfoque del Omnibox con Ctrl+L
+        IntPtr hwnd = GetChromeHwnd();
+        int targetX = 500;
+        int targetY = 55;
+
+        if (hwnd != IntPtr.Zero) {
+            RECT rect;
+            GetWindowRect(hwnd, out rect);
+            targetX = rect.Left + Math.Min(550, Math.Max(350, (rect.Right - rect.Left) / 2));
+            targetY = Math.Max(50, rect.Top + 55);
+        }
+
+        // 1. Mover el cursor físico hacia la barra de direcciones
+        MoveSmooth(targetX, targetY, 450);
+        Thread.Sleep(100);
+
+        // 2. Enfocar y seleccionar la barra de direcciones con Alt+D (atajo universal de Chrome)
         try {
-            SendKeys.SendWait("^l");
+            SendKeys.SendWait("%d");
             Thread.Sleep(150);
-            SendKeys.SendWait("{BACKSPACE}");
-            Thread.Sleep(120);
         } catch {}
 
-        // Escritura progresiva de la URL
-        TypeText(url, typingDelayMs);
-        Thread.Sleep(250);
+        // Click suave en la barra para asegurar foco visual
+        Click(targetX, targetY, 150);
+        Thread.Sleep(150);
 
-        // Presionar Enter
+        // 3. Tipeo progresivo de la URL
+        TypeText(url, typingDelayMs);
+        Thread.Sleep(200);
+
+        // 4. Presionar Enter para iniciar la navegación
         try {
             SendKeys.SendWait("{ENTER}");
         } catch {}
@@ -216,8 +237,12 @@ public class MouseHelper {
 
     [STAThread]
     public static void Main(string[] args) {
+        try {
+            SetProcessDPIAware();
+        } catch {}
+
         if (args.Length == 0) {
-            Console.WriteLine("MouseHelper v1.0 - Windows Native Cursor Controller");
+            Console.WriteLine("MouseHelper v2.0 - Windows Native Cursor & Automation Controller");
             Console.WriteLine("Usage: mouse_helper <cmd> [args...]");
             Console.WriteLine("Commands:");
             Console.WriteLine("  pos                           -> prints current x,y");
@@ -226,7 +251,7 @@ public class MouseHelper {
             Console.WriteLine("  drag <x1> <y1> <x2> <y2> [ms] -> drag & drop");
             Console.WriteLine("  type <text> [charDelayMs]     -> types progressive text");
             Console.WriteLine("  key <keys>                    -> sends special keys (e.g. {ENTER})");
-            Console.WriteLine("  nav <url> [charDelayMs]       -> focus Chrome omnibox, types url, hits Enter");
+            Console.WriteLine("  nav <url> [charDelayMs]       -> visible move to omnibox, clicks, types url, hits Enter");
             Console.WriteLine("  focus                         -> brings Chrome to front");
             return;
         }

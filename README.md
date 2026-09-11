@@ -15,23 +15,25 @@
 
 ## 📑 Tabla de Contenidos
 1. [Nombre del Proyecto y Objetivo Principal](#1-nombre-del-proyecto-y-objetivo-principal)
-2. [Descripción General y Caso de Negocio](#2-descripción-general-y-caso-de-negocio)
-3. [Supermercados Consultados y Especificidades Técnicas](#3-supermercados-consultados-y-especificidades-técnicas)
-4. [Estructura Exacta del Proyecto](#4-estructura-exacta-del-proyecto)
-5. [Arquitectura y Diagramas de Flujo ASCII](#5-arquitectura-y-diagramas-de-flujo-ascii)
-6. [Instructivo de Instalación y Requisitos](#6-instructivo-de-instalación-y-requisitos)
-7. [Modo Compra del Mes (Uso Detallado)](#7-modo-compra-del-mes-uso-detallado)
-8. [Modo Búsqueda Individual (Uso Detallado)](#8-modo-búsqueda-individual-uso-detallado)
-9. [Reglas de Validación Estricta y Detección de Intención](#9-reglas-de-validación-estricta-y-detección-de-intención)
-10. [Explicación de las 5 Hojas del Reporte Excel](#10-explicación-de-las-5-hojas-del-reporte-excel)
-11. [Manejo de Productos Sin Stock](#11-manejo-de-productos-sin-stock)
-12. [Diferenciación entre Estados de Disponibilidad](#12-diferenciación-entre-estados-de-disponibilidad)
-13. [Funcionamiento del Historial y Persistencia](#13-funcionamiento-del-historial-y-persistencia)
-14. [Opciones de Limpieza y Mantenimiento](#14-opciones-de-limpieza-y-mantenimiento)
-15. [Troubleshooting y Problemas Frecuentes](#15-troubleshooting-y-problemas-frecuentes)
-16. [Ejemplo Completo Paso a Paso: Compra del Mes](#16-ejemplo-completo-paso-a-paso-compra-del-mes)
-17. [Ejemplos de Búsqueda Individual: Específica vs Genérica](#17-ejemplos-de-búsqueda-individual-específica-vs-genérica)
-18. [Vinculación con Conceptos Teóricos de Control y Automatización](#18-vinculación-con-conceptos-teóricos-de-control-y-automatización)
+2. [Problema que Resuelve y Caso de Negocio](#2-problema-que-resuelve-y-caso-de-negocio)
+3. [Funcionalidades Actuales](#3-funcionalidades-actuales)
+4. [Arquitectura del Sistema](#4-arquitectura-del-sistema)
+5. [Tecnologías Utilizadas](#5-tecnologías-utilizadas)
+6. [Estructura Actual de Carpetas y Archivos](#6-estructura-actual-de-carpetas-y-archivos)
+7. [Explicación de los Componentes Principales](#7-explicación-de-los-componentes-principales)
+8. [Funcionamiento del Motor RPA (Automatización 100% Visible)](#8-funcionamiento-del-motor-rpa-automatización-100-visible)
+9. [Funcionamiento de TagUI (Script Académico)](#9-funcionamiento-de-tagui-script-académico)
+10. [Funcionamiento del Frontend y Dashboard Web](#10-funcionamiento-del-frontend-y-dashboard-web)
+11. [Flujo Completo de Ejecución](#11-flujo-completo-de-ejecución)
+12. [Requisitos y Dependencias](#12-requisitos-y-dependencias)
+13. [Guía de Instalación y Configuración](#13-guía-de-instalación-y-configuración)
+14. [Cómo Ejecutar el Proyecto (Frontend Web y Consola)](#14-cómo-ejecutar-el-proyecto-frontend-web-y-consola)
+15. [Cómo Realizar una Prueba Completa](#15-cómo-realizar-una-prueba-completa)
+16. [Reglas de Validación Semántica y Detección de Intención](#16-reglas-de-validación-semántica-y-detección-de-intención)
+17. [Estructura del Reporte Excel (5 Hojas)](#17-estructura-del-reporte-excel-5-hojas)
+18. [Persistencia de Datos (CSV de 10 Columnas)](#18-persistencia-de-datos-csv-de-10-columnas)
+19. [Limitaciones Actuales](#19-limitaciones-actuales)
+20. [Funcionalidades Pendientes y Próximos Pasos](#20-funcionalidades-pendientes-y-próximos-pasos)
 
 ---
 
@@ -39,448 +41,456 @@
 
 **Nombre:** *Comparador RPA Inteligente de Precios y Optimizador de Canasta de Consumo Masivo.*
 
-**Objetivo Principal:** Automatizar mediante RPA (Robotic Process Automation) y Node.js la recolección, validación semántica, comparación y optimización de precios en tiempo real sobre los principales supermercados con plataforma online de Argentina (**Carrefour**, **COTO** y **Día %**), proporcionando una toma de decisiones informada tanto para la **compra planificada del mes** como para **consultas individuales inmediatas**, evitando falsos positivos mediante validación estricta de marcas y atributos.
+**Objetivo Principal:** Automatizar mediante RPA (*Robotic Process Automation*) la recolección en vivo, validación semántica estricta, comparación y optimización de precios en tiempo real sobre los principales supermercados con plataforma online de Argentina (**Carrefour**, **COTO** y **Día %**).
+
+El sistema demuestra una automatización robótica visible en Google Chrome, ejecutando las acciones paso a paso sobre el navegador (navegación por barra de direcciones, tipeo letra por letra, scroll y selección de filtros de ordenamiento) de forma idéntica a la interacción de un usuario humano, persistiendo los resultados estructurados en CSV y generando un reporte analítico de 5 hojas en Microsoft Excel con el cálculo de la canasta óptima.
 
 ---
 
-## 2. Descripción General y Caso de Negocio
+## 2. Problema que Resuelve y Caso de Negocio
 
-En el contexto económico argentino, la dispersión de precios para un mismo producto o categoría entre distintas cadenas minoristas supera frecuentemente el 30% o 40%. Comparar manualmente decenas de artículos navegando múltiples portales web demanda un tiempo considerable y suele inducir a errores por diferencias de presentación, empaques o sustituciones no deseadas.
+En el mercado minorista argentino, la dispersión de precios para un mismo artículo o categoría entre distintas cadenas supera con frecuencia el 30% o 40%. Comparar manualmente decenas de artículos navegando múltiples portales web demanda un tiempo considerable y suele inducir a errores por diferencias de presentación, empaques o sustituciones no deseadas cuando una tienda no dispone de stock.
 
-Este bot RPA actúa como un agente inteligente de software que:
-1. **Navega de forma autónoma** los catálogos públicos de las tiendas online utilizando Google Chrome y TagUI.
-2. **Extrae en tiempo real** el nombre exacto del artículo, precio vigente, enlace directo a la publicación y estado de stock en el DOM.
-3. **Evalúa semánticamente** la coincidencia a través de un motor de validación (`validador.js`) que distingue entre búsquedas específicas (marca, variedad, tamaño) y búsquedas genéricas (categoría abierta).
-4. **Calcula la canasta económica óptima**: Determina el supermercado ganador por costo total acumulado y calcula el ahorro máximo posible comprando cada artículo en su tienda más barata.
-5. **Consolida la información** en dos formatos: persistencia estructurada (`resultados.csv`) y un reporte analítico visual de 5 hojas en Microsoft Excel (`reporte_supermercados.xlsx`).
-
----
-
-## 3. Supermercados Consultados y Especificidades Técnicas
-
-El robot opera sobre tres plataformas con arquitecturas web y motores de renderizado frontend diferentes:
-
-| Supermercado | URL Base | Tecnología Frontend | Retos Técnicos y Selectores DOM |
-| :--- | :--- | :--- | :--- |
-| **Carrefour Argentina** | `https://www.carrefour.com.ar` | VTEX IO (React SPA) | Renderizado asíncrono. Banner de privacidad OneTrust (`if present('Aceptar todo') click`). Nombre en `[class*="productBrand"]` o `[data-testid="product-summary-name"]`. Precio en `[class*="sellingPrice"]`. Detección de clase `unavailable` para artículos agotados. |
-| **COTO Digital** | `https://www.coto.com.ar` | Angular SPA | Componente web custom `<constructor-result-item>`. Título en `.nombre-producto`. Precio en `.card-title`. Detección de botón inactivo o texto `"Sin stock"` / `"Agotado"`. |
-| **Supermercados Día %** | `https://diaonline.supermercadosdia.com.ar` | VTEX IO | Contenedor en `<article>`. Marca y título en `<h3>` o `[class*="productBrand"]`. Precio en `[class*="sellingPrice"]` o parseo directo de nodo de texto con `$`. Identificación de badges `"Agotado"` y ausencia de botón de compra. |
+Este bot RPA actúa como un agente de software que:
+1. **Navega de forma autónoma y visible** los catálogos públicos de las tres tiendas online en Google Chrome.
+2. **Interactúa con los controles reales del navegador y de la página:** barra de direcciones (Omnibox), buscadores con autocompletado, scrolls progresivos y dropdowns de ordenamiento por menor precio.
+3. **Extrae en tiempo real** el nombre exacto del artículo, precio vigente, enlace directo a la publicación y estado de disponibilidad en el DOM.
+4. **Evalúa semánticamente** la coincidencia a través de un motor de validación (`validador.js`) que distingue entre búsquedas específicas (marca, variedad, presentación) y búsquedas genéricas (categoría abierta), evitando falsos positivos (por ejemplo, rechazar sustituciones absurdas como frutas o artículos de limpieza ante la búsqueda de una bebida).
+5. **Calcula la canasta económica óptima:** Determina el supermercado ganador por costo total acumulado y calcula el ahorro máximo posible comprando cada artículo en su tienda más barata.
+6. **Consolida la información** en persistencia local (`resultados.csv`) y genera un reporte analítico visual de 5 hojas en Excel (`reporte_supermercados.xlsx`).
 
 ---
 
-## 4. Estructura Exacta del Proyecto
+## 3. Funcionalidades Actuales
+
+- **Automatización 100% Visible Paso a Paso:** El robot abre Google Chrome maximizado y ejecuta visiblemente cada acción: mueve el cursor hacia la barra de direcciones, tipea la URL letra por letra, presiona Enter, ubica el buscador, tipea el producto, ejecuta la búsqueda, hace scroll y selecciona el filtro de menor precio ("Precios más bajo" / "Menor precio").
+- **Cursor Virtual Autónomo e Indicador Visual:** Inyección de un cursor gráfico con trayectorias de curvas Bézier cúbicas, animaciones de pulso en clicks y badge identificador "BOT RPA".
+- **Controlador Nativo de Mouse y Omnibox (`mouse_helper.exe`):** Binario Win32 desarrollado en C# que interactúa con la API de Windows (`user32.dll`) para mover el cursor físico y activar la barra de direcciones mediante atajos del sistema (`Alt+D` / `Ctrl+L`).
+- **Dashboard Web Interactivo (`http://localhost:3000`):** Interfaz gráfica desarrollada con diseño glassmorphism moderno que permite lanzar búsquedas individuales, ejecutar la compra del mes, editar la canasta en una tabla interactiva, configurar la velocidad del robot y monitorear la ejecución en tiempo real.
+- **Transmisión de Estado en Tiempo Real (WebSocket):** Conexión bidireccional (`/ws/rpa-stream`) que transmite logs, barra de progreso porcentual y estado paso a paso de cada supermercado (Carrefour ➔ COTO ➔ Día %).
+- **Mecanismos de Aborto Inmediato (Kill-Switch):**
+  - Si el usuario cierra la ventana de Chrome o la pestaña de navegación, el proceso se interrumpe al instante.
+  - Si el usuario cierra el frontend web, el servidor detecta la desconexión y cancela el RPA.
+  - Endpoint dedicado `POST /api/abort` para detención inmediata.
+- **Motor de Validación Semántica Estricta (`validador.js`):**
+  - Detección de intención (`ESPECIFICA` vs `GENERICA`).
+  - Diccionario de marcas argentinas y extracción de cantidades/unidades (`1kg`, `500g`, `2.25L`).
+  - Detección y bloqueo de términos incompatibles por categoría.
+  - Clasificación en 4 estados: `VALIDADA`, `SIN STOCK`, `NO ENCONTRADO`, `COINCIDENCIA NO VÁLIDA`.
+- **Reporte Analítico en Excel de 5 Hojas (`reporte_supermercados.xlsx`):** Generación automatizada con `exceljs` que incluye KPIs ejecutivos, matriz comparativa de la canasta, ranking global de menor a mayor, historial de consultas individuales y panel de control de stock/incidencias.
+- **Soporte de Ejecución Dual:**
+  - Modo Web UI vía `interfaz.bat`.
+  - Modo Consola interactiva vía `ejecutar.bat` con menú interactivo de 7 opciones.
+  - Compatibilidad con el script TagUI (`supermercados.tag`) para cumplimiento de los requisitos de la cátedra.
+
+---
+
+## 4. Arquitectura del Sistema
+
+El sistema implementa una arquitectura modular desacoplada en tres capas:
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                              CAPA DE USUARIO                              │
+├─────────────────────────────────────┬─────────────────────────────────────┤
+│         Dashboard Web (UI)          │        Consola CLI (Windows)        │
+│  - http://localhost:3000 (app.js)   │  - ejecutar.bat (Menú 7 opciones)   │
+│  - WebSocket /ws/rpa-stream         │  - Soporta argumentos directos      │
+└──────────────────┬──────────────────┴──────────────────┬──────────────────┘
+                   │                                     │
+                   ▼                                     ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                      CAPA DE SERVICIOS Y ORQUESTACIÓN                     │
+├───────────────────────────────────────────────────────────────────────────┤
+│  server.js (Node.js + Express 5 + WebSocket Server 'ws')                  │
+│  - API REST: /api/compra-mes, /api/buscar-individual, /api/abort, etc.    │
+│  - Control de concurrencia (1 ejecución activa a la vez)                  │
+│  - Transmisión de logs, progreso y estados a los clientes conectados      │
+└──────────────────┬─────────────────────────────────────┬──────────────────┘
+                   │                                     │
+                   ▼                                     ▼
+┌─────────────────────────────────────┐   ┌─────────────────────────────────┐
+│         MOTOR RPA VISIBLE           │   │         SCRIPT TAGUI            │
+│         (rpa_runner.js)             │   │      (supermercados.tag)        │
+├─────────────────────────────────────┤   ├─────────────────────────────────┤
+│ - Puppeteer-Core (Chrome visible)   │   │ - TagUI v6 CLI                  │
+│ - Cursor Virtual (Bézier curves)    │   │ - Modo de compatibilidad        │
+│ - Win32 mouse_helper.exe (Omnibox)  │   │   para requisitos de cátedra    │
+│ - Tipeo progresivo carácter a caract│   └────────────────┬────────────────┘
+│ - Módulos: Carrefour, COTO, Día %   │                    │
+└──────────────────┬──────────────────┘                    │
+                   │                                       │
+                   └──────────────────┬────────────────────┘
+                                      │
+                                      ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                     CAPA DE VALIDACIÓN Y PERSISTENCIA                     │
+├───────────────────────────────────────────────────────────────────────────┤
+│  validador.js:                                                            │
+│    - Normalización de texto y remoción de diacríticos                     │
+│    - Inferencia de intención (específica de marca vs genérica)            │
+│    - Filtro de términos incompatibles y validación de categorías          │
+│                                                                           │
+│  resultados.csv:                                                          │
+│    - Persistencia estructurada en 10 columnas (modo, producto, precio,    │
+│      supermercado, url, fecha, stock_status, cantidad, unidad)            │
+│                                                                           │
+│  generar_excel.js:                                                        │
+│    - Motor ExcelJS: genera reporte_supermercados.xlsx (5 hojas estilizadas)│
+│    - Cálculo de canasta ganadora, compra óptima combinada y ahorro        │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Tecnologías Utilizadas
+
+- **Entorno de Ejecución:** Node.js (v18 o superior).
+- **Automatización de Navegador:**
+  - `puppeteer-core` (v25.10.0): Control de Google Chrome sobre el protocolo DevTools (CDP), ejecución con ventana maximizada, eventos de teclado y mouse reales.
+  - TagUI v6.110.0 (AI Singapore): Framework de RPA por comandos utilizado para cumplir las pautas académicas.
+- **Controlador Nativo de Sistema Operativo:**
+  - C# / .NET Framework 4.0: Código fuente en `mouse_helper.cs`, compilado en `mouse_helper.exe`. Utiliza `user32.dll` (`SendInput`, `GetCursorPos`, `SetCursorPos`, `keybd_event`) para interactuar con la barra de direcciones de Chrome y emular movimientos de mouse con curvas de Bézier cúbicas y DPI Awareness.
+- **Backend y API:**
+  - `express` (v5.2.1): Servidor web HTTP para servir el frontend y atender los endpoints REST.
+  - `ws` (v8.21.3): Servidor WebSocket para streaming en tiempo real de logs y telemetría.
+- **Frontend:**
+  - HTML5 semántico, CSS3 moderno (Glassmorphism, CSS Grid, Flexbox, variables CSS) y JavaScript Vanilla (ES6+).
+  - Tipografía Inter (Google Fonts) e iconos FontAwesome 6.
+- **Generación de Reportes:**
+  - `exceljs` (v3.4.0): Creación programática de hojas de cálculo `.xlsx`, estilos corporativos, formatos numéricos de moneda, fórmulas y formato condicional.
+- **Almacenamiento y Formatos de Datos:**
+  - CSV (RFC 4180 / UTF-8) y Microsoft Excel (.xlsx).
+
+---
+
+## 6. Estructura Actual de Carpetas y Archivos
 
 ```
 Rpa programa/
-├── ejecutar.bat                # Lanzador por lotes interactivo con menú de 6 opciones y diagnóstico para Windows.
-├── supermercados.tag           # Script central de automatización TagUI (control de Chrome y extracción DOM).
-├── validador.js                # Motor de validación semántica, detección de intención y reporte terminal.
-├── generar_excel.js            # Generador del reporte profesional en Excel (5 hojas con estilos y KPIs).
-├── input.csv                   # Archivo editable con la lista predefinida para la Compra del Mes.
-├── resultados.csv              # Persistencia estructurada (8 columnas: modo, producto, precio, stock, etc.).
-├── reporte_supermercados.xlsx  # Reporte final visual generado para el usuario final.
-├── package.json                # Definición de dependencias de Node.js (exceljs).
-├── package-lock.json           # Bloqueo de versiones de dependencias.
-├── node_modules/               # Módulos instalados de Node.js.
-├── .gitignore                  # Exclusión de temporales, logs y node_modules para control de versiones.
-└── README.md                   # Documentación técnica integral del proyecto.
-```
-
-### Detalle de Responsabilidad por Archivo:
-- **`ejecutar.bat`**: Menú amigable en Windows (soporta UTF-8 y codificación CRLF). Incluye validaciones previas de entorno (TagUI en PATH, Node.js, npm, ExcelJS y archivos esenciales). Ofrece 6 opciones: Compra del Mes, Búsqueda Individual, Abrir Excel, Limpieza de Historial, Diagnóstico del Sistema con pruebas unitarias, y Salir.
-- **`supermercados.tag`**: Realiza la automatización de la interfaz gráfica web en Google Chrome. Codifica los parámetros con `encodeURIComponent` para soportar términos compuestos, inyecta JavaScript para extraer datos limpios del DOM y persiste cada registro con 8 columnas en `resultados.csv`.
-- **`validador.js`**: Normaliza cadenas (elimina tildes, puntuación y mayúsculas), reconoce marcas argentinas comunes (Secco, Manaos, Coca Cola, La Serenísima, Lucchetti, etc.), extrae volúmenes o pesos (`2.25L`, `1Kg`) y valida que el producto encontrado coincida con lo pedido sin aceptar falsos positivos. Incluye reporte interactivo para la terminal.
-- **`generar_excel.js`**: Procesa `resultados.csv` mediante la librería `exceljs`. Realiza el análisis matemático del costo de canasta y genera un archivo `.xlsx` estilizado con paletas de color corporativas, bordes, formatos de moneda argentina y enlaces directos.
-- **`input.csv`**: Lista de artículos que integran la compra recurrente mensual del hogar. Puede modificarse libremente agregando o quitando filas.
-
----
-
-## 5. Arquitectura y Diagramas de Flujo ASCII
-
-### Arquitectura General del Sistema
-```
-                          ┌───────────────────────────────┐
-                          │          ejecutar.bat         │
-                          │        (Menú Principal)       │
-                          └───────────────┬───────────────┘
-                                          │
-                   ┌──────────────────────┴──────────────────────┐
-                   ▼                                             ▼
-        [1] COMPRA DEL MES                           [2] BÚSQUEDA INDIVIDUAL
-     - Lee lista de entrada:                        - Solicita término por consola
-       input.csv (totalmente editable)              - NO modifica input.csv
-     - Ejecuta TagUI (modo 'compra_mes')            - Ejecuta TagUI (modo 'individual')
-                   │                                             │
-                   └──────────────────────┬──────────────────────┘
-                                          ▼
-                          ┌───────────────────────────────┐
-                          │       supermercados.tag       │
-                          │    TagUI + Google Chrome      │
-                          │  - Carrefour (VTEX)           │
-                          │  - COTO (Angular SPA)         │
-                          │  - Día % (VTEX)               │
-                          │  - Extracción de Nombre,      │
-                          │    Precio, URL y Stock        │
-                          └───────────────┬───────────────┘
-                                          │
-                                          ▼
-                          ┌───────────────────────────────┐
-                          │         validador.js          │
-                          │  - Detección de Intención     │
-                          │    (Específica vs Genérica)   │
-                          │  - Validación de Marca,       │
-                          │    Categoría y Presentación   │
-                          │  - Clasificación de Estado:   │
-                          │    VALIDADA / NO VÁLIDA /     │
-                          │    SIN STOCK / NO ENCONTRADO  │
-                          └───────────────┬───────────────┘
-                                          │
-                   ┌──────────────────────┴──────────────────────┐
-                   ▼                                             ▼
-          Terminal en Vivo                               Persistencia Local
-     (Muestra precios, validación,                         resultados.csv
-      ganador y ahorro en pantalla)                    (8 columnas con estado)
-                                                                 │
-                                                                 ▼
-                                                      ┌─────────────────────┐
-                                                      │  generar_excel.js   │
-                                                      │  - Costo Canasta    │
-                                                      │  - Compra Óptima    │
-                                                      │  - Rankings         │
-                                                      │  - Historial        │
-                                                      │  - Stock Issues     │
-                                                      └──────────┬──────────┘
-                                                                 ▼
-                                                    reporte_supermercados.xlsx
-                                                    (5 Hojas con diseño pro)
-```
-
-### Flujo del Modo Búsqueda Individual
-```
-  [Usuario ingresa término] ──► "Gaseosa Secco Pomelo"
-              │
-              ▼
-   Crea temp_input.csv (input.csv queda INTACTO)
-              │
-              ▼
-   TagUI consulta Carrefour, COTO y Día %
-              │
-              ▼
-   validador.js analiza resultados:
-     • Carrefour devolvió "Shampoo Dove" ──► ❌ COINCIDENCIA NO VÁLIDA (Categoría ajena)
-     • COTO devolvió "Pomelo Rojo Xkg"    ──► ❌ COINCIDENCIA NO VÁLIDA (Fruta por kg)
-     • Día % devolvió "Shampoo Pantene"   ──► ❌ COINCIDENCIA NO VÁLIDA (Categoría ajena)
-              │
-              ▼
-   Alerta en Terminal: "Ningún supermercado arrojó coincidencia válida. No se sustituyó."
-              │
-              ▼
-   Actualiza resultados.csv y reporte_supermercados.xlsx (Hojas 4 y 5)
+├── docs/
+│   └── guia_visual.html          # Guía visual explicativa de reglas y funcionamiento.
+├── public/                       # Frontend web servido por Express
+│   ├── app.js                    # Lógica del cliente web (WebSocket, REST, UI).
+│   ├── index.html                # Dashboard principal con panel de control y monitor.
+│   ├── styles.css                # Estilos visuales (diseño glassmorphism moderno).
+│   └── visor-proceso.html        # Visor interactivo de resultados e inspección.
+├── tests/                        # Pruebas y scripts de verificación
+│   ├── capture_frontend_ui.js    # Captura de interfaz de usuario.
+│   ├── test_error_concurrency.js # Prueba de control de concurrencia y errores.
+│   ├── verify_compra_mes.js      # Verificación del flujo de compra del mes.
+│   └── verify_live_search_secco.js # Verificación de validación semántica estricta.
+├── .gitignore                    # Exclusión de node_modules, temporales y reportes locales.
+├── ejecutar.bat                  # Lanzador por lotes interactivo (menú CLI de 7 opciones).
+├── generar_excel.js              # Generador del reporte Excel de 5 hojas con ExcelJS.
+├── input.csv                     # Canasta básica mensual predefinida (editable).
+├── interfaz.bat                  # Lanzador directo del servidor y Dashboard Web.
+├── mouse_helper.cs               # Código fuente C# del controlador nativo Win32.
+├── mouse_helper.exe              # Ejecutable compilado del helper nativo de mouse y Omnibox.
+├── package.json                  # Definición de dependencias npm del proyecto.
+├── package-lock.json             # Árbol de versiones bloqueadas de npm.
+├── README.md                     # Documentación general y manual de usuario del proyecto.
+├── resultados.csv                # Persistencia de extracciones (10 columnas).
+├── rpa_runner.js                 # Motor de automatización RPA 100% visible con Chrome.
+├── server.js                     # Servidor Express + WebSocket + API REST.
+├── supermercados.tag             # Script TagUI para ejecución académica alternativa.
+└── validador.js                  # Motor de validación semántica y reporte por consola.
 ```
 
 ---
 
-## 6. Instructivo de Instalación y Requisitos
+## 7. Explicación de los Componentes Principales
 
-### Requisitos Previos
-1. **Sistema Operativo:** Windows 10 o Windows 11 (64-bit).
-2. **Google Chrome:** Navegador instalado en su ubicación por defecto.
-3. **Node.js:** Versión 18 o superior instalada (verificar con `node -v` en consola).
+| Archivo | Responsabilidad Principal |
+| :--- | :--- |
+| **`rpa_runner.js`** | Orquestador del RPA visible. Inicia Chrome maximizado, inyecta el cursor visual, delega la navegación a `mouse_helper.exe`, ejecuta el tipeo y clicks progresivos, coordina la búsqueda secuencial en Carrefour, COTO y Día %, y guarda los resultados en `resultados.csv`. |
+| **`mouse_helper.cs` / `.exe`** | Herramienta Win32 que resuelve la limitación de Puppeteer sobre la interfaz nativa del navegador: mueve el mouse físico hacia la barra de direcciones de Chrome, envía `Alt+D`, escribe la URL letra por letra y presiona Enter. |
+| **`server.js`** | Levanta el servidor HTTP en el puerto 3000, gestiona la conexión WebSocket `/ws/rpa-stream`, expone los endpoints para lanzar búsquedas, editar la lista de compras, abortar procesos y regenerar reportes. |
+| **`public/app.js`** | Controla los eventos del dashboard web: gestiona la conexión WebSocket, actualiza la consola virtual en vivo, sincroniza los indicadores de paso de los 3 supermercados y abre el modal interactivo de edición de la canasta. |
+| **`validador.js`** | Normaliza textos, detecta la intención del usuario, evalúa la pertinencia del producto encontrado frente a lo solicitado (marcas, términos incompatibles y categorías) y formatea el reporte comparativo en terminal. |
+| **`generar_excel.js`** | Lee `resultados.csv`, calcula la canasta más económica y el óptimo combinado, y construye `reporte_supermercados.xlsx` con 5 hojas formateadas profesionalmente. |
+| **`supermercados.tag`** | Implementación del flujo RPA mediante comandos nativos de TagUI (`type`, `click`, `dom begin ... dom finish`), manteniendo compatibilidad académica con el plan de estudios. |
+| **`ejecutar.bat`** | Script de inicio para consola Windows con validación de dependencias (Node.js, ExcelJS, TagUI) y menú interactivo de 7 opciones. |
+| **`interfaz.bat`** | Script de inicio rápido que libera el puerto 3000 si estuviera ocupado, inicia `server.js` en segundo plano y abre automáticamente el navegador en `http://localhost:3000`. |
 
-### Paso 1: Descargar e Instalar TagUI
-1. Descargar el paquete oficial de TagUI para Windows:
-   - [TagUI_Windows.zip](https://github.com/aisingapore/tagui/releases/download/v6.110.0/TagUI_Windows.zip)
-2. Descomprimir el contenido en una carpeta sin espacios ni caracteres especiales, por ejemplo:
-   `C:\tagui`  o  `C:\Users\<TuUsuario>\tagui`
+---
 
-### Paso 2: Configurar la Variable de Entorno PATH
-1. Presionar la tecla `Windows` y escribir **"variables de entorno"**.
-2. Seleccionar **"Editar las variables de entorno de esta cuenta"** (o del sistema).
-3. En la lista de variables de usuario, hacer doble clic en `Path`.
-4. Hacer clic en **"Nuevo"** y añadir la ruta a la subcarpeta `src` de TagUI:
-   `C:\tagui\src` (o la ruta donde se descomprimió).
-5. Hacer clic en **Aceptar** en todas las ventanas.
+## 8. Funcionamiento del Motor RPA (Automatización 100% Visible)
 
-### Paso 3: Clonar el Repositorio e Instalar Dependencias
-Abrir una terminal (PowerShell o CMD) y ejecutar:
-```cmd
+A diferencia de los scripts tradicionales que utilizan llamadas HTTP internas o asignaciones sintéticas en el DOM (`element.value = ...`), este motor implementa una **interacción visible de extremo a extremo**:
+
+1. **Detección de Chrome:** La función `getChromePath()` localiza el ejecutable de Google Chrome en las rutas estándar de Windows (`Program Files`, `Program Files (x86)`, `LocalAppData`).
+2. **Lanzamiento Visible:** Puppeteer inicia Chrome con `headless: false`, `--start-maximized` y desactivando flags de automatización.
+3. **Cursor Virtual en Pantalla:** Se inyecta un elemento DOM (`#rpa-virtual-cursor`) con coordenadas absolutas que se desplaza mediante curvas de Bézier cúbicas con aceleración y desaceleración suaves (`ease-in-out`), generando una estela y un efecto de onda (*ripple*) al hacer click.
+4. **Navegación Visible por Barra de Direcciones (`visibleNavigate`):**
+   - El cursor se mueve hacia la parte superior de la ventana.
+   - `mouse_helper.exe` envía los eventos nativos de Windows para enfocar la barra de direcciones de Chrome (`Alt+D`).
+   - Escribe la URL carácter por carácter con un retardo humano configurable (por defecto 50 ms).
+   - Presiona Enter y espera a que el navegador complete la carga de la página.
+5. **Tipeo Progresivo Real (`visibleType`):**
+   - El cursor se mueve hasta el campo de búsqueda del supermercado y hace click.
+   - Envía `Ctrl+A` seguido de `Backspace` para limpiar búsquedas previas.
+   - Escribe la consulta utilizando `page.keyboard.type(text, { delay })`, disparando los eventos reales del teclado (`keydown`, `keypress`, `keyup`) requeridos por frameworks como React, Angular y bibliotecas de autocompletado como Downshift.
+6. **Scroll Progresivo (`visibleScroll`):** Desplaza la página de forma suave en pasos sucesivos para simular la lectura de resultados por parte de un usuario.
+7. **Ordenamiento de Menor a Mayor:**
+   - **Carrefour:** Localiza el botón `orderByButton`, lo despliega y hace click en la opción "Precios más bajo".
+   - **COTO:** Localiza el elemento `<select class="form-select">` y selecciona la opción `price|ascending`.
+   - **Día %:** Localiza el botón de ordenamiento y selecciona la opción correspondiente a menor precio.
+8. **Extracción y Validación:** Tras estabilizar el DOM pos-ordenamiento, evalúa los primeros artículos contra las reglas de `validador.js` y selecciona el producto con stock y precio válido más representativo.
+
+---
+
+## 9. Funcionamiento de TagUI (Script Académico)
+
+El archivo `supermercados.tag` constituye la implementación requerida por los lineamientos pedagógicos de la cátedra:
+
+- **Estructura:** Diseñado para ejecutarse mediante el comando:
+  ```cmd
+  tagui supermercados.tag input.csv
+  ```
+- **Procesamiento por Filas:** TagUI itera automáticamente sobre cada fila de `input.csv`. En la primera iteración inicializa la cabecera de `resultados.csv`.
+- **Interacción por Supermercado:**
+  - Visita Carrefour, gestiona el banner de cookies (`if present('Aceptar todo') click`), escribe en el buscador `input.vtex-styleguide-9-x-input` y extrae datos mediante un bloque JavaScript `dom begin ... dom finish`.
+  - Visita COTO, escribe en `input#cio-autocomplete-0-input` y extrae los resultados del componente `<constructor-result-item>`.
+  - Visita Día %, escribe en el buscador de la tienda y extrae datos del catálogo.
+- **Persistencia:** Al finalizar cada tienda, escribe la fila estructurada en `resultados.csv` mediante la función interna `csv_row(...)`.
+
+---
+
+## 10. Funcionamiento del Frontend y Dashboard Web
+
+El frontend web (`public/index.html`, `styles.css`, `app.js`) proporciona una experiencia visual de control:
+
+- **Tarjeta "Compra del Mes":** Botón de inicio rápido del procesamiento masivo y botón "Editar Lista" que abre un modal con una tabla editable interactiva donde agregar, modificar o quitar productos, cantidades y unidades.
+- **Tarjeta "Búsqueda Rápida":** Formulario para ingresar producto, cantidad y unidad personalizada con envío mediante botón o pulsando Enter.
+- **Controles de Demostración:**
+  - Switch para alternar el modo demostración visual.
+  - Deslizador de velocidad de tipeo (de 0.02s a 0.12s por letra).
+  - Deslizador de velocidad de movimiento de mouse (de 0.2s a 1.2s).
+- **Monitor de Pasos de Supermercados:** Tres tarjetas de estado sincronizadas con badges de progreso en tiempo real:
+  - `1. Carrefour` ➔ `2. COTO Digital` ➔ `3. Día %`
+  - Estados: *En espera*, *En curso...* y *✓ Completado*.
+- **Consola Virtual en Vivo:** Panel con scroll automático que refleja todos los mensajes emitidos por el motor RPA mediante el canal WebSocket.
+- **Modal de Limpieza:** Opciones para purgar los datos de la compra del mes, el historial individual o la totalidad de los registros sin tocar `input.csv`.
+
+---
+
+## 11. Flujo Completo de Ejecución
+
+```
+1. INICIO
+   ├─ Usuario presiona "Iniciar Proceso" o "Buscar Producto" en la Web UI (o vía ejecutar.bat).
+   └─ server.js recibe la solicitud y verifica el bloqueo de concurrencia.
+
+2. PREPARACIÓN
+   ├─ Se cierran instancias bloqueantes de Excel (taskkill EXCEL.EXE para evitar EBUSY).
+   ├─ Se limpian registros previos del modo correspondiente en resultados.csv.
+   └─ Se inicializa la conexión WebSocket y se emite el estado 'connecting'.
+
+3. MOTOR RPA (rpa_runner.js)
+   ├─ Abre Google Chrome maximizado en la pantalla del usuario.
+   ├─ Inyecta el cursor visual y prepara el controlador Win32 mouse_helper.exe.
+   │
+   ├─ SUPERMERCADO 1: CARREFOUR ARGENTINA
+   │  ├─ Navega vía Omnibox (tipeo visible de URL).
+   │  ├─ Cierra banners de cookies.
+   │  ├─ Mueve cursor al buscador y escribe el producto letra por letra.
+   │  ├─ Presiona Enter y espera la carga de resultados.
+   │  ├─ Realiza scroll progresivo.
+   │  ├─ Despliega el menú de ordenamiento y selecciona "Precios más bajo".
+   │  ├─ Extrae el producto candidato y valida con validador.js.
+   │  └─ Emite telemetría: [SUPERMERCADO 1] Finalizado.
+   │
+   ├─ SUPERMERCADO 2: COTO DIGITAL
+   │  ├─ Navega vía Omnibox a https://www.coto.com.ar.
+   │  ├─ Mueve cursor al buscador de COTO y tipea letra por letra.
+   │  ├─ Presiona botón de búsqueda / Enter.
+   │  ├─ Aplica scroll progresivo.
+   │  ├─ Aplica ordenamiento por menor precio.
+   │  ├─ Extrae el producto candidato y valida con validador.js.
+   │  └─ Emite telemetría: [SUPERMERCADO 2] Finalizado.
+   │
+   ├─ SUPERMERCADO 3: DÍA %
+   │  ├─ Navega vía Omnibox a https://diaonline.supermercadosdia.com.ar.
+   │  ├─ Mueve cursor al buscador de Día % y tipea letra por letra.
+   │  ├─ Presiona Enter y espera resultados.
+   │  ├─ Aplica scroll progresivo y ordenamiento.
+   │  ├─ Extrae el producto candidato y valida con validador.js.
+   │  └─ Emite telemetría: [SUPERMERCADO 3] Finalizado.
+   │
+   └─ Cierra la sesión de Chrome de manera ordenada.
+
+4. POST-PROCESAMIENTO Y SALIDA
+   ├─ Los registros se persisten en resultados.csv (10 columnas).
+   ├─ En búsquedas individuales, se imprime el reporte semántico por consola.
+   ├─ Se ejecuta generar_excel.js y se actualiza reporte_supermercados.xlsx.
+   ├─ Se abre automáticamente el archivo Excel en Microsoft Excel.
+   └─ El frontend web emite 'finished' y restablece el estado del sistema.
+```
+
+---
+
+## 12. Requisitos y Dependencias
+
+### Requisitos del Sistema Operativo
+- **Sistema Operativo:** Microsoft Windows 10 o Windows 11 (64-bit).
+- **Navegador Web:** Google Chrome instalado en su ruta predeterminada de sistema.
+- **Node.js:** Versión 18.x o superior (verificar con `node -v`).
+- **TagUI (opcional/académico):** TagUI v6.110.0 configurado en la variable `PATH` si se desea ejecutar el script `.tag`.
+
+### Dependencias declaradas en `package.json`
+```json
+{
+  "dependencies": {
+    "exceljs": "^3.4.0",
+    "express": "^5.2.1",
+    "puppeteer-core": "^25.10.0",
+    "ws": "^8.21.3"
+  }
+}
+```
+
+---
+
+## 13. Guía de Instalación y Configuración
+
+### Paso 1: Clonar o descargar el repositorio
+```bash
 git clone https://github.com/SantiagoAllaud/Rpa-grupo-1.git
 cd "Rpa-grupo-1/Rpa programa"
+```
+
+### Paso 2: Instalar dependencias de Node.js
+Ejecutar en la carpeta raíz del proyecto:
+```bash
 npm install
 ```
-*(Esto instalará `exceljs` y dependencias adicionales como `express`).*
+Esto descargará e instalará `exceljs`, `express`, `puppeteer-core` y `ws` dentro del directorio `node_modules`.
 
-### Paso 4: Iniciar la Interfaz Gráfica Web (¡Recomendado!)
-Para utilizar el nuevo **Dashboard Web** con botones y diseño moderno:
-1. Haz doble clic en el archivo `interfaz.bat`.
-2. Esto encenderá el servidor y abrirá automáticamente tu navegador web apuntando a `http://localhost:3000`.
-3. Desde la web podrás controlar todo el bot sin usar la consola negra (Búsqueda Individual, Compra del Mes, Limpieza, etc).
+### Paso 3: Verificar el ejecutable auxiliar `mouse_helper.exe`
+El archivo `mouse_helper.exe` ya se encuentra precompilado en la raíz. Si por alguna razón de entorno se desea recompilar desde su código fuente `mouse_helper.cs`, se puede ejecutar desde una consola con el compilador de .NET Framework de Windows:
+```cmd
+C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:exe /out:mouse_helper.exe mouse_helper.cs
+```
 
-*(Nota: Si prefieres la consola de texto clásica, sigue utilizando `ejecutar.bat` en su lugar).*
+### Paso 4 (Opcional - Sólo para TagUI):
+Si se va a utilizar el motor TagUI mediante la opción de consola o ejecución manual:
+1. Descargar [TagUI_Windows.zip](https://github.com/aisingapore/tagui/releases/download/v6.110.0/TagUI_Windows.zip).
+2. Descomprimir en `C:\tagui`.
+3. Agregar `C:\tagui\src` a la variable de entorno `Path` de Windows.
 
 ---
 
-## 7. Modo Compra del Mes (Uso Detallado)
+## 14. Cómo Ejecutar el Proyecto (Frontend Web y Consola)
 
-El modo **Compra del Mes** está diseñado para calcular el abastecimiento mensual regular de la familia.
+### Opción A: Dashboard Web (Método Recomendado)
+1. Hacer doble click sobre el archivo **`interfaz.bat`** (o ejecutar en terminal: `node server.js`).
+2. Se iniciará el servidor en `http://localhost:3000` y se abrirá automáticamente en tu navegador por defecto.
+3. Para buscar un producto puntual, ingresarlo en la tarjeta **Búsqueda Rápida** y presionar "Buscar Producto".
+4. Para procesar la canasta completa, presionar "Iniciar Proceso" en la tarjeta **Compra del Mes**.
 
-1. Abrir el archivo `input.csv` con cualquier editor de texto o Excel.
-2. Ingresar la lista de artículos a cotizar:
-   ```csv
-   producto,modo
-   leche,compra_mes
-   arroz,compra_mes
-   fideos,compra_mes
-   aceite,compra_mes
-   yerba,compra_mes
-   azucar,compra_mes
-   cafe,compra_mes
-   galletitas,compra_mes
-   papel higienico,compra_mes
+### Opción B: Consola Interactiva por Lotes
+1. Hacer doble click sobre el archivo **`ejecutar.bat`**.
+2. Se desplegará el menú interactivo con las siguientes opciones:
+   - `[1] Procesar compra del mes (desde input.csv)`
+   - `[2] Buscar producto individual (consulta interactiva)`
+   - `[3] Abrir reporte Excel (reporte_supermercados.xlsx)`
+   - `[4] Editar lista de compra del mes (input.csv)`
+   - `[5] Limpiar resultados / historial`
+   - `[6] Diagnóstico del sistema y pruebas unitarias`
+   - `[7] Salir`
+3. También permite pasar el producto directamente como argumento por línea de comandos:
+   ```cmd
+   ejecutar.bat "leche la serenisima"
    ```
-3. Ejecutar `ejecutar.bat` y seleccionar la opción `[1]`.
-4. El bot recorrerá cada producto en Carrefour, COTO y Día %, extraerá los precios y generará el reporte en Excel.
-5. Al finalizar, abrirá automáticamente `reporte_supermercados.xlsx` mostrando:
-   - Cuál supermercado es el más barato para comprar la **canasta completa**.
-   - Cuál es el costo total si se opta por una **compra combinada óptima**.
-   - El ahorro total potencial obtenido.
 
 ---
 
-## 8. Modo Búsqueda Individual (Uso Detallado)
+## 15. Cómo Realizar una Prueba Completa
 
-El modo **Búsqueda Individual** permite consultar el precio y disponibilidad de cualquier artículo puntual en los tres supermercados sin modificar el archivo `input.csv`.
+Para comprobar que todos los componentes funcionan de forma armónica:
 
-1. Ejecutar `ejecutar.bat` y elegir la opción `[2]` (o tipear directamente el nombre del producto en el prompt del menú).
-2. Ingresar el producto deseado (ejemplo: `leche la serenisima`, `fideos`, `gaseosa secco pomelo`).
-3. El bot ejecuta la automatización en Chrome mediante un archivo temporal `temp_input.csv` que se elimina inmediatamente.
-4. En la terminal se despliega un reporte inmediato con los precios, el estado de validación para cada tienda, el ganador y el ahorro.
-5. Los resultados se añaden al historial en `resultados.csv` y se actualiza el Excel, abriéndolo en pantalla.
-
----
-
-## 9. Reglas de Validación Estricta y Detección de Intención
-
-Para evitar que el bot compare productos absurdos cuando una tienda no tiene stock, `validador.js` implementa un motor de inferencia semántica con dos comportamientos:
-
-### A) Búsqueda Específica (`ESPECIFICA`)
-Se activa cuando la consulta incluye una **marca conocida** (ej: *Secco*, *Coca Cola*, *Playadito*, *La Serenísima*, *Lucchetti*), una **presentación exacta** (ej: *2.25L*, *1Kg*) o múltiples atributos concretos.
-- **Regla de Marca:** La marca solicitada **debe** estar presente en el título devuelto por la tienda. Si no coincide, el resultado es clasificado como `COINCIDENCIA NO VÁLIDA`.
-- **Regla de Categoría:** Se bloquean cruces incoherentes (por ejemplo, ante la búsqueda de una bebida, se rechazan frutas por kilo, verduras o artículos de tocador).
-- **Regla de Presentación:** Si se indicó tamaño (ej: *2.25l*), se rechazan envases muy lejanos (ej: *600ml*).
-- **Ejemplo:** Ante la búsqueda `"Gaseosa Secco Pomelo"`:
-  - COTO devuelve `"Pomelo Rojo . Xkg"` (fruta) ➔ **Rechazado** (`COINCIDENCIA NO VÁLIDA`).
-  - Carrefour devuelve `"Shampoo Dove..."` ➔ **Rechazado** (`COINCIDENCIA NO VÁLIDA`).
-  - Día % devuelve `"Shampoo Pantene..."` ➔ **Rechazado** (`COINCIDENCIA NO VÁLIDA`).
-  - **Resultado:** Ningún supermercado gana. El sistema no inventa sustitutos.
-
-### B) Búsqueda Genérica (`GENERICA`)
-Se activa cuando la consulta no menciona marcas particulares (ej: *arroz*, *leche*, *fideos*, *bebida de naranja*).
-- **Regla:** Se valida que el producto pertenezca a la categoría solicitada (y al sabor si fue especificado).
-- Permite comparar entre distintas marcas del mercado para encontrar la alternativa más económica.
-- **Ejemplo:** Ante `"bebida de naranja"`:
-  - Carrefour ofrece Levité Naranja ($ 2.100).
-  - COTO ofrece Baggio Naranja ($ 1.850).
-  - Día % ofrece Cepita Naranja ($ 2.450).
-  - Todos son validados como alternativas aceptables y gana COTO por menor precio.
+1. Iniciar la interfaz web ejecutando `interfaz.bat`.
+2. Verificar que en la esquina superior de la consola virtual figure el indicador **Listo**.
+3. En la tarjeta de **Búsqueda Rápida**, ingresar `arroz`, dejar cantidad en `1` y presionar **Buscar Producto**.
+4. Observar en el escritorio:
+   - Se abre Google Chrome maximizado.
+   - Aparece el cursor virtual morado con el badge "BOT RPA".
+   - El robot visita Carrefour, escribe "arroz", ordena por menor precio y extrae el artículo ganador.
+   - Pasa a COTO Digital, realiza la búsqueda, ordena y extrae.
+   - Pasa a Día %, ejecuta la búsqueda y extrae.
+   - Chrome se cierra de forma limpia.
+5. Observar en el navegador:
+   - Los indicadores de los 3 supermercados pasan a verde con el tilde de completado.
+   - La barra de progreso llega al 100%.
+6. Comprobar que automáticamente se abre Microsoft Excel exhibiendo el archivo `reporte_supermercados.xlsx` con los datos actualizados de la consulta en las 5 hojas.
 
 ---
 
-## 10. Explicación de las 5 Hojas del Reporte Excel
+## 16. Reglas de Validación Semántica y Detección de Intención
 
-El archivo `reporte_supermercados.xlsx` cuenta con 5 pestañas con formato condicional y fórmulas:
+El módulo `validador.js` actúa como filtro de calidad sobre las extracciones:
 
-### Hoja 1: 🏆 Conclusiones
-- **Tarjetas KPI:** Muestra el Supermercado Recomendado para la canasta completa, el Costo Total de la Canasta Ganadora, el Costo de la Compra Combinada Óptima y el Ahorro Máximo Potencial.
-- **Tabla de Evaluación por Supermercado:** Compara el costo total de la compra en cada súper, cuántos productos tuvieron stock disponible y cuántos precios mínimos ganó cada uno.
-- **Tabla de Ganadores por Producto:** Detalla el producto más barato para cada ítem cotizado con enlace directo.
-- **Bloque Narrativo:** Resumen ejecutivo redactado por el bot con recomendaciones para el comprador.
+### Intención Específica (`ESPECIFICA`)
+Se activa cuando el término contiene una marca conocida (*La Serenísima*, *Molinos Ala*, *Coca Cola*, *Playadito*, *Lucchetti*, etc.) o especificaciones cuantitativas estrictas:
+- **Exigencia de Marca:** La marca requerida debe estar presente en el título devuelto por la tienda. Si no coincide, el producto es rechazado con el estado `COINCIDENCIA NO VÁLIDA`.
+- **Filtro de Incompatibilidad:** Se definen listas de exclusión categórica cruzada (por ejemplo, ante la búsqueda de gaseosa o arroz, se descartan artículos de limpieza, tocador o frutas).
 
-### Hoja 2: 🛒 Canasta Mensual
-- **Matriz Comparativa Horizontal:** Filas por artículo solicitado y columnas para Carrefour, COTO y Día %.
-- **Celdas en Verde:** Resaltan visualmente la celda del supermercado que ofrece el menor precio en cada fila.
-- **Fila Total al Pie:** Suma del costo de canasta por supermercado, costo de compra óptima combinada y ahorro total.
-
-### Hoja 3: 📊 Ranking Menor a Mayor
-- **Tabla Consolidada:** Lista todos los artículos encontrados ordenados estrictamente por precio ascendente.
-- **Medallas de Podio:** Distintivos `🥇 1° MÁS BARATO`, `🥈 2° Puesto`, `🥉 3° Puesto` con formatos numéricos `$ #,##0.00`.
-
-### Hoja 4: 🔎 Consultas Individuales
-- **Historial de Búsquedas Unitarias:** Registra cada consulta interactiva realizada desde la terminal con fecha, supermercado, producto devuelto, precio y estado de validación.
-
-### Hoja 5: ⚠️ Disponibilidad y Stock
-- **Control de Calidad:** Lista exclusivamente aquellos productos que presentaron incidencias:
-  - Artículos sin stock (`SIN STOCK`).
-  - Artículos inexistentes en la tienda (`NO ENCONTRADO`).
-  - Productos descartados por validación semántica (`COINCIDENCIA NO VÁLIDA`) con la justificación técnica del rechazo.
+### Intención Genérica (`GENERICA`)
+Se activa ante búsquedas abiertas de consumo general (ej: *arroz*, *leche*, *fideos*):
+- Valida que el artículo pertenezca a la categoría solicitada.
+- Permite la competencia entre diversas marcas para descubrir la opción más accesible de góndola.
 
 ---
 
-## 11. Manejo de Productos Sin Stock
+## 17. Estructura del Reporte Excel (5 Hojas)
 
-Cuando un producto está agotado en la tienda online:
-1. El script `supermercados.tag` inspecciona selectores DOM como botones deshabilitados, etiquetas `"Agotado"`, `"Sin stock"` o clases CSS `unavailable`.
-2. Asigna el estado `SIN STOCK` en `resultados.csv`.
-3. El módulo `validador.js` excluye automáticamente ese producto de la competencia por el precio más bajo, evitando que una oferta ficticia sin stock gane la comparativa.
-4. Se registra en la Hoja 5 del Excel para advertir al usuario.
+El archivo generado `reporte_supermercados.xlsx` está estructurado en 5 pestañas:
 
----
-
-## 12. Diferenciación entre Estados de Disponibilidad
-
-El sistema tipifica con rigor cuatro estados posibles para cada consulta:
-
-| Estado | Significado | Tratamiento en el Sistema |
-| :--- | :--- | :--- |
-| `VALIDADA` | Coincidencia conforme y disponible en góndola digital. | Participa en la comparativa de precios y cálculo de canasta. |
-| `SIN STOCK` | El producto existe en el catálogo pero está agotado temporalmente. | Se muestra el precio informativo pero se excluye de la canasta ganadora. |
-| `NO ENCONTRADO` | La búsqueda no arrojó ningún elemento en el catálogo del súper. | Se registra como N/D y se alerta la falta de cobertura en ese comercio. |
-| `COINCIDENCIA NO VÁLIDA` | El supermercado devolvió un producto ajeno a lo solicitado. | Se rechaza terminantemente para evitar falsas comparaciones de precio. |
+1. **🏆 Conclusiones:** Tarjetas KPI con el supermercado ganador de la canasta, costo de la canasta más económica, costo de la compra combinada óptima y ahorro potencial absoluto. Incluye la tabla de ganadores por producto con hipervínculos directos a la tienda.
+2. **🛒 Canasta Mensual:** Matriz comparativa que cruza los productos cotizados contra cada cadena. Las celdas de menor precio se destacan en verde pastel y en el pie se calculan los totales acumulados.
+3. **📊 Ranking Menor a Mayor:** Lista completa de todos los productos extraídos ordenados estrictamente por precio unitario ascendente con medallas 🥇, 🥈 y 🥉.
+4. **🔎 Consultas Individuales:** Historial cronológico de las búsquedas rápidas realizadas por los usuarios.
+5. **⚠️ Disponibilidad y Stock:** Auditoría de incidencias que lista productos con `SIN STOCK`, `NO ENCONTRADO` y aquellos rechazados por validación semántica (`COINCIDENCIA NO VÁLIDA`) detallando el motivo exacto del descarte.
 
 ---
 
-## 13. Funcionamiento del Historial y Persistencia
+## 18. Persistencia de Datos (CSV de 10 Columnas)
 
-La persistencia se realiza en `resultados.csv` con codificación UTF-8:
+El archivo `resultados.csv` almacena el histórico estructurado con cabecera fija y formato UTF-8:
+
 ```csv
-modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status
-compra_mes,yerba,Yerba mate Playadito suave con palo 1 kg.,"$ 5.209,00",Carrefour,https://...,2026-09-08,DISPONIBLE
-compra_mes,yerba,Yerba Mate 4 Flex Mañanita Paq 1 Kgm,"$5.370,00",COTO,https://...,2026-09-08,DISPONIBLE
-compra_mes,yerba,Yerba Mate Mañanita 4 Flex 1 Kg.,$ 3.790,Día %,https://...,2026-09-08,DISPONIBLE
-individual,leche serenisima,Leche Protein La Serenisima 1L,"$ 3.119,00",Carrefour,https://...,2026-09-08,DISPONIBLE
-```
-- Cada nueva consulta se agrega al final del archivo sin sobreescribir las anteriores.
-- La columna `modo` permite segregar analíticamente los datos de la compra del mes de las consultas rápidas.
-
----
-
-## 14. Opciones de Limpieza y Mantenimiento
-
-Desde el menú principal de `ejecutar.bat`, la opción `[4] Limpiar resultados / historial` ofrece:
-- `[1] Limpiar registros de Compra del Mes actual`: Reinicia la canasta mensual para una nueva medición conservando las búsquedas individuales.
-- `[2] Limpiar historial de Consultas Individuales`: Borra búsquedas de prueba conservando la canasta mensual.
-- `[3] Limpiar TODO el historial de resultados`: Reinicia `resultados.csv` a cero con cabeceras limpias.
-- `[4] Volver`: Cancela la operación.
-
-> **Importante:** Ninguna de las opciones de limpieza modifica o elimina el archivo `input.csv`.
-
----
-
-## 15. Troubleshooting y Problemas Frecuentes
-
-### 1. Error `invalid URL` en TagUI
-- **Causa:** Términos de búsqueda con espacios no codificados (ej: `leche serenisima`).
-- **Solución:** Ya corregido en el script mediante `encodeURIComponent(producto.trim())`.
-
-### 2. Banner de Cookies bloquea la pantalla
-- **Causa:** Modales de consentimiento de cookies (OneTrust) en Carrefour o Día %.
-- **Solución:** Implementado detector `if present('Aceptar todo') click Aceptar todo; wait 1`.
-
-### 3. "No se reconoce tagui como un comando interno"
-- **Causa:** La ruta `C:\tagui\src` no fue agregada a la variable `Path` del sistema.
-- **Solución:** Seguir los pasos de la Sección 6 y reiniciar la terminal.
-
-### 4. Error EBUSY al generar el Excel
-- **Causa:** El archivo `reporte_supermercados.xlsx` se encuentra abierto en Microsoft Excel al momento de guardar.
-- **Solución:** Cerrar la ventana de Excel antes de ejecutar una nueva consulta para permitir la reescritura (el sistema ahora lo detecta e informa con un mensaje limpio).
-
-### 5. La ventana de CMD se cerraba inmediatamente al ejecutar `ejecutar.bat`
-- **Causa:** Archivos `.bat` guardados con saltos de línea estilo UNIX (`LF`) o ejecutados desde un directorio relativo diferente al hacer doble clic.
-- **Solución:** `ejecutar.bat` fue formateado estrictamente con saltos de línea Windows CRLF (`\r\n`), inicia con `cd /d "%~dp0"` y `setlocal EnableExtensions EnableDelayedExpansion`, e incluye pausas informativas y diagnóstico integrado (`[5]`) para que nunca se cierre sin previo aviso.
-
----
-
-## 16. Ejemplo Completo Paso a Paso: Compra del Mes
-
-1. Supongamos `input.csv` con: `yerba`, `leche`, `arroz`, `fideos`, `aceite`.
-2. Se ejecuta `ejecutar.bat` y se presiona `[1]`.
-3. TagUI abre Chrome, consulta secuencialmente Carrefour, COTO y Día % para cada uno de los 5 artículos.
-4. Extrae 15 registros y los añade a `resultados.csv`.
-5. `generar_excel.js` totaliza:
-   - Carrefour: $ 16.808,40
-   - COTO: $ 16.873,85
-   - Día %: $ 18.315,00
-   - Compra Óptima Combinada: $ 14.739,85
-6. El bot declara a **Carrefour** como **Supermercado Recomendado** por menor costo de canasta completa.
-7. Se abre el Excel mostrando en verde pastel los productos ganadores individuales y el ahorro de $ 3.575,15 si se combina la compra.
-
----
-
-## 17. Ejemplos de Búsqueda Individual: Específica vs Genérica
-
-### Caso 1: Búsqueda Específica con Rechazo de Falsos Positivos
-- **Entrada:** `gaseosa secco pomelo`
-- **Comportamiento:** Intención detectada: `ESPECIFICA` (Marca: SECCO | Sabor: POMELO).
-- **Salida en Terminal:**
-```
-================================================================================
-       🔍 REPORTE DE BÚSQUEDA INDIVIDUAL - VALIDACIÓN INTELIGENTE
-================================================================================
- Producto Solicitado : "gaseosa secco pomelo"
- Intención Detectada : ESPECIFICA (Marca: SECCO) [Categoría: gaseosa]
- Regla Aplicada      : Validación ESTRICTA de marca y tipo (rechaza sustitutos)
---------------------------------------------------------------------------------
- SUPERMERCADO  │ PRECIO        │ ESTADO                 │ PRODUCTO ENCONTRADO
-───────────────┼──────────────┼───────────────────────┼──────────────────────────
- Carrefour     │ $ 6.095,40    │ ❌ COINCIDENCIA NO VÁLIDA│ Shampoo Dove Nutrición + Tri-Óleos 400 ml
-               │              │    └─ Motivo: Marca requerida "SECCO" no coincide...
- COTO          │ $ 999,00      │ ❌ COINCIDENCIA NO VÁLIDA│ Pomelo Rojo . Xkg
-               │              │    └─ Motivo: Marca requerida "SECCO" no coincide...
- Día %         │ $ 7.509,00    │ ❌ COINCIDENCIA NO VÁLIDA│ Shampoo Pantene Pro-V Miracles...
-               │              │    └─ Motivo: Marca requerida "SECCO" no coincide...
---------------------------------------------------------------------------------
- ⚠️  ALERTA: Ningún supermercado arrojó una coincidencia válida disponible.
-     El sistema evitó sustituir con productos erróneos (marcas ajenas, frutas o shampoo).
-================================================================================
+modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad,unidad
 ```
 
-### Caso 2: Búsqueda Genérica con Comparación de Alternativas
-- **Entrada:** `bebida de naranja`
-- **Comportamiento:** Intención detectada: `GENERICA` (Categoría: BEBIDA | Sabor: NARANJA).
-- **Salida en Terminal:**
-```
-================================================================================
-       🔍 REPORTE DE BÚSQUEDA INDIVIDUAL - VALIDACIÓN INTELIGENTE
-================================================================================
- Producto Solicitado : "bebida de naranja"
- Intención Detectada : GENERICA [Categoría: bebida]
- Regla Aplicada      : Comparación abierta de alternativas de mercado
---------------------------------------------------------------------------------
- SUPERMERCADO  │ PRECIO        │ ESTADO                 │ PRODUCTO ENCONTRADO
-───────────────┼──────────────┼───────────────────────┼──────────────────────────
- Carrefour     │ $ 2.100,00    │  VALIDADA              │ Levite Naranja 1.5L
- COTO          │ $ 1.850,00    │ 🏆 GANADOR             │ Baggio Naranja 1.5L
- Día %         │ $ 2.450,00    │  VALIDADA              │ Cepita Naranja 1.5L
---------------------------------------------------------------------------------
- 🏆 MEJOR OPCIÓN     : COTO ($ 1.850,00)
- 💰 AHORRO POTENCIAL : $ 600,00 (24% menos que Día %)
-================================================================================
-```
+- **`modo`:** `compra_mes` o `individual`.
+- **`producto_solicitado`:** Término original ingresado.
+- **`nombre_encontrado`:** Título exacto extraído del DOM.
+- **`precio`:** Precio extraído en formato texto (ej: `$ 1.940,00`).
+- **`supermercado`:** Cadena correspondiente (`Carrefour`, `COTO` o `Día %`).
+- **`url`:** Enlace directo a la ficha del producto en la tienda.
+- **`fecha`:** Fecha de la captura en formato `AAAA-MM-DD`.
+- **`stock_status`:** `DISPONIBLE`, `SIN STOCK`, `NO ENCONTRADO` o `COINCIDENCIA NO VÁLIDA`.
+- **`cantidad`:** Cantidad solicitada (entero, por defecto 1).
+- **`unidad`:** Unidad de medida asociada (ej: `1kg`, `500g`, `2L`).
 
 ---
 
-## 18. Vinculación con Conceptos Teóricos de Control y Automatización
+## 19. Limitaciones Actuales
 
-El desarrollo de este bot de software traslada directamente los principios fundamentales de la **Teoría de Control Automático** y de los **Sistemas de Lazo Cerrado** al entorno digital:
-
-### 1. Sistema de Control de Lazo Cerrado con Retroalimentación Sensorial
-Un lazo abierto ejecuta una secuencia de comandos ciega sin verificar el estado del proceso. En este sistema:
-- **Planta:** El navegador Google Chrome renderizando aplicaciones e-commerce dinámicas.
-- **Sensor:** Las funciones de inspección del DOM (`document.querySelector`, `present(...)`).
-- **Controlador:** El script `supermercados.tag` y el motor `validador.js`.
-- **Acción de Control:** Modificación del flujo de ejecución en base a la señal de error (ej: si aparece un popup de cookies que obstruye la pantalla, se aplica la acción correctiva `click Aceptar todo` antes de proceder a la medición).
-
-### 2. Dinámica Transitoria y Error en Estado Estable ($e_{ss}$)
-En aplicaciones web basadas en Single Page Applications (SPA), la carga de la página genera una respuesta temporal caracterizada por un **período transitorio** (descarga de bundles JavaScript, ejecución de APIs asíncronas de catálogo y renderizado de componentes reactivos).
-- Si el sensor intenta leer los datos en el instante inicial ($t \approx 0$), el sistema se encuentra en plena oscilación transitoria y el dato no existe, provocando un fallo.
-- Para forzar que el **error en estado estable tienda a cero ($e_{ss} \to 0$)**, se introducen tiempos de asentamiento y estabilización (`wait`), garantizando que la medición del precio se efectúe en el régimen permanente del DOM.
-
-### 3. Rechazo de Perturbaciones Exógenas y Endógenas
-- **Perturbaciones Exógenas:** Factores aleatorios fuera del control del bot (fluctuaciones en la latencia de internet, respuestas HTTP lentas de los servidores de Carrefour o COTO, cambios en la distribución visual o promociones emergentes). El lazo de control las absorbe mediante timeouts configurados y verificación condicional de existencia.
-- **Perturbaciones Endógenas:** Errores en las variables de entrada ingresadas por el usuario (palabras mal tipeadas, espacios extras, falta de especificaciones en `input.csv`). El bloque de normalización y el detector de intención actúan como un **filtro pasa-bajos** que limpia el ruido de entrada antes de inyectarlo en la planta.
+- **Plataforma Exclusiva Windows:** El controlador nativo `mouse_helper.exe` depende de las APIs Win32 de Windows (`user32.dll`) para el movimiento físico y navegación de la barra de direcciones. En entornos Linux o macOS, la navegación debe recaer exclusivamente en comandos de Puppeteer o TagUI.
+- **Variaciones de Maquetación Dinámica:** Las plataformas de comercio electrónico (especialmente VTEX IO en Carrefour y Día %, y Angular en COTO) actualizan con frecuencia clases CSS ofuscadas y estructuras de modales (banners de código postal, suscripciones y promociones bancarias), lo que exige mantener selectores semánticos resilientes.
+- **Dropdown de Ordenamiento en Día %:** En determinadas resoluciones o estados del DOM de Día %, el menú de ordenamiento por precio puede requerir un retardo adicional de estabilización tras el click para garantizar que la grilla de productos se reordene antes de la lectura.
 
 ---
 
-## 📄 Licencia y Ámbito Académico
-Desarrollo realizado en el marco de la cátedra **Tecnologías para la Automatización (2026)**, carrera de Ingeniería en Sistemas de Información, **Universidad Tecnológica Nacional – Facultad Regional Concepción del Uruguay (UTN FRCU)**.
+## 20. Funcionalidades Pendientes y Próximos Pasos
 
+1. **Ajuste fino del selector de orden en Día %:** Refinar la selección del elemento exacto del dropdown "Precios más bajo" para evitar coincidencias con contenedores padre.
+2. **Soporte Headless Opcional con Grabación de Video:** Permitir alternar entre el modo demostración 100% visible y un modo en segundo plano con exportación de video de la sesión para auditoría automatizada.
+3. **Ampliación de Cadenas Minoristas:** Integración modular de nuevas cadenas de supermercados (ej: Jumbo, Disco, Changomas) siguiendo el mismo patrón de arquitectura desacoplada.
+
+---
+
+## 📄 Ámbito Académico
+Trabajo Práctico desarrollado para la cátedra **Tecnologías para la Automatización (Año 2026)**, carrera de **Ingeniería en Sistemas de Información**, **Universidad Tecnológica Nacional – Facultad Regional Concepción del Uruguay (UTN FRCU)**.

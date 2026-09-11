@@ -216,9 +216,6 @@ app.post('/api/compra-mes', async (req, res) => {
             demoMode,
             typingDelay,
             mouseDuration,
-            onFrame: (base64Data) => {
-                broadcast({ type: 'frame', data: base64Data });
-            },
             onStatus: (st) => {
                 if (st.type === 'log') {
                     broadcast({ type: 'log', message: st.message });
@@ -307,9 +304,6 @@ app.post('/api/buscar-individual', async (req, res) => {
             demoMode,
             typingDelay,
             mouseDuration,
-            onFrame: (base64Data) => {
-                broadcast({ type: 'frame', data: base64Data });
-            },
             onStatus: (st) => {
                 if (st.type === 'log') {
                     broadcast({ type: 'log', message: st.message });

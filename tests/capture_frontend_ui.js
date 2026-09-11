@@ -1,5 +1,5 @@
 const puppeteer = require('puppeteer-core');
-const { getChromePath } = require('./rpa_runner.js');
+const { getChromePath } = require('../rpa_runner.js');
 const path = require('path');
 
 async function capture() {
