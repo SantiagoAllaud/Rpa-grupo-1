@@ -93,48 +93,18 @@ function asegurarCSV() {
     }
 }
 
-// Eliminar modales de cookies, banners y filtros oscuros que bloquean interacción
+// El consentimiento se cierra con el mismo click nativo que ve la persona.
+// No se elimina ni se modifica ningún nodo del DOM.
 async function eliminarCookies(page) {
-    try {
-        await page.evaluate(() => {
-            const selectorsBtn = [
-                '#onetrust-accept-btn-handler',
-                'button#onetrust-accept-btn-handler',
-                '#onetrust-reject-all-handler',
-                'button[id*="cookie" i]',
-                'button[class*="cookie" i]',
-                'button[aria-label*="Aceptar" i]',
-                'button[aria-label*="Cerrar" i]',
-                'button[aria-label*="Close" i]',
-                '.vtex-modal__close-button',
-                'button.close',
-                '[class*="close-button" i]'
-            ];
-            for (const sel of selectorsBtn) {
-                const btns = document.querySelectorAll(sel);
-                btns.forEach(b => {
-                    try { b.click(); } catch(e){}
-                });
-            }
-            const banners = [
-                '#onetrust-banner-sdk',
-                '#onetrust-consent-sdk',
-                '.onetrust-pc-dark-filter',
-                '[class*="cookie-banner"]',
-                '[class*="cookie-consent"]',
-                '.vtex-modal__overlay',
-                'div[class*="backdrop"]',
-                'div[class*="modal-backdrop"]',
-                'div[class*="overlay"]'
-            ];
-            banners.forEach(b => {
-                document.querySelectorAll(b).forEach(el => {
-                    try { el.remove(); } catch(e){}
-                });
-            });
-            document.body.style.overflow = 'auto';
-        });
-    } catch (e) {}
+    const selectors = [
+        '#onetrust-accept-btn-handler', '#onetrust-reject-all-handler',
+        'button[id*="cookie" i]', 'button[class*="cookie" i]',
+        'button[aria-label*="Aceptar" i]', '.vtex-modal__close-button'
+    ];
+    for (const selector of selectors) {
+        if (await visibleClick(page, selector, 300)) return true;
+    }
+    return false;
 }
 
 // ==============================================================================
@@ -248,39 +218,56 @@ async function asegurarCursorEnPagina(page) {
     } catch (e) {}
 }
 
-// Obtener la posición en viewport de un elemento asegurando que esté a la vista
+// Lectura interna: ubica un elemento, pero nunca lo enfoca ni lo desplaza.
 async function getElementViewportPos(page, selector) {
     try {
         return await page.evaluate((sel) => {
             const elements = Array.from(document.querySelectorAll(sel));
-            if (!elements || elements.length === 0) return null;
-
-            let el = elements.find(e => {
+            const el = elements.find(e => {
                 const r = e.getBoundingClientRect();
                 return r.width > 20 && r.height > 10 && e.offsetParent !== null;
             });
-            if (!el) {
-                el = elements.find(e => {
-                    const r = e.getBoundingClientRect();
-                    return r.width > 0 && r.height > 0;
-                });
-            }
             if (!el) return null;
-
-            const curR = el.getBoundingClientRect();
-            if (curR.top < 0 || curR.bottom > window.innerHeight || curR.left < 0 || curR.right > window.innerWidth) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-            }
-
             const r = el.getBoundingClientRect();
             return {
                 x: Math.round(r.left + r.width / 2),
-                y: Math.round(r.top + r.height / 2)
+                y: Math.round(r.top + r.height / 2),
+                top: Math.round(r.top), bottom: Math.round(r.bottom),
+                left: Math.round(r.left), right: Math.round(r.right),
+                innerWidth: window.innerWidth, innerHeight: window.innerHeight,
+                outerWidth: window.outerWidth, outerHeight: window.outerHeight
             };
         }, selector);
     } catch (e) {
         return null;
     }
+}
+
+async function revealElementVisibly(page, selector) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+        checkAborted();
+        const pos = await getElementViewportPos(page, selector);
+        if (!pos) return null;
+        if (pos.top >= 0 && pos.bottom <= pos.innerHeight && pos.left >= 0 && pos.right <= pos.innerWidth) return pos;
+        await visibleScroll(page, pos.top < 0 ? -360 : 360, 2);
+    }
+    return null;
+}
+
+function runMouseHelper(args) {
+    if (!fs.existsSync(MOUSE_HELPER_PATH)) {
+        throw new Error('No se encontró mouse_helper.exe; no se permite un fallback invisible.');
+    }
+    const result = spawnSync(MOUSE_HELPER_PATH, args, { windowsHide: true, encoding: 'utf8', timeout: 30000 });
+    if (result.error || result.status !== 0) {
+        throw new Error(`mouse_helper.exe no pudo ejecutar ${args[0]}.`);
+    }
+    return (result.stdout || '').trim();
+}
+
+function viewportArgs(command, pos, durationMs) {
+    return [command, pos.x, pos.y, pos.outerWidth, pos.outerHeight, pos.innerWidth, pos.innerHeight, Math.max(durationMs || 0, 0)]
+        .map(String);
 }
 
 // ==============================================================================
@@ -290,26 +277,12 @@ async function getElementViewportPos(page, selector) {
 // 1. Navegación Visible por la Barra de Direcciones de Chrome
 async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELAY) {
     checkAborted();
-    // Mover el cursor hacia la parte superior simulando el salto a la barra de direcciones
-    await page.evaluate(() => {
-        if (window.__rpa_move) {
-            window.__rpa_move(window.innerWidth * 0.45, 10, 450);
-        }
-    }).catch(() => {});
-    await sleep(200);
-
-    // Ejecutar con el helper nativo Win32: mueve el mouse físico a la barra de direcciones, hace click y tipea letra por letra
-    let navOk = false;
-    try {
-        if (fs.existsSync(MOUSE_HELPER_PATH)) {
-            const res = spawnSync(MOUSE_HELPER_PATH, ['nav', targetUrl, Math.max(typingDelay, 25).toString()], { windowsHide: true });
-            if (res.status === 0) navOk = true;
-        }
-    } catch (e) {}
+    // No hay page.goto(): esta es la única vía de navegación del motor de producción.
+    runMouseHelper(['nav', targetUrl, Math.max(typingDelay, 25).toString()]);
 
     // Esperar navegación generada por el Enter en la barra de direcciones
     let arrived = false;
-    for (let t = 0; t < 30; t++) {
+    for (let t = 0; t < 80; t++) {
         await sleep(250);
         const curUrl = page.url();
         if (curUrl.includes(new URL(targetUrl).hostname)) {
@@ -318,13 +291,11 @@ async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELA
         }
     }
 
-    // Si por alguna razón de foco el atajo de SO no redirigió, asegurar la navegación
     if (!arrived) {
-        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 35000 }).catch(() => {});
+        throw new Error(`La navegación visible no llegó a ${new URL(targetUrl).hostname}.`);
     }
 
     await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
-    await page.bringToFront().catch(() => {});
     await asegurarCursorEnPagina(page);
     await eliminarCookies(page);
 }
@@ -332,57 +303,27 @@ async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELA
 // 2. Movimiento Visible hacia un Elemento
 async function visibleMove(page, selectorOrCoords, durationMs = CONFIG.MOUSE_MOVE_DURATION) {
     checkAborted();
-    let x, y;
+    let pos;
     if (typeof selectorOrCoords === 'string') {
-        const pos = await getElementViewportPos(page, selectorOrCoords);
+        pos = await revealElementVisibly(page, selectorOrCoords);
         if (!pos) return false;
-        x = pos.x;
-        y = pos.y;
     } else if (selectorOrCoords && selectorOrCoords.x !== undefined) {
-        x = selectorOrCoords.x;
-        y = selectorOrCoords.y;
+        pos = selectorOrCoords;
     } else {
         return false;
     }
-
-    // Mover cursor visual
-    await page.evaluate((tx, ty, dur) => {
-        return window.__rpa_move ? window.__rpa_move(tx, ty, dur) : Promise.resolve();
-    }, x, y, durationMs);
-
-    // Mover cursor de Puppeteer
-    try {
-        await page.mouse.move(x, y, { steps: 10 });
-    } catch(e) {}
-
+    runMouseHelper(viewportArgs('moveviewport', pos, durationMs));
     return true;
 }
 
 // 3. Click Real y Visible
 async function visibleClick(page, selector, durationMs = CONFIG.MOUSE_MOVE_DURATION) {
     checkAborted();
-    try {
-        await page.$eval(selector, el => el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' })).catch(() => {});
-    } catch(e) {}
-    await sleep(150);
-
-    const pos = await getElementViewportPos(page, selector);
-    if (pos) {
-        await visibleMove(page, pos, durationMs);
-        await page.evaluate(() => { if (window.__rpa_pulse) window.__rpa_pulse(); });
-        await sleep(CONFIG.PAUSE_BEFORE_CLICK);
-        try {
-            await page.mouse.click(pos.x, pos.y);
-        } catch(e) {}
-    } else {
-        try {
-            const handle = await page.$(selector);
-            if (handle) {
-                await handle.click().catch(() => {});
-            }
-        } catch(e) {}
-    }
-
+    const pos = await revealElementVisibly(page, selector);
+    if (!pos) return false;
+    await visibleMove(page, pos, durationMs);
+    await sleep(CONFIG.PAUSE_BEFORE_CLICK);
+    runMouseHelper(viewportArgs('clickviewport', pos, 0));
     await sleep(CONFIG.PAUSE_AFTER_CLICK);
     return true;
 }
@@ -390,39 +331,16 @@ async function visibleClick(page, selector, durationMs = CONFIG.MOUSE_MOVE_DURAT
 // 4. Escritura Visible Progresiva (Carácter por Carácter con Teclado Real)
 async function visibleType(page, selector, text, delayMs = CONFIG.TYPING_DELAY, durationMs = CONFIG.MOUSE_MOVE_DURATION) {
     checkAborted();
-    const pos = await getElementViewportPos(page, selector);
-    if (pos) {
-        // Mover hacia el campo de texto y pulsar el cursor visual
-        await visibleMove(page, pos, durationMs);
-        await page.evaluate(() => { if (window.__rpa_pulse) window.__rpa_pulse(); });
-        await sleep(CONFIG.PAUSE_BEFORE_CLICK);
-        try {
-            await page.mouse.click(pos.x, pos.y);
-        } catch(e) {}
-    }
-
-    // Asegurar foco y activación en el input interactivo visible
-    await page.evaluate((sel) => {
-        const elements = Array.from(document.querySelectorAll(sel));
-        const el = elements.find(e => e.offsetWidth > 20 && e.offsetHeight > 10 && e.offsetParent !== null) || elements[0];
-        if (el) {
-            el.focus();
-            try { el.click(); } catch(e) {}
-        }
-    }, selector);
-
-    await sleep(200);
-
-    // Limpiar campo si contuviera texto previo
-    await page.keyboard.down('Control');
-    await page.keyboard.press('a');
-    await page.keyboard.up('Control');
-    await page.keyboard.press('Backspace');
+    const pos = await revealElementVisibly(page, selector);
+    if (!pos) return false;
+    await visibleMove(page, pos, durationMs);
+    await sleep(CONFIG.PAUSE_BEFORE_CLICK);
+    runMouseHelper(viewportArgs('clickviewport', pos, 0));
+    // La escritura ocurre en el campo que acaba de recibir el click físico.
+    runMouseHelper(['key', '^a']);
+    runMouseHelper(['key', '{BACKSPACE}']);
     await sleep(150);
-
-    // Tipeo progresivo real carácter por carácter con teclado de Puppeteer
-    await page.keyboard.type(text, { delay: Math.max(delayMs, 25) });
-
+    runMouseHelper(['type', text, Math.max(delayMs, 25).toString()]);
     await sleep(CONFIG.PAUSE_AFTER_CLICK);
     return true;
 }
@@ -432,11 +350,57 @@ async function visibleScroll(page, totalPixels = 500, steps = 3) {
     checkAborted();
     const stepPixels = Math.floor(totalPixels / steps);
     for (let i = 0; i < steps; i++) {
-        await page.evaluate((px) => {
-            window.scrollBy({ top: px, behavior: 'smooth' });
-        }, stepPixels);
+        runMouseHelper(['scroll', stepPixels.toString(), '1', Math.max(CONFIG.SCROLL_STEP_DELAY, 100).toString()]);
         await sleep(CONFIG.SCROLL_STEP_DELAY);
     }
+}
+
+async function visibleKey(keys) {
+    checkAborted();
+    runMouseHelper(['key', keys]);
+    await sleep(CONFIG.PAUSE_AFTER_CLICK);
+}
+
+async function getTextElementViewportPos(page, selector, text) {
+    try {
+        return await page.evaluate((sel, expected) => {
+            const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('es-AR');
+            const wanted = normalize(expected);
+            const element = Array.from(document.querySelectorAll(sel)).find((candidate) => {
+                const rect = candidate.getBoundingClientRect();
+                const label = normalize(candidate.innerText || candidate.textContent);
+                return rect.width > 20 && rect.height > 10 && candidate.offsetParent !== null && label.includes(wanted);
+            });
+            if (!element) return null;
+            const r = element.getBoundingClientRect();
+            return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), innerWidth: window.innerWidth, innerHeight: window.innerHeight, outerWidth: window.outerWidth, outerHeight: window.outerHeight };
+        }, selector, text);
+    } catch (e) { return null; }
+}
+
+async function visibleClickText(page, selector, text, durationMs = CONFIG.MOUSE_MOVE_DURATION) {
+    const pos = await getTextElementViewportPos(page, selector, text);
+    if (!pos || pos.top < 0 || pos.bottom > pos.innerHeight) return false;
+    await visibleMove(page, pos, durationMs);
+    await sleep(CONFIG.PAUSE_BEFORE_CLICK);
+    runMouseHelper(viewportArgs('clickviewport', pos, 0));
+    await sleep(CONFIG.PAUSE_AFTER_CLICK);
+    return true;
+}
+
+async function visibleSelectOption(page, selector, value, durationMs = CONFIG.MOUSE_MOVE_DURATION) {
+    const pos = await revealElementVisibly(page, selector);
+    if (!pos) return false;
+    const optionIndex = await page.evaluate((sel, optionValue) => {
+        const select = document.querySelector(sel);
+        return select ? Array.from(select.options).findIndex((option) => option.value === optionValue) : -1;
+    }, selector, value);
+    if (optionIndex < 0) return false;
+    await visibleClick(page, selector, durationMs);
+    await visibleKey('{HOME}');
+    for (let i = 0; i < optionIndex; i++) await visibleKey('{DOWN}');
+    await visibleKey('{ENTER}');
+    return true;
 }
 
 function determinarUnidadDefault(producto, unidadIngresada) {
@@ -477,19 +441,14 @@ async function searchCarrefour(page, prodClean, options = {}) {
     const searchSel = 'input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input';
     await page.waitForSelector(searchSel, { timeout: 10000 }).catch(() => {});
 
-    // Asegurar foco y activación
-    await page.evaluate((sel) => {
-        const inputs = Array.from(document.querySelectorAll(sel));
-        const el = inputs.find(e => e.offsetWidth > 20 && e.offsetHeight > 10 && e.offsetParent !== null) || inputs[0];
-        if (el) { el.focus(); el.click(); }
-    }, searchSel);
-
     // 3. Escribir carácter por carácter de forma visible
-    await visibleType(page, searchSel, prodClean, typingDelay, mouseDuration);
+    if (!await visibleType(page, searchSel, prodClean, typingDelay, mouseDuration)) {
+        throw new Error('No se encontró un buscador visible de Carrefour.');
+    }
 
     // 4. Ejecutar búsqueda con Enter
     await sleep(300);
-    await page.keyboard.press('Enter');
+    await visibleKey('{ENTER}');
 
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Esperando resultados de búsqueda...' });
     for (let w = 0; w < 20; w++) {
@@ -499,15 +458,11 @@ async function searchCarrefour(page, prodClean, options = {}) {
             break;
         }
         if (w === 3) {
-            await page.keyboard.press('Enter');
-            await page.evaluate(() => {
-                const btn = document.querySelector('button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button');
-                if (btn) btn.click();
-            });
+            await visibleKey('{ENTER}');
+            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
         }
     }
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
-    await asegurarCursorEnPagina(page);
     await eliminarCookies(page);
 
     // 5. Scroll visible por la grilla de resultados
@@ -517,20 +472,9 @@ async function searchCarrefour(page, prodClean, options = {}) {
     // 6. Localizar y aplicar filtro de orden "menor a mayor"
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Aplicando ordenamiento: Menor precio...' });
     const sortBtnSel = 'button.valtech-carrefourar-search-result-3-x-orderByButton, button[class*="orderByButton"]';
-    const sortBtn = await page.$(sortBtnSel);
-    if (sortBtn) {
-        await visibleMove(page, sortBtnSel, mouseDuration);
-        await sleep(300);
-        await sortBtn.click().catch(() => {});
+    if (await visibleClick(page, sortBtnSel, mouseDuration)) {
         await sleep(800);
-
-        const optionClicked = await page.evaluate(() => {
-            const opts = Array.from(document.querySelectorAll('button, div, span, li, a'));
-            const opt = opts.find(e => (e.innerText || '').toLowerCase().includes('más bajo') && e.offsetWidth > 0);
-            if (opt) { opt.click(); return true; }
-            return false;
-        });
-
+        const optionClicked = await visibleClickText(page, 'button, [role="menuitem"], [role="option"], a', 'más bajo', mouseDuration);
         if (optionClicked) {
             await sleep(2500);
         }
@@ -628,21 +572,19 @@ async function searchCoto(page, prodClean, options = {}) {
 
     // 3. Tipear carácter por carácter
     const typedOkCt = await visibleType(page, cotoSearchSel, prodClean, typingDelay, mouseDuration);
+    if (!typedOkCt) {
+        throw new Error('No se encontró un buscador visible de COTO.');
+    }
 
     // 4. Ejecutar búsqueda
-    if (typedOkCt) {
-        const cotoBtnSel = 'button.cio-submit-btn, button[type="submit"], .cio-search-submit';
-        const clickedBtnCt = await visibleClick(page, cotoBtnSel, mouseDuration);
-        if (!clickedBtnCt) {
-            await page.keyboard.press('Enter');
-        }
-    } else {
-        await page.keyboard.press('Enter');
+    const cotoBtnSel = 'button.cio-submit-btn, button[type="submit"], .cio-search-submit';
+    const clickedBtnCt = await visibleClick(page, cotoBtnSel, mouseDuration);
+    if (!clickedBtnCt) {
+        await visibleKey('{ENTER}');
     }
 
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Esperando resultados de búsqueda...' });
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
-    await asegurarCursorEnPagina(page);
     await eliminarCookies(page);
 
     // 5. Scroll visible por los resultados
@@ -652,11 +594,7 @@ async function searchCoto(page, prodClean, options = {}) {
     // 6. Localizar y aplicar selector de orden "menor a mayor"
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Aplicando ordenamiento: Menor precio...' });
     const cotoSortSel = 'select.form-select.w-auto, select[class*="form-select"]';
-    const cotoSortFound = await page.$(cotoSortSel);
-    if (cotoSortFound) {
-        await visibleMove(page, cotoSortSel, mouseDuration);
-        await sleep(300);
-        await page.select(cotoSortSel, 'price|ascending').catch(() => {});
+    if (await visibleSelectOption(page, cotoSortSel, 'price|ascending', mouseDuration)) {
         await sleep(CONFIG.PAUSE_AFTER_FILTER);
     }
 
@@ -747,19 +685,14 @@ async function searchDia(page, prodClean, options = {}) {
     const diaSearchSel = 'input[placeholder*="busc" i], input.vtex-styleguide-9-x-input';
     await page.waitForSelector(diaSearchSel, { timeout: 10000 }).catch(() => {});
 
-    // Asegurar foco y activación
-    await page.evaluate((sel) => {
-        const inputs = Array.from(document.querySelectorAll(sel));
-        const el = inputs.find(e => e.offsetWidth > 20 && e.offsetHeight > 10 && e.offsetParent !== null) || inputs[0];
-        if (el) { el.focus(); el.click(); }
-    }, diaSearchSel);
-
     // 3. Tipear carácter por carácter de forma visible
-    await visibleType(page, diaSearchSel, prodClean, typingDelay, mouseDuration);
+    if (!await visibleType(page, diaSearchSel, prodClean, typingDelay, mouseDuration)) {
+        throw new Error('No se encontró un buscador visible de Día %.');
+    }
 
     // 4. Ejecutar búsqueda con Enter
     await sleep(300);
-    await page.keyboard.press('Enter');
+    await visibleKey('{ENTER}');
 
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Esperando resultados de búsqueda...' });
     for (let w = 0; w < 20; w++) {
@@ -769,15 +702,11 @@ async function searchDia(page, prodClean, options = {}) {
             break;
         }
         if (w === 3) {
-            await page.keyboard.press('Enter');
-            await page.evaluate(() => {
-                const btn = document.querySelector('button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button');
-                if (btn) btn.click();
-            });
+            await visibleKey('{ENTER}');
+            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
         }
     }
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
-    await asegurarCursorEnPagina(page);
     await eliminarCookies(page);
 
     // 5. Scroll visible por los resultados
@@ -787,20 +716,26 @@ async function searchDia(page, prodClean, options = {}) {
     // 6. Localizar y aplicar filtro de orden "menor a mayor"
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Aplicando ordenamiento: Menor precio...' });
     const diaSortBtnSel = 'button.diaio-search-result-0-x-orderByButton, button[class*="orderByButton"]';
-    const diaSortBtn = await page.$(diaSortBtnSel);
-    if (diaSortBtn) {
-        await visibleMove(page, diaSortBtnSel, mouseDuration);
-        await sleep(300);
-        await diaSortBtn.click().catch(() => {});
+    if (await visibleClick(page, diaSortBtnSel, mouseDuration)) {
         await sleep(800);
-
-        const optionClickedD = await page.evaluate(() => {
-            const opts = Array.from(document.querySelectorAll('button, div, span, li, a'));
-            const opt = opts.find(e => (e.innerText || '').toLowerCase().includes('más bajo') && e.offsetWidth > 0);
-            if (opt) { opt.click(); return true; }
-            return false;
-        });
-
+        // Selector refinado: prioriza items interactivos del dropdown (menuitem/option),
+        // evitando contenedores padre genéricos (div, span amplios).
+        const diaOptionSel = '[role="menuitem"], [role="option"], button[class*="orderBy"] span, li[class*="orderBy"]';
+        let optionClickedD = await visibleClickText(page, diaOptionSel, 'más bajo', mouseDuration);
+        // Fallback: si el click por selector+texto falló, buscar el elemento exacto via evaluate
+        if (!optionClickedD) {
+            optionClickedD = await page.evaluate(() => {
+                const candidates = Array.from(document.querySelectorAll('[role="menuitem"], [role="option"], button, li'));
+                for (const el of candidates) {
+                    const txt = (el.innerText || el.textContent || '').toLowerCase().trim();
+                    if (txt.includes('más bajo') || txt.includes('menor precio') || txt.includes('menor a mayor')) {
+                        el.click();
+                        return true;
+                    }
+                }
+                return false;
+            }).catch(() => false);
+        }
         if (optionClickedD) {
             await sleep(2500);
         }
@@ -916,8 +851,7 @@ async function runRPA({
                 '--no-first-run',
                 '--no-default-browser-check',
                 '--disable-blink-features=AutomationControlled',
-                '--lang=es-419,es',
-                'https://www.google.com'
+                '--lang=es-419,es'
             ]
         });
 
@@ -939,9 +873,7 @@ async function runRPA({
 
         checkAborted();
 
-        await page.evaluateOnNewDocument(VIRTUAL_CURSOR_SCRIPT);
         await sleep(1000);
-        await asegurarCursorEnPagina(page);
 
         if (onStatus) {
             onStatus({

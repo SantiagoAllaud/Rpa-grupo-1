@@ -3,9 +3,9 @@
 // Trabajo Práctico Integrador - Etapa 1: RPA
 //
 // Script: supermercados.tag
-// Descripción: Automatización 100% visible con Google Chrome y puntero de mouse
-//              real para Carrefour, COTO y Día % a partir de un archivo input.csv.
-//              Persistencia de resultados en resultados.csv.
+// Descripción: Entregable académico independiente para ejecutar explícitamente
+//              con TagUI. El Dashboard y server.js usan rpa_runner.js como único
+//              motor de producción visible; no mezclar ambas ejecuciones.
 //
 // Ejecución: tagui supermercados.tag input.csv
 // ==============================================================================

@@ -1388,5 +1388,76 @@ input:checked + .slider-round:before {
     transition: width 0.4s ease;
 }
 
+/* ==============================================================================
+   KILL-SWITCH: BOTÓN DE ABORTO DEL RPA
+   ============================================================================== */
+.abort-bar {
+    display: none;
+    padding: 0.65rem 1rem;
+    background: rgba(239, 68, 68, 0.08);
+    border-top: 1px solid rgba(239, 68, 68, 0.2);
+    justify-content: center;
+}
 
+.abort-bar.visible {
+    display: flex;
+}
 
+.btn-abort {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1.5px solid rgba(239, 68, 68, 0.45);
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.6rem 1.5rem;
+    border-radius: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.25s ease;
+    animation: abortPulse 2s infinite;
+}
+
+.btn-abort:hover:not(:disabled) {
+    background: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    transform: scale(1.03);
+}
+
+.btn-abort:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    animation: none;
+}
+
+@keyframes abortPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+/* ==============================================================================
+   FOOTER CON CRÉDITOS UTN
+   ============================================================================== */
+.dashboard-footer {
+    text-align: center;
+    padding: 1.5rem 1rem 0.75rem;
+    margin-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dashboard-footer p {
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin: 0;
+}
+
+.dashboard-footer .footer-sub {
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 400;
+    margin-top: 0.25rem;
+}

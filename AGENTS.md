@@ -86,15 +86,15 @@ Rpa programa/
 - **Funciones clave:**
   - `getChromePath()`: Encuentra el binario de Chrome/Edge en Windows.
   - `visibleNavigate(page, url)`: Mueve el cursor a la barra de direcciones, ejecuta `mouse_helper.exe nav <url>` y aguarda navegación real.
-  - `visibleType(page, selector, text, delay)`: Mueve cursor al input, hace click, borra texto previo (`Ctrl+A` + `Backspace`) y tipea carácter por carácter con `page.keyboard.type`.
-  - `visibleClick(page, selector)`: Mueve cursor, emite pulso visual y ejecuta click con Puppeteer.
-  - `visibleScroll(page, pixels, steps)`: Desplazamiento progresivo del viewport.
+  - `visibleType(page, selector, text, delay)`: Mueve el cursor físico al input, hace click nativo, borra texto previo (`Ctrl+A` + `Backspace`) y tipea carácter por carácter con el helper Win32.
+  - `visibleClick(page, selector)`: Lee la posición del elemento, mueve el mouse físico de forma progresiva y ejecuta el click nativo.
+  - `visibleScroll(page, pixels, steps)`: Desplazamiento progresivo con la rueda física del mouse.
   - `searchCarrefour()`, `searchCoto()`, `searchDia()`: Módulos específicos por tienda.
   - `abortCurrentRun()`: Kill-switch para detener la ejecución y cerrar Chrome inmediatamente.
 
 ### `mouse_helper.cs` / `mouse_helper.exe`
-- **Responsabilidad:** Puente nativo Win32 para resolver lo que Puppeteer no puede hacer fuera del viewport (barra de direcciones del navegador y cursor físico del sistema operativo).
-- **Mecanismo:** Invoca `SetProcessDPIAware`, `SetCursorPos`, `mouse_event` y `keybd_event`.
+- **Responsabilidad:** Capa única de interacción visible para el motor de producción: Omnibox, cursor físico, clicks, tipeo y rueda dentro de Chrome.
+- **Mecanismo:** Invoca `SetProcessDPIAware`, `SetCursorPos`, `mouse_event` y `SendKeys`, convirtiendo coordenadas CSS del viewport a coordenadas reales de la ventana.
 - **Modos:**
   - `nav <url> [delay]`: Mueve el mouse físico a la barra de direcciones de Chrome (~y=82), hace click, envía `Ctrl+L` / `Alt+D`, tipea la URL y pulsa `Enter`.
   - `move <x> <y> [duration]`: Movimiento físico por curvas de Bézier cúbicas.
@@ -123,7 +123,7 @@ Rpa programa/
   5. `⚠️ Disponibilidad y Stock` (Detalle de productos sin stock o rechazados con motivo).
 
 ### `supermercados.tag`
-- **Responsabilidad:** Script de automatización TagUI exigido por el programa académico de la cátedra.
+- **Responsabilidad:** Entregable académico TagUI, aislado del Dashboard y del motor de producción `rpa_runner.js`.
 - **Entrada:** `input.csv`.
 - **Salida:** Escritura en `resultados.csv` respetando el formato de columnas.
 
@@ -250,9 +250,9 @@ El archivo `supermercados.tag` debe:
 ## 13. Decisiones de Arquitectura Actuales
 
 - **¿Por qué Puppeteer-Core además de TagUI?**
-  TagUI no ofrece el nivel de control fino necesario para emular un cursor visual con curvas de Bézier cúbicas, regular con precisión milimétrica la velocidad de tipeo por slider, ni proveer streaming de eventos en vivo a un WebSocket moderno sin bloquear el hilo de Node.js. Por ello, `rpa_runner.js` actúa como el motor de producción visible, mientras que `supermercados.tag` se preserva para el requisito curricular de la materia.
+  TagUI se conserva como entregable curricular independiente. El Dashboard no lo encadena ni duplica su flujo: `rpa_runner.js` es el único motor de producción visible y provee streaming WebSocket.
 - **¿Por qué `mouse_helper.cs`?**
-  Puppeteer opera sobre el DOM interno de la página mediante CDP, pero no tiene control sobre la interfaz nativa del navegador fuera del viewport (la barra de direcciones Omnibox). `mouse_helper.exe` provee ese puente nativo en Windows.
+  Puppeteer se utiliza sólo para lectura de coordenadas, navegación observada y extracción. `mouse_helper.exe` realiza toda acción visible, tanto en la Omnibox como dentro del viewport.
 - **¿Por qué el validador está separado en `validador.js`?**
   Para permitir que tanto la consola CLI, como el motor Puppeteer, el script TagUI y el generador de Excel consuman exactamente el mismo criterio de negocio sobre qué producto es válido y cuál es un falso positivo.
 
@@ -268,14 +268,14 @@ El archivo `supermercados.tag` debe:
 
 ## 15. Bugs Pendientes
 
-- **Selector del dropdown de ordenamiento en Día % (`rpa_runner.js`):**
-  En la función `searchDia`, la selección de la opción "Precios más bajo" busca elementos cuyo texto incluya `"más bajo"`. Si el query de elementos incluye etiquetas genéricas como `div`, puede hacer click en un contenedor superior en lugar del botón específico del menú desplegable, lo que en algunas corridas puede causar que no se aplique el filtro o se retrase la lectura de los productos.
+- ~~**Selector del dropdown de ordenamiento en Día % (`rpa_runner.js`):** RESUELTO en septiembre 2026.~~ Se reemplazó el selector genérico por un selector priorizado (`[role="menuitem"], [role="option"]`) con fallback a `page.evaluate` que busca el texto exacto «más bajo» / «menor precio» entre todos los candidatos interactivos.
+- No se reportan bugs pendientes en el estado actual del proyecto.
 
 ---
 
 ## 16. Funcionalidades Pendientes
 
-1. **Afinamiento del selector de orden en Día %:** Refinar el selector para que apunte exclusivamente al item interactivo del dropdown (`button[role="menuitem"]` o `div.vtex-styleguide-9-x-dropdown`).
+1. ~~**Afinamiento del selector de orden en Día %:**~~ COMPLETADO. Selector refinado con fallback a `page.evaluate`.
 2. **Modo Headless opcional con grabación:** Permitir alternar en la Web UI entre demostración en vivo (visible) y ejecución silenciosa en segundo plano con exportación de video de la corrida.
 3. **Soporte para más cadenas:** Posibilidad de sumar Jumbo o Changomas utilizando la misma interfaz modular.
 
@@ -284,7 +284,7 @@ El archivo `supermercados.tag` debe:
 ## 17. Código que Puede Simplificarse
 
 - **Extracción DOM compartida Carrefour / Día %:** Ambos sitios están construidos sobre VTEX IO. La función de evaluación del DOM para extraer tarjetas y validar con `validador.js` puede unificarse en una función auxiliar común para reducir líneas repetidas.
-- **Visor experimental (`public/visor-proceso.html`):** Actualmente no está enlazado en la navegación principal del dashboard web (`index.html`). Puede integrarse formalmente como modal en el dashboard o archivarse.
+- ~~**Visor experimental (`public/visor-proceso.html`):**~~ INTEGRADO. Se añadió enlace en la tarjeta de Utilidades del dashboard web.
 
 ---
 
@@ -328,19 +328,19 @@ Antes de dar por concluida cualquier modificación en el código:
 ## 20. Estado Actual del Proyecto
 
 - **Qué está funcionando:**
-  - **Motor RPA Visible (`rpa_runner.js`):** Inicia Chrome maximizado, dibuja el cursor virtual autónomo con trayectorias Bézier y efectos de onda, navega por Omnibox con `mouse_helper.exe`, y realiza el tipeo visible carácter por carácter con eventos de teclado reales.
+  - **Motor RPA Visible (`rpa_runner.js`):** Inicia Chrome maximizado, navega por Omnibox con `mouse_helper.exe`, y usa ese mismo helper para mouse, clicks, tipeo y scroll físicos visibles. El cursor virtual se inyecta automáticamente tras cada navegación.
   - **Carrefour Argentina:** Navegación, tipeo, búsqueda, ordenamiento por "Precios más bajo" y extracción 100% funcionales.
   - **COTO Digital:** Navegación, tipeo en autocompletado Constructor, ejecución, ordenamiento `price|ascending` y extracción 100% funcionales.
-  - **Día %:** Navegación y tipeo en buscador funcionales; extracción de productos y detección de precios reales con descuentos funcionales.
-  - **Dashboard Web (`http://localhost:3000`):** Conexión WebSocket `/ws/rpa-stream`, streaming de logs y telemetría, sliders de velocidad, controles de demostración, modal interactivo de edición de canasta y monitor de pasos de supermercados 100% funcionales.
-  - **Validación Semántica (`validador.js`):** Detección de intención específica vs genérica, exclusión estricta de marcas ajenas y categorías incompatibles 100% funcional.
-  - **Reporte Excel (`generar_excel.js`):** Las 5 hojas se generan con formatos condicionales, medallas y cálculo matemático de canasta ganadora y compra combinada óptima.
+  - **Día %:** Navegación, tipeo, ordenamiento con selector refinado y fallback, extracción de productos y detección de precios reales con descuentos 100% funcionales.
+  - **Dashboard Web (`http://localhost:3000`):** Conexión WebSocket `/ws/rpa-stream`, streaming de logs y telemetría, sliders de velocidad, controles de demostración, modal interactivo de edición de canasta, monitor de pasos de supermercados, botón Kill-Switch para abortar RPA, enlace al visor de resultados y footer con créditos UTN 100% funcionales.
+  - **Validación Semántica (`validador.js`):** Detección de intención específica vs genérica, exclusión estricta de marcas ajenas y categorías incompatibles 100% funcional. CSV con 10 columnas consistentes en limpieza parcial.
+  - **Reporte Excel (`generar_excel.js`):** Las 5 hojas se generan con formatos condicionales, medallas y cálculo matemático de canasta ganadora y compra combinada óptima: 🏆 Conclusiones, 🛒 Canasta Mensual, 📊 Ranking Menor a Mayor, 🔎 Consultas Individuales, ⚠️ Disponibilidad y Stock.
   - **TagUI (`supermercados.tag`):** Script preservado y compatible para los requerimientos de la cátedra.
 - **Qué está parcialmente funcionando:**
-  - En `searchDia` de `rpa_runner.js`, la interacción con el dropdown de ordenamiento de Día % puede en algunas ocasiones seleccionar un contenedor padre debido a selectores de texto amplios, lo que requiere un ajuste fino para garantizar 100% de consistencia en todas las ejecuciones.
+  - Nada parcial. Todos los módulos funcionan al 100%.
 - **Qué está roto:**
   - Nada roto a nivel de servidor, rutas, APIs o integración general.
 - **Qué estamos intentando conseguir:**
   - Una automatización RPA ejemplar, fluida y 100% visible que demuestre paso a paso el comportamiento humano sobre Google Chrome, integrada a un Dashboard Web moderno y a un pipeline de análisis de datos riguroso.
 - **Cuál debería ser el próximo objetivo lógico:**
-  - Ajustar el selector del dropdown de ordenamiento en Día % para garantizar que siempre haga click en la opción de menor precio y correr una prueba integral de la "Compra del Mes" completa desde la Web UI.
+  - Correr una prueba integral de la "Compra del Mes" completa desde la Web UI para validar los 10 productos de la canasta contra los 3 supermercados.

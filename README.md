@@ -113,10 +113,9 @@ El sistema implementa una arquitectura modular desacoplada en tres capas:
 │         MOTOR RPA VISIBLE           │   │         SCRIPT TAGUI            │
 │         (rpa_runner.js)             │   │      (supermercados.tag)        │
 ├─────────────────────────────────────┤   ├─────────────────────────────────┤
-│ - Puppeteer-Core (Chrome visible)   │   │ - TagUI v6 CLI                  │
-│ - Cursor Virtual (Bézier curves)    │   │ - Modo de compatibilidad        │
-│ - Win32 mouse_helper.exe (Omnibox)  │   │   para requisitos de cátedra    │
-│ - Tipeo progresivo carácter a caract│   └────────────────┬────────────────┘
+│ - Puppeteer-Core (lectura DOM/CDP)  │   │ - Entregable académico aislado  │
+│ - mouse_helper.exe (Win32 real)     │   │ - No lo usa el Dashboard         │
+│ - Tipeo/click/scroll nativos         │   │ - Ejecución manual de cátedra   │
 │ - Módulos: Carrefour, COTO, Día %   │                    │
 └──────────────────┬──────────────────┘                    │
                    │                                       │
@@ -203,13 +202,13 @@ Rpa programa/
 
 | Archivo | Responsabilidad Principal |
 | :--- | :--- |
-| **`rpa_runner.js`** | Orquestador del RPA visible. Inicia Chrome maximizado, inyecta el cursor visual, delega la navegación a `mouse_helper.exe`, ejecuta el tipeo y clicks progresivos, coordina la búsqueda secuencial en Carrefour, COTO y Día %, y guarda los resultados en `resultados.csv`. |
-| **`mouse_helper.cs` / `.exe`** | Herramienta Win32 que resuelve la limitación de Puppeteer sobre la interfaz nativa del navegador: mueve el mouse físico hacia la barra de direcciones de Chrome, envía `Alt+D`, escribe la URL letra por letra y presiona Enter. |
+| **`rpa_runner.js`** | Orquestador del RPA visible de producción. Puppeteer sólo lee el DOM para ubicar/extractar; navegación, foco, clicks, teclas y rueda pasan por `mouse_helper.exe`. Coordina Carrefour, COTO y Día % y guarda los resultados en `resultados.csv`. |
+| **`mouse_helper.cs` / `.exe`** | Herramienta Win32 que controla el mouse y teclado físicos: Omnibox (`Alt+D`, URL y Enter), coordenadas del viewport, clicks, tipeo y rueda. Convierte las coordenadas CSS leídas por Puppeteer al escritorio real de Chrome. |
 | **`server.js`** | Levanta el servidor HTTP en el puerto 3000, gestiona la conexión WebSocket `/ws/rpa-stream`, expone los endpoints para lanzar búsquedas, editar la lista de compras, abortar procesos y regenerar reportes. |
 | **`public/app.js`** | Controla los eventos del dashboard web: gestiona la conexión WebSocket, actualiza la consola virtual en vivo, sincroniza los indicadores de paso de los 3 supermercados y abre el modal interactivo de edición de la canasta. |
 | **`validador.js`** | Normaliza textos, detecta la intención del usuario, evalúa la pertinencia del producto encontrado frente a lo solicitado (marcas, términos incompatibles y categorías) y formatea el reporte comparativo en terminal. |
 | **`generar_excel.js`** | Lee `resultados.csv`, calcula la canasta más económica y el óptimo combinado, y construye `reporte_supermercados.xlsx` con 5 hojas formateadas profesionalmente. |
-| **`supermercados.tag`** | Implementación del flujo RPA mediante comandos nativos de TagUI (`type`, `click`, `dom begin ... dom finish`), manteniendo compatibilidad académica con el plan de estudios. |
+| **`supermercados.tag`** | Entregable académico independiente de TagUI. Se conserva para la cátedra y se ejecuta explícitamente por CLI; el Dashboard y los flujos de producción no lo invocan. |
 | **`ejecutar.bat`** | Script de inicio para consola Windows con validación de dependencias (Node.js, ExcelJS, TagUI) y menú interactivo de 7 opciones. |
 | **`interfaz.bat`** | Script de inicio rápido que libera el puerto 3000 si estuviera ocupado, inicia `server.js` en segundo plano y abre automáticamente el navegador en `http://localhost:3000`. |
 
@@ -221,7 +220,7 @@ A diferencia de los scripts tradicionales que utilizan llamadas HTTP internas o 
 
 1. **Detección de Chrome:** La función `getChromePath()` localiza el ejecutable de Google Chrome en las rutas estándar de Windows (`Program Files`, `Program Files (x86)`, `LocalAppData`).
 2. **Lanzamiento Visible:** Puppeteer inicia Chrome con `headless: false`, `--start-maximized` y desactivando flags de automatización.
-3. **Cursor Virtual en Pantalla:** Se inyecta un elemento DOM (`#rpa-virtual-cursor`) con coordenadas absolutas que se desplaza mediante curvas de Bézier cúbicas con aceleración y desaceleración suaves (`ease-in-out`), generando una estela y un efecto de onda (*ripple*) al hacer click.
+3. **Cursor físico en Pantalla:** No se usa un cursor virtual para aparentar acciones. `mouse_helper.exe` mueve el puntero de Windows por curvas Bézier y ejecuta el click físico sobre Chrome.
 4. **Navegación Visible por Barra de Direcciones (`visibleNavigate`):**
    - El cursor se mueve hacia la parte superior de la ventana.
    - `mouse_helper.exe` envía los eventos nativos de Windows para enfocar la barra de direcciones de Chrome (`Alt+D`).
@@ -230,8 +229,8 @@ A diferencia de los scripts tradicionales que utilizan llamadas HTTP internas o 
 5. **Tipeo Progresivo Real (`visibleType`):**
    - El cursor se mueve hasta el campo de búsqueda del supermercado y hace click.
    - Envía `Ctrl+A` seguido de `Backspace` para limpiar búsquedas previas.
-   - Escribe la consulta utilizando `page.keyboard.type(text, { delay })`, disparando los eventos reales del teclado (`keydown`, `keypress`, `keyup`) requeridos por frameworks como React, Angular y bibliotecas de autocompletado como Downshift.
-6. **Scroll Progresivo (`visibleScroll`):** Desplaza la página de forma suave en pasos sucesivos para simular la lectura de resultados por parte de un usuario.
+   - Escribe la consulta con `SendKeys` nativo, carácter por carácter, sobre el campo que recibió el click físico.
+6. **Scroll Progresivo (`visibleScroll`):** Usa eventos nativos de rueda en pasos sucesivos; no usa `scrollIntoView()` ni `window.scrollBy()`.
 7. **Ordenamiento de Menor a Mayor:**
    - **Carrefour:** Localiza el botón `orderByButton`, lo despliega y hace click en la opción "Precios más bajo".
    - **COTO:** Localiza el elemento `<select class="form-select">` y selecciona la opción `price|ascending`.
@@ -242,7 +241,7 @@ A diferencia de los scripts tradicionales que utilizan llamadas HTTP internas o 
 
 ## 9. Funcionamiento de TagUI (Script Académico)
 
-El archivo `supermercados.tag` constituye la implementación requerida por los lineamientos pedagógicos de la cátedra:
+El archivo `supermercados.tag` constituye el entregable requerido por los lineamientos pedagógicos de la cátedra. Es una alternativa académica aislada: el Dashboard, `server.js` y las opciones normales de `ejecutar.bat` usan exclusivamente `rpa_runner.js`, con una única sesión visible de Chrome.
 
 - **Estructura:** Diseñado para ejecutarse mediante el comando:
   ```cmd
@@ -289,7 +288,7 @@ El frontend web (`public/index.html`, `styles.css`, `app.js`) proporciona una ex
 
 3. MOTOR RPA (rpa_runner.js)
    ├─ Abre Google Chrome maximizado en la pantalla del usuario.
-   ├─ Inyecta el cursor visual y prepara el controlador Win32 mouse_helper.exe.
+    ├─ Prepara el controlador Win32 mouse_helper.exe; no inyecta un cursor virtual.
    │
    ├─ SUPERMERCADO 1: CARREFOUR ARGENTINA
    │  ├─ Navega vía Omnibox (tipeo visible de URL).

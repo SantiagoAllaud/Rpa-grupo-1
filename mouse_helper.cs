@@ -40,6 +40,7 @@ public class MouseHelper {
     public const int MOUSEEVENTF_LEFTUP = 0x04;
     public const int MOUSEEVENTF_RIGHTDOWN = 0x08;
     public const int MOUSEEVENTF_RIGHTUP = 0x10;
+    public const int MOUSEEVENTF_WHEEL = 0x0800;
 
     public const int SW_RESTORE = 9;
 
@@ -158,6 +159,47 @@ public class MouseHelper {
         Thread.Sleep(120);
     }
 
+    // Convierte coordenadas CSS del viewport al escritorio físico. Puppeteer sólo
+    // lee la posición; el movimiento y el click se realizan con Win32 reales.
+    public static POINT ViewportToScreen(int x, int y, int outerWidth, int outerHeight, int innerWidth, int innerHeight) {
+        IntPtr hwnd = GetChromeHwnd();
+        RECT rect;
+        if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out rect)) return new POINT { X = x, Y = y };
+
+        double windowWidth = Math.Max(1, rect.Right - rect.Left);
+        double scale = outerWidth > 0 ? windowWidth / outerWidth : 1.0;
+        double contentWidth = Math.Max(1, innerWidth * scale);
+        double contentHeight = Math.Max(1, innerHeight * scale);
+        double contentLeft = rect.Left + Math.Max(0, (windowWidth - contentWidth) / 2.0);
+        double contentTop = rect.Bottom - contentHeight;
+        return new POINT {
+            X = (int)Math.Round(contentLeft + x * scale),
+            Y = (int)Math.Round(contentTop + y * scale)
+        };
+    }
+
+    public static void MoveViewport(int x, int y, int outerWidth, int outerHeight, int innerWidth, int innerHeight, int durationMs) {
+        FocusChrome();
+        POINT screenPoint = ViewportToScreen(x, y, outerWidth, outerHeight, innerWidth, innerHeight);
+        MoveSmooth(screenPoint.X, screenPoint.Y, durationMs);
+    }
+
+    public static void ClickViewport(int x, int y, int outerWidth, int outerHeight, int innerWidth, int innerHeight, int durationMs) {
+        MoveViewport(x, y, outerWidth, outerHeight, innerWidth, innerHeight, durationMs);
+        Click(null, null, 0);
+    }
+
+    // pixels positivos representan un desplazamiento hacia abajo, como la rueda.
+    public static void ScrollVisible(int pixels, int steps, int delayMs) {
+        FocusChrome();
+        int count = Math.Max(1, Math.Abs(pixels) / Math.Max(1, steps * 90));
+        int direction = pixels >= 0 ? -120 : 120;
+        for (int i = 0; i < count; i++) {
+            mouse_event(MOUSEEVENTF_WHEEL, 0, 0, direction, 0);
+            Thread.Sleep(Math.Max(delayMs, 40));
+        }
+    }
+
     // Arrastre fluido de sliders y rangos
     public static void Drag(int x1, int y1, int x2, int y2, int durationMs) {
         MoveSmooth(x1, y1, 400);
@@ -248,6 +290,9 @@ public class MouseHelper {
             Console.WriteLine("  pos                           -> prints current x,y");
             Console.WriteLine("  move <x> <y> [ms]             -> moves cursor smoothly");
             Console.WriteLine("  click [x y] [ms]              -> clicks at current or target position");
+            Console.WriteLine("  moveviewport <x> <y> <outerW> <outerH> <innerW> <innerH> [ms]");
+            Console.WriteLine("  clickviewport <x> <y> <outerW> <outerH> <innerW> <innerH> [ms]");
+            Console.WriteLine("  scroll <pixels> [steps] [ms]  -> native wheel scroll (positive = down)");
             Console.WriteLine("  drag <x1> <y1> <x2> <y2> [ms] -> drag & drop");
             Console.WriteLine("  type <text> [charDelayMs]     -> types progressive text");
             Console.WriteLine("  key <keys>                    -> sends special keys (e.g. {ENTER})");
@@ -282,6 +327,25 @@ public class MouseHelper {
                     } else {
                         Click(null, null);
                     }
+                    Console.WriteLine("OK");
+                    break;
+                }
+                case "moveviewport": {
+                    int ms = args.Length > 7 ? int.Parse(args[7]) : 500;
+                    MoveViewport(int.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), int.Parse(args[6]), ms);
+                    Console.WriteLine("OK");
+                    break;
+                }
+                case "clickviewport": {
+                    int ms = args.Length > 7 ? int.Parse(args[7]) : 0;
+                    ClickViewport(int.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), int.Parse(args[6]), ms);
+                    Console.WriteLine("OK");
+                    break;
+                }
+                case "scroll": {
+                    int steps = args.Length > 2 ? int.Parse(args[2]) : 1;
+                    int delay = args.Length > 3 ? int.Parse(args[3]) : 100;
+                    ScrollVisible(int.Parse(args[1]), steps, delay);
                     Console.WriteLine("OK");
                     break;
                 }

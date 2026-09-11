@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot RPA Supermercados</title>
+    <meta name="description" content="Bot RPA que compara precios de productos en supermercados argentinos (Carrefour, COTO y Día %) de forma 100% visible y automatizada. UTN FRCU 2026.">
+    <title>Bot RPA Comparador de Precios | UTN FRCU 2026</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -63,7 +64,8 @@
                     <div class="card-icon"><i class="fa-solid fa-file-excel"></i></div>
                     <h3>Reportes y Utilidades</h3>
                     <div class="btn-group">
-                        <button id="btn-abrir-excel" class="btn outline"><i class="fa-solid fa-file-excel"></i> Ver Reporte</button>
+                        <button id="btn-abrir-excel" class="btn outline"><i class="fa-solid fa-file-excel"></i> Ver Reporte Excel</button>
+                        <a href="visor-proceso.html" target="_blank" class="btn outline"><i class="fa-solid fa-chart-line"></i> Visor de Resultados</a>
                         <button id="btn-limpiar" class="btn danger"><i class="fa-solid fa-trash"></i> Limpiar Historial</button>
                     </div>
                 </div>
@@ -77,6 +79,11 @@
                 </div>
                 <div id="log-container" class="log-container">
                     <p class="log-msg">Bienvenido al Bot RPA. Selecciona una acción para comenzar...</p>
+                </div>
+                <div class="abort-bar" id="abort-bar">
+                    <button id="btn-abort" class="btn btn-abort" title="Detener inmediatamente la ejecución del RPA">
+                        <i class="fa-solid fa-stop"></i> Detener RPA
+                    </button>
                 </div>
             </div>
 
@@ -149,6 +156,11 @@
                 </div>
             </div>
         </main>
+
+        <footer class="dashboard-footer">
+            <p>UTN FRCU — Tecnologías para la Automatización — Año 2026</p>
+            <p class="footer-sub">Bot RPA Comparador de Precios v1.0 • Carrefour · COTO · Día %</p>
+        </footer>
     </div>
 
     <!-- Modal de Limpieza -->

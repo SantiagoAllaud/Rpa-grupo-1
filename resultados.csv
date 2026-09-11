@@ -1,35 +1,3 @@
-modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status
-compra_mes,galletitas,Galletitas clásicas Traviata x5 108 g,"$ 3.160,00",Carrefour,https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p,2026-09-11,DISPONIBLE
-compra_mes,galletitas,Galletitas Dulces Tía Maruca Pepas 250g,"$1.430,00",COTO,https://www.coto.com.ar/productos/galletitas-dulces-tia-maruca-pepas-250g-/_/R-00163523-00163523-200,2026-09-11,DISPONIBLE
-"individual","coca col","Yerba mate Mañanita bajo polvo 4flex 1 kg","$ 4.027,50 c/u","Carrefour","https://www.carrefour.com.ar/yerba-mate-mananita-bajo-polvo-4flex-1-kg/p","2026-09-11","DISPONIBLE","1","2L"
-"individual","coca col","Gaseosa Zero COCA COLA 1.25l","$2.632,00","COTO","https://www.coto.com.ar/productos/gaseosa-zero-coca-cola-1-25l-/_/R-00487535-00487535-200","2026-09-11","DISPONIBLE","1","2L"
-"individual","coca col","Limpiador Desinfectante para Inodoro Pato Purific 100% Destructor de Sarro Marina 500 Ml.","$ 6.150","Día %","https://diaonline.supermercadosdia.com.ar/limpiador-desinfectante-para-inodoro-pato-purific-100--destructor-de-sarro-marina-500-ml-277846/p","2026-09-11","DISPONIBLE","1","2L"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
-"individual","arroz","Arroz largo fino Molinos Ala 1 kg.","$ 1.940,00","Carrefour","https://www.carrefour.com.ar/arroz-largo-fino-molinos-ala-1-kg/p","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","Barra De Arroz Con Semillas Crowie Chocolate 12g","$390,00","COTO","https://www.coto.com.ar/productos/barra-de-arroz-con-semillas-crowie-chocolate-12g-/_/R-00613053-00613053-200","2026-09-11","DISPONIBLE","1","500g"
-"individual","arroz","No encontrado","N/D","Día %","https://diaonline.supermercadosdia.com.ar","2026-09-11","NO ENCONTRADO","1","500g"
+modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad,unidad
+compra_mes,galletitas,Galletitas clásicas Traviata x5 108 g,"$ 3.160,00",Carrefour,https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p,2026-09-11,DISPONIBLE,1,
+compra_mes,galletitas,Galletitas Dulces Tía Maruca Pepas 250g,"$1.430,00",COTO,https://www.coto.com.ar/productos/galletitas-dulces-tia-maruca-pepas-250g-/_/R-00163523-00163523-200,2026-09-11,DISPONIBLE,1,

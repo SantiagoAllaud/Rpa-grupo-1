@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const logContainer = document.getElementById('log-container');
     const statusIndicator = document.getElementById('status-indicator');
+    const btnAbort = document.getElementById('btn-abort');
+    const abortBar = document.getElementById('abort-bar');
     
     const modal = document.getElementById('limpiar-modal');
     const btnCerrarModal = document.getElementById('btn-cerrar-modal');
@@ -154,15 +156,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cambiar estado visual de botones
     function setRunningState(isRunning) {
-        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal)');
+        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal):not(#btn-abort)');
         btns.forEach(btn => btn.disabled = isRunning);
         
         if (isRunning) {
             statusIndicator.textContent = "Procesando...";
             statusIndicator.className = "indicator running";
+            if (abortBar) abortBar.classList.add('visible');
+            if (btnAbort) btnAbort.disabled = false;
         } else {
             statusIndicator.textContent = "Listo";
             statusIndicator.className = "indicator idle";
+            if (abortBar) abortBar.classList.remove('visible');
         }
     }
 
@@ -404,6 +409,21 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
                 alert("Error de conexión al guardar.");
             }
+        });
+    }
+
+    // Kill-switch: botón de aborto visible en la interfaz
+    if (btnAbort) {
+        btnAbort.addEventListener('click', async () => {
+            btnAbort.disabled = true;
+            addLog('⛔ Solicitando aborto del RPA...');
+            try {
+                await fetch('/api/abort', { method: 'POST' });
+                addLog('✓ RPA detenido por el usuario.');
+            } catch (e) {
+                addLog('Error al abortar: ' + e.message, true);
+            }
+            setRunningState(false);
         });
     }
 

@@ -2,10 +2,12 @@
 // UTN FRCU - Tecnologías para la Automatización (Año 2026)
 // generar_excel.js - Generador de Reporte Avanzado en Excel (.xlsx)
 //
-// 3 Hojas Estilizadas:
-// 1. 🏆 Conclusiones (Costo canasta mensual, ganador, compra combinada, ahorro, faltantes y stock)
+// 5 Hojas Estilizadas:
+// 1. 🏆 Conclusiones (KPIs ejecutivos, tabla de ganadores, mejor canasta)
 // 2. 🛒 Canasta Mensual (Tabla horizontal comparativa producto a producto)
-// 3. 🔎 Consultas Individuales (Historial de búsquedas unitarias con validación)
+// 3. 📊 Ranking Menor a Mayor (Podio con medallas de precio ascendente)
+// 4. 🔎 Consultas Individuales (Historial de búsquedas unitarias con validación)
+// 5. ⚠️ Disponibilidad y Stock (Detalle de productos sin stock o rechazados)
 // ==============================================================================
 
 const fs = require('fs');
@@ -827,6 +829,224 @@ async function main() {
     ws4.getColumn('E').width = 46;
     ws4.getColumn('F').width = 46;
     ws4.getColumn('G').width = 22;
+
+    // ==============================================================================
+    // HOJA 4: 📊 RANKING MENOR A MAYOR (PODIO VISUAL CON MEDALLAS)
+    // ==============================================================================
+    var ws3 = workbook.addWorksheet('📊 Ranking Menor a Mayor', { views: [{ showGridLines: true }] });
+
+    ws3.mergeCells('B2:H2');
+    var tWs3 = ws3.getCell('B2');
+    tWs3.value = '📊 RANKING DE PRECIOS: TODOS LOS PRODUCTOS DE MENOR A MAYOR';
+    tWs3.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    tWs3.alignment = { vertical: 'middle', horizontal: 'center' };
+    tWs3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSCURO } };
+    ws3.getRow(2).height = 34;
+
+    ws3.mergeCells('B3:H3');
+    var stWs3 = ws3.getCell('B3');
+    stWs3.value = 'Todos los precios válidos de la canasta mensual ordenados de más barato a más caro. Medallas 🥇🥈🥉 destacan el podio.';
+    stWs3.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
+    stWs3.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getRow(3).height = 18;
+
+    var hWs3 = [
+        { col: 'B', text: '🏅 Posición' },
+        { col: 'C', text: 'Artículo Solicitado' },
+        { col: 'D', text: 'Producto Encontrado' },
+        { col: 'E', text: 'Supermercado' },
+        { col: 'F', text: 'Precio' },
+        { col: 'G', text: 'Estado' },
+        { col: 'H', text: 'Enlace Web' }
+    ];
+    ws3.getRow(5).height = 22;
+    hWs3.forEach(function(h) {
+        var cell = ws3.getCell(h.col + '5');
+        cell.value = h.text;
+        cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+    });
+
+    // Recopilar todos los items válidos de la canasta y ordenarlos por precio
+    var todosValidosMensual = itemsMensual.filter(function(it) {
+        var v = validador.validarCoincidencia(it.producto, it);
+        return v.valido && it.precio !== null && it.precio > 0;
+    });
+    todosValidosMensual.sort(function(a, b) { return a.precio - b.precio; });
+
+    var rWs3 = 6;
+    var medallas = ['🥇', '🥈', '🥉'];
+    todosValidosMensual.forEach(function(it, idx) {
+        ws3.getRow(rWs3).height = 22;
+        var medalla = idx < 3 ? medallas[idx] : (idx + 1).toString();
+
+        var posCell = ws3.getCell('B' + rWs3);
+        posCell.value = medalla;
+        posCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        posCell.font = { size: idx < 3 ? 14 : 10, bold: idx < 3 };
+        if (idx === 0) posCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+
+        ws3.getCell('C' + rWs3).value = it.producto.toUpperCase();
+        ws3.getCell('C' + rWs3).font = { bold: true, size: 9 };
+        ws3.getCell('C' + rWs3).alignment = { vertical: 'middle', horizontal: 'left' };
+
+        ws3.getCell('D' + rWs3).value = it.nombre;
+        ws3.getCell('D' + rWs3).font = { size: 9 };
+        ws3.getCell('D' + rWs3).alignment = { vertical: 'middle', horizontal: 'left' };
+
+        var supCell3 = ws3.getCell('E' + rWs3);
+        supCell3.value = it.supermercado;
+        supCell3.font = { bold: true, size: 9 };
+        supCell3.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        var preCell3 = ws3.getCell('F' + rWs3);
+        preCell3.value = it.precio;
+        preCell3.numFmt = '"$"#,##0.00';
+        preCell3.alignment = { vertical: 'middle', horizontal: 'right' };
+        if (idx === 0) {
+            preCell3.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+            preCell3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        } else {
+            preCell3.font = { bold: false };
+        }
+
+        ws3.getCell('G' + rWs3).value = 'VALIDADA';
+        ws3.getCell('G' + rWs3).font = { size: 9, color: { argb: COLOR_VERDE_TEXTO } };
+        ws3.getCell('G' + rWs3).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        var lnkCell3 = ws3.getCell('H' + rWs3);
+        if (it.url && it.url.startsWith('http')) {
+            lnkCell3.value = { text: '🔗 Ver', hyperlink: it.url };
+            lnkCell3.font = { color: { argb: 'FF0563C1' }, underline: true, size: 9 };
+        } else {
+            lnkCell3.value = '-';
+        }
+        lnkCell3.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        rWs3++;
+    });
+
+    if (todosValidosMensual.length === 0) {
+        ws3.mergeCells('B6:H6');
+        var vacioRank = ws3.getCell('B6');
+        vacioRank.value = 'No hay productos validados para generar el ranking. Ejecuta primero la Compra del Mes.';
+        vacioRank.font = { italic: true, color: { argb: 'FF777777' }, size: 10 };
+        vacioRank.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws3.getRow(6).height = 30;
+        rWs3 = 7;
+    }
+
+    aplicarBordes(ws3, 'B', 5, 'H', rWs3 - 1);
+
+    ws3.getColumn('A').width = 4;
+    ws3.getColumn('B').width = 12;
+    ws3.getColumn('C').width = 22;
+    ws3.getColumn('D').width = 42;
+    ws3.getColumn('E').width = 16;
+    ws3.getColumn('F').width = 16;
+    ws3.getColumn('G').width = 14;
+    ws3.getColumn('H').width = 16;
+
+
+    // ==============================================================================
+    // HOJA 5: ⚠️ DISPONIBILIDAD Y STOCK (ARTÍCULOS CON PROBLEMAS)
+    // ==============================================================================
+    var ws5 = workbook.addWorksheet('⚠️ Disponibilidad y Stock', { views: [{ showGridLines: true }] });
+
+    ws5.mergeCells('B2:H2');
+    var tWs5 = ws5.getCell('B2');
+    tWs5.value = '⚠️ DISPONIBILIDAD Y STOCK: ARTÍCULOS CON PROBLEMAS O RECHAZADOS';
+    tWs5.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    tWs5.alignment = { vertical: 'middle', horizontal: 'center' };
+    tWs5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROJO_TEXTO } };
+    ws5.getRow(2).height = 34;
+
+    ws5.mergeCells('B3:H3');
+    var stWs5 = ws5.getCell('B3');
+    stWs5.value = 'Detalle de productos que no pudieron ser validados: sin stock, no encontrados o coincidencia rechazada por el motor semántico.';
+    stWs5.font = { size: 9, italic: true, color: { argb: 'FF666666' } };
+    stWs5.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws5.getRow(3).height = 18;
+
+    var itemsFaltantesAll = items.filter(function(x) { return !x.valido || x.estado !== 'VALIDADA'; });
+
+    if (itemsFaltantesAll.length === 0) {
+        ws5.mergeCells('B5:H5');
+        var vacioStock = ws5.getCell('B5');
+        vacioStock.value = '✅ ¡Excelente! Todos los productos fueron encontrados y validados exitosamente. No hay incidencias de stock.';
+        vacioStock.font = { size: 11, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+        vacioStock.alignment = { vertical: 'middle', horizontal: 'center' };
+        vacioStock.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        ws5.getRow(5).height = 36;
+    } else {
+        var hWs5 = [
+            { col: 'B', text: 'Fecha' },
+            { col: 'C', text: 'Modo' },
+            { col: 'D', text: 'Producto Solicitado' },
+            { col: 'E', text: 'Supermercado' },
+            { col: 'F', text: 'Nombre Devuelto' },
+            { col: 'G', text: 'Estado / Incidencia' },
+            { col: 'H', text: 'Motivo del Rechazo' }
+        ];
+        ws5.getRow(5).height = 22;
+        hWs5.forEach(function(h) {
+            var cell = ws5.getCell(h.col + '5');
+            cell.value = h.text;
+            cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_TITULO } };
+        });
+
+        var rWs5 = 6;
+        itemsFaltantesAll.forEach(function(it) {
+            ws5.getRow(rWs5).height = 20;
+
+            ws5.getCell('B' + rWs5).value = it.fecha;
+            ws5.getCell('B' + rWs5).alignment = { vertical: 'middle', horizontal: 'center' };
+
+            ws5.getCell('C' + rWs5).value = it.modo === 'compra_mes' ? 'Canasta' : 'Individual';
+            ws5.getCell('C' + rWs5).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws5.getCell('C' + rWs5).font = { size: 9 };
+
+            ws5.getCell('D' + rWs5).value = it.producto;
+            ws5.getCell('D' + rWs5).font = { bold: true };
+            ws5.getCell('D' + rWs5).alignment = { vertical: 'middle', horizontal: 'left' };
+
+            ws5.getCell('E' + rWs5).value = it.supermercado;
+            ws5.getCell('E' + rWs5).font = { bold: true };
+            ws5.getCell('E' + rWs5).alignment = { vertical: 'middle', horizontal: 'center' };
+
+            ws5.getCell('F' + rWs5).value = it.nombre;
+            ws5.getCell('F' + rWs5).font = { size: 9 };
+            ws5.getCell('F' + rWs5).alignment = { vertical: 'middle', horizontal: 'left' };
+
+            var stCellW5 = ws5.getCell('G' + rWs5);
+            stCellW5.value = it.estado;
+            stCellW5.alignment = { vertical: 'middle', horizontal: 'center' };
+            var esStock = it.estado === 'SIN STOCK';
+            stCellW5.font = { bold: true, size: 9, color: { argb: esStock ? COLOR_AMARILLO_TEXTO : COLOR_ROJO_TEXTO } };
+            stCellW5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: esStock ? COLOR_AMARILLO_PASTEL : COLOR_ROJO_PASTEL } };
+
+            ws5.getCell('H' + rWs5).value = it.motivo || 'No disponible';
+            ws5.getCell('H' + rWs5).font = { size: 8.5, color: { argb: 'FF555555' } };
+            ws5.getCell('H' + rWs5).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+
+            rWs5++;
+        });
+
+        aplicarBordes(ws5, 'B', 5, 'H', rWs5 - 1);
+    }
+
+    ws5.getColumn('A').width = 4;
+    ws5.getColumn('B').width = 14;
+    ws5.getColumn('C').width = 12;
+    ws5.getColumn('D').width = 24;
+    ws5.getColumn('E').width = 16;
+    ws5.getColumn('F').width = 40;
+    ws5.getColumn('G').width = 24;
+    ws5.getColumn('H').width = 42;
+
 
     // Guardar el libro consolidado con control de archivo bloqueado
     try {

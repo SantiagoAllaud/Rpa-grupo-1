@@ -1045,7 +1045,7 @@ function limpiarResultados(opcion) {
     const fs = require('fs');
     const path = require('path');
     var csvFile = path.join(__dirname, 'resultados.csv');
-    var header = 'modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status\n';
+    var header = 'modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad,unidad\n';
 
     if (!fs.existsSync(csvFile)) {
         fs.writeFileSync(csvFile, header, 'utf-8');
@@ -1062,7 +1062,7 @@ function limpiarResultados(opcion) {
         restantes.forEach(function(r) {
             var nomEsc = r.nombre.includes(',') ? '"' + r.nombre + '"' : r.nombre;
             var preEsc = r.precioStr.includes(',') ? '"' + r.precioStr + '"' : r.precioStr;
-            contenido += [r.modo, r.producto, nomEsc, preEsc, r.supermercado, r.url, r.fecha, r.stockRaw].join(',') + '\n';
+            contenido += [r.modo, r.producto, nomEsc, preEsc, r.supermercado, r.url, r.fecha, r.stockRaw, r.cantidad || 1, r.unidad || ''].join(',') + '\n';
         });
         fs.writeFileSync(csvFile, contenido, 'utf-8');
         console.log('[OK] Se eliminaron los registros de "Compra del mes". Se conservó el historial de consultas individuales.');
@@ -1073,7 +1073,7 @@ function limpiarResultados(opcion) {
         restantesM.forEach(function(r) {
             var nomEscM = r.nombre.includes(',') ? '"' + r.nombre + '"' : r.nombre;
             var preEscM = r.precioStr.includes(',') ? '"' + r.precioStr + '"' : r.precioStr;
-            contenidoM += [r.modo, r.producto, nomEscM, preEscM, r.supermercado, r.url, r.fecha, r.stockRaw].join(',') + '\n';
+            contenidoM += [r.modo, r.producto, nomEscM, preEscM, r.supermercado, r.url, r.fecha, r.stockRaw, r.cantidad || 1, r.unidad || ''].join(',') + '\n';
         });
         fs.writeFileSync(csvFile, contenidoM, 'utf-8');
         console.log('[OK] Se limpió el historial de búsquedas individuales. Se conservó la compra del mes.');
