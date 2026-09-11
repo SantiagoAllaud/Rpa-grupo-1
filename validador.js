@@ -254,6 +254,55 @@ const PALABRAS_GENERICAS = [
     'generico', 'generica', 'alternativa', 'comun', 'cualquiera'
 ];
 
+// Accesorios y repuestos que deben rechazarse frente a productos principales de consumo
+const ACCESORIOS_INCOMPATIBLES = [
+    'vaso', 'vasos', 'termo', 'termos', 'mate de madera', 'bombilla', 'bombillas',
+    'funda', 'fundas', 'repuesto', 'repuestos', 'tapa', 'tapas', 'dispenser', 'dosificador',
+    'recipiente', 'cuchara', 'soporte', 'porta'
+];
+
+// Subcategorías generales y estandarizadas
+const SUBCATEGORIAS_COMUNES = {
+    'largo fino': 'largo fino',
+    'doble carolina': 'doble carolina',
+    'parboil': 'parboil',
+    'carnaroli': 'carnaroli',
+    'yamani': 'yamani',
+    'tallarin': 'tallarines',
+    'tallarines': 'tallarines',
+    'spaghetti': 'tallarines',
+    'tirabuzon': 'guiseros',
+    'tirabuzones': 'guiseros',
+    'mostachol': 'guiseros',
+    'mostacholes': 'guiseros',
+    'penne': 'guiseros',
+    'descremada': 'descremada',
+    'entera': 'entera',
+    'deslactosada': 'deslactosada',
+    'cremoso': 'cremoso',
+    'mozzarella': 'mozzarella',
+    'sardo': 'sardo',
+    'reggianito': 'reggianito',
+    'girasol': 'girasol',
+    'oliva': 'oliva',
+    'maiz': 'maiz',
+    'con gas': 'con gas',
+    'sin gas': 'sin gas',
+    'rubia': 'rubia',
+    'negra': 'negra',
+    'ipa': 'ipa',
+    'tinto': 'tinto',
+    'blanco': 'blanco',
+    'hoja simple': 'hoja simple',
+    'doble hoja': 'doble hoja'
+};
+
+// Líneas y sub-marcas distintivas que definen identidad dentro de una categoría
+const LINEAS_PRODUCTO = [
+    'oro', 'clasica', 'clasico', 'original', 'premium', 'maximo', 'zero', 'light', 'diet', 'cero',
+    'suave', 'intenso', 'especial', 'tradicional', 'con palo', 'despalada', 'seleccion', 'familiar'
+];
+
 // Extraer unidad y valor numérico de presentación (ej: "2.25L" -> { valor: 2.25, tipo: 'l', raw: '2.25l' })
 function extraerPresentacion(texto) {
     if (!texto || typeof texto !== 'string') return null;
@@ -274,7 +323,201 @@ function extraerPresentacion(texto) {
         var valorKg = uP === 'g' ? numP / 1000 : numP;
         return { valor: valorKg, tipo: 'kg', raw: mPeso[0].trim() };
     }
+    // Unidades / Packs: pack x 3, x 4 un, 4 rollos, 4 u
+    var mUn = raw.match(/(?:pack\s*x?\s*|x\s*)?(\d+)\s*(?:unidades?|unids?|unid|un|rollos?|sobres?|paquetes?|u)\b/);
+    if (mUn) {
+        var numU = parseInt(mUn[1], 10);
+        return { valor: numU, tipo: 'un', raw: mUn[0].trim() };
+    }
     return null;
+}
+
+// Extrae todos los atributos estructurados de un producto de cualquier categoría
+function extraerAtributos(texto) {
+    if (!texto || typeof texto !== 'string') {
+        return { categoria: null, subcategoria: null, marca: null, linea: null, variedad: null, presentacion: null, esAccesorio: false, textoNorm: '' };
+    }
+    var tNorm = normalizar(texto);
+    var pres = extraerPresentacion(texto);
+
+    // 1. Categoría
+    var cat = null;
+    var cKeys = Object.keys(DEFINICION_CATEGORIAS);
+    for (var j = 0; j < cKeys.length; j++) {
+        var k = cKeys[j];
+        if (DEFINICION_CATEGORIAS[k].terminos.some(function(t) {
+            if (t.length <= 4) {
+                var rx = new RegExp('(?:^|\\s)' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '(?:$|\\s)', 'i');
+                return rx.test(tNorm);
+            }
+            return tNorm.includes(t);
+        })) {
+            cat = k;
+            break;
+        }
+    }
+
+    // 2. Subcategoría
+    var subcat = null;
+    var skKeys = Object.keys(SUBCATEGORIAS_COMUNES);
+    for (var s = 0; s < skKeys.length; s++) {
+        var sk = skKeys[s];
+        if (tNorm.includes(sk)) {
+            subcat = SUBCATEGORIAS_COMUNES[sk];
+            break;
+        }
+    }
+
+    // 3. Marca
+    var marca = null;
+    var marcasOrdenadas = MARCAS_CONOCIDAS.slice().sort(function(a, b) { return b.length - a.length; });
+    for (var i = 0; i < marcasOrdenadas.length; i++) {
+        var m = marcasOrdenadas[i];
+        var regex = new RegExp('(?:^|\\s)' + m.replace('-', '[-\\s]') + '(?:$|\\s)', 'i');
+        if (regex.test(tNorm)) {
+            marca = m;
+            break;
+        }
+    }
+
+    // 4. Línea
+    var linea = null;
+    for (var l = 0; l < LINEAS_PRODUCTO.length; l++) {
+        var lp = LINEAS_PRODUCTO[l];
+        var rxL = new RegExp('(?:^|\\s)' + lp + '(?:$|\\s)', 'i');
+        if (rxL.test(tNorm)) {
+            linea = lp;
+            break;
+        }
+    }
+
+    // 5. Variedad (sabor o variante descriptiva)
+    var variedad = null;
+    var varArray = Array.from(SABORES_Y_VARIANTES);
+    for (var v = 0; v < varArray.length; v++) {
+        var vr = varArray[v];
+        var rxV = new RegExp('(?:^|\\s)' + vr + '(?:$|\\s)', 'i');
+        if (rxV.test(tNorm)) {
+            variedad = vr;
+            break;
+        }
+    }
+
+    // 6. Accesorio
+    var esAccesorio = false;
+    for (var a = 0; a < ACCESORIOS_INCOMPATIBLES.length; a++) {
+        var acc = ACCESORIOS_INCOMPATIBLES[a];
+        var rxAcc = new RegExp('(?:^|\\s)' + acc + '(?:$|\\s)', 'i');
+        if (rxAcc.test(tNorm)) {
+            esAccesorio = true;
+            break;
+        }
+    }
+
+    return {
+        categoria: cat,
+        subcategoria: subcat,
+        marca: marca,
+        linea: linea,
+        variedad: variedad,
+        presentacion: pres,
+        esAccesorio: esAccesorio,
+        textoNorm: tNorm
+    };
+}
+
+// Normaliza el precio por unidad base (por kg, litro o unidad) para comparabilidad objetiva
+function calcularPrecioNormalizado(item) {
+    if (!item) return null;
+    var precio = typeof item.precio === 'number' ? item.precio : parsePrecio(item.precioStr);
+    if (!precio || precio <= 0) return null;
+    var pres = extraerPresentacion(item.nombre || item.producto || '');
+    if (!pres || !pres.valor || pres.valor <= 0) {
+        return {
+            precioBase: precio,
+            precioNormalizado: precio,
+            unidadBase: 'unidad',
+            descripcion: formatoMoneda(precio) + ' c/u'
+        };
+    }
+    var precioNorm = Math.round((precio / pres.valor) * 100) / 100;
+    var unidadStr = pres.tipo === 'kg' ? 'kg' : (pres.tipo === 'l' ? 'litro' : 'unidad');
+    return {
+        precioBase: precio,
+        precioNormalizado: precioNorm,
+        unidadBase: unidadStr,
+        descripcion: formatoMoneda(precioNorm) + ' por ' + unidadStr
+    };
+}
+
+// Motor General de Comparabilidad: Determina si dos productos son comercialmente comparables
+function sonComparables(itemA, itemB, queryOriginal) {
+    var qNorm = normalizar(queryOriginal || '');
+    var intencion = detectarIntencion(queryOriginal || '');
+    var nomA = (itemA && typeof itemA === 'object') ? (itemA.nombre || itemA.producto || '') : String(itemA || '');
+    var nomB = (itemB && typeof itemB === 'object') ? (itemB.nombre || itemB.producto || '') : String(itemB || '');
+    var attrA = extraerAtributos(nomA);
+    var attrB = extraerAtributos(nomB);
+
+    // 1. Accesorios vs principales
+    var queryPideAccesorio = ACCESORIOS_INCOMPATIBLES.some(function(acc) { return qNorm.includes(acc); });
+    if (!queryPideAccesorio && (attrA.esAccesorio || attrB.esAccesorio)) {
+        return { comparable: false, motivo: 'Uno de los productos es un accesorio/repuesto y no un producto principal de consumo.' };
+    }
+
+    // 2. Categoría
+    if (attrA.categoria && attrB.categoria && attrA.categoria !== attrB.categoria) {
+        return { comparable: false, motivo: 'Categorías incompatibles (' + attrA.categoria + ' vs ' + attrB.categoria + ').' };
+    }
+
+    // 3. Marca: Si la intención incluye marca, ambos deben poseer dicha marca
+    if (intencion.marca) {
+        var marcaReq = normalizar(intencion.marca);
+        var matchA = attrA.textoNorm.includes(marcaReq);
+        var matchB = attrB.textoNorm.includes(marcaReq);
+        if (!matchA || !matchB) {
+            return { comparable: false, motivo: 'La búsqueda requería marca específica "' + intencion.marca.toUpperCase() + '".' };
+        }
+    }
+
+    // 4. Línea o sub-marca
+    if (intencion.queryNormalizada) {
+        for (var i = 0; i < LINEAS_PRODUCTO.length; i++) {
+            var lp = LINEAS_PRODUCTO[i];
+            if (intencion.queryNormalizada.includes(lp)) {
+                var aTiene = attrA.textoNorm.includes(lp);
+                var bTiene = attrB.textoNorm.includes(lp);
+                if (aTiene !== bTiene) {
+                    return { comparable: false, motivo: 'Difieren en la línea específica requerida ("' + lp.toUpperCase() + '").' };
+                }
+            }
+        }
+    }
+
+    // 5. Variedad o sabor
+    if (intencion.queryNormalizada) {
+        var variedades = Array.from(SABORES_Y_VARIANTES);
+        for (var j = 0; j < variedades.length; j++) {
+            var v = variedades[j];
+            if (intencion.queryNormalizada.includes(v)) {
+                var aVar = attrA.textoNorm.includes(v);
+                var bVar = attrB.textoNorm.includes(v);
+                if (!aVar || !bVar) {
+                    return { comparable: false, motivo: 'Se solicitó sabor/variedad "' + v.toUpperCase() + '" y no coincide en ambos productos.' };
+                }
+            }
+        }
+    }
+
+    // 6. Presentación / escala
+    if (attrA.presentacion && attrB.presentacion && attrA.presentacion.tipo === attrB.presentacion.tipo) {
+        var ratio = attrA.presentacion.valor / attrB.presentacion.valor;
+        if (ratio > 2.5 || ratio < 0.4) {
+            return { comparable: false, motivo: 'Presentaciones fuera de escala comparable (' + attrA.presentacion.raw + ' vs ' + attrB.presentacion.raw + ').' };
+        }
+    }
+
+    return { comparable: true, motivo: 'Productos equivalentes y comparables.' };
 }
 
 // Detecta la intención de búsqueda: ESPECÍFICA o GENÉRICA de forma general para todas las categorías
@@ -427,6 +670,24 @@ function validarCoincidencia(queryOriginal, resultado) {
         };
     }
 
+    // 2.5. Rechazo de productos accesorios si la consulta buscaba un producto de consumo principal
+    var queryPideAccesorio = ACCESORIOS_INCOMPATIBLES.some(function(acc) { return intencion.queryNormalizada.includes(acc); });
+    if (!queryPideAccesorio) {
+        for (var a = 0; a < ACCESORIOS_INCOMPATIBLES.length; a++) {
+            var accItem = ACCESORIOS_INCOMPATIBLES[a];
+            var rxAcc = new RegExp('(?:^|\\s)' + accItem + '(?:$|\\s)', 'i');
+            if (rxAcc.test(nombreNorm)) {
+                return {
+                    estado: 'COINCIDENCIA NO VÁLIDA',
+                    valido: false,
+                    motivo: 'El producto devuelto (' + nombreEncontrado + ') es un accesorio/repuesto ("' + accItem.toUpperCase() + '") y no un producto principal.',
+                    intencion: intencion.tipo,
+                    marca: intencion.marca
+                };
+            }
+        }
+    }
+
     // 3. Validación de CATEGORÍA E INCOMPATIBILIDADES (Aplica a TODAS las categorías)
     if (intencion.categoria && DEFINICION_CATEGORIAS[intencion.categoria]) {
         var defCat = DEFINICION_CATEGORIAS[intencion.categoria];
@@ -538,6 +799,23 @@ function validarCoincidencia(queryOriginal, resultado) {
         }
     }
 
+    // Validación de línea específica (ej: "zero", "light", "parboil", "oro", "clasica")
+    for (var li = 0; li < LINEAS_PRODUCTO.length; li++) {
+        var lineaProd = LINEAS_PRODUCTO[li];
+        var rxL = new RegExp('(?:^|\\s)' + lineaProd + '(?:$|\\s)', 'i');
+        if (rxL.test(intencion.queryNormalizada)) {
+            if (!rxL.test(nombreNorm)) {
+                return {
+                    estado: 'COINCIDENCIA NO VÁLIDA',
+                    valido: false,
+                    motivo: 'Se solicitó la línea específica "' + lineaProd.toUpperCase() + '" pero el producto devuelto (' + nombreEncontrado + ') no la incluye.',
+                    intencion: intencion.tipo,
+                    marca: intencion.marca
+                };
+            }
+        }
+    }
+
     // Validación de Presentación / Tamaño si se especificó
     if (intencion.presentacion) {
         var presEncontrada = extraerPresentacion(nombreEncontrado);
@@ -557,7 +835,8 @@ function validarCoincidencia(queryOriginal, resultado) {
                     valido: true,
                     motivo: 'Presentación alternativa más cercana: ' + presEncontrada.raw + ' (solicitada: ' + intencion.presentacion.raw + ').',
                     intencion: intencion.tipo,
-                    marca: intencion.marca
+                    marca: intencion.marca,
+                    precioNormalizado: calcularPrecioNormalizado({ nombre: nombreEncontrado, precio: resultado.precio, precioStr: resultado.precioStr })
                 };
             }
         }
@@ -568,7 +847,8 @@ function validarCoincidencia(queryOriginal, resultado) {
         valido: true,
         motivo: 'Coincidencia específica validada (marca, categoría y atributos conformes).',
         intencion: intencion.tipo,
-        marca: intencion.marca
+        marca: intencion.marca,
+        precioNormalizado: calcularPrecioNormalizado({ nombre: nombreEncontrado, precio: resultado.precio, precioStr: resultado.precioStr })
     };
 }
 
@@ -916,6 +1196,36 @@ if (require.main === module) {
         var r17 = validarCoincidencia('yerba playadito', { nombre: 'Yerba Mate Playadito 1kg', precio: 4500 });
         assertEq('Generalización: Aceptación Yerba Playadito', r17.estado, 'VALIDADA');
 
+        // Test 18: Equivalencia General - Detección y rechazo de accesorios (vaso vs gaseosa)
+        var r18 = validarCoincidencia('coca cola', { nombre: 'Vaso de Vidrio Coca Cola Original', precio: 3500 });
+        assertEq('Equivalencia General: Rechazo de Accesorio (Vaso)', r18.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 19: Equivalencia General - Rechazo de línea incompatible (Zero vs Común)
+        var r19 = validarCoincidencia('coca cola zero', { nombre: 'Gaseosa Coca Cola Sabor Original 2.25L', precio: 3800 });
+        assertEq('Equivalencia General: Rechazo de Línea distinta (Original para Zero)', r19.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 20: Equivalencia General - Normalización de precio por kg
+        var normKg = calcularPrecioNormalizado({ nombre: 'Arroz Ala 500g', precio: 1500 });
+        assertEq('Equivalencia General: Normalización Precio por kg (500g -> 1kg)', normKg.precioNormalizado, 3000);
+
+        // Test 21: Equivalencia General - Normalización de precio por litro
+        var normLt = calcularPrecioNormalizado({ nombre: 'Leche La Serenisima 1L', precio: 1400 });
+        assertEq('Equivalencia General: Normalización Precio por litro (1L)', normLt.precioNormalizado, 1400);
+
+        // Test 22: Equivalencia General - Comparabilidad entre marcas en búsqueda genérica
+        var compGen = sonComparables('Arroz Gallo Oro 1kg', 'Arroz Molinos Ala 1kg', 'arroz');
+        assertEq('Equivalencia General: Comparabilidad entre marcas en búsqueda genérica', compGen.comparable, true);
+
+        // Test 23: Equivalencia General - Rechazo de comparabilidad cuando se busca marca específica
+        var compMarca = sonComparables('Arroz Gallo Oro 1kg', 'Arroz Molinos Ala 1kg', 'arroz gallo');
+        assertEq('Equivalencia General: Rechazo comparabilidad marca distinta', compMarca.comparable, false);
+
+        // Test 24: Equivalencia General - Extracción de atributos de producto
+        var attrTest = extraerAtributos('Gaseosa Coca Cola Zero 2.25L');
+        assertEq('Equivalencia General: Atributo Marca', attrTest.marca, 'coca cola');
+        assertEq('Equivalencia General: Atributo Línea', attrTest.linea, 'zero');
+        assertEq('Equivalencia General: Atributo Presentación Litros', attrTest.presentacion.valor, 2.25);
+
         console.log('----------------------------------------------------------------------');
         if (errores === 0) {
             console.log(' 🎉 DIAGNÓSTICO FINAL: TODAS LAS PRUEBAS DEL VALIDADOR PASARON CON ÉXITO\n');
@@ -932,6 +1242,9 @@ if (require.main === module) {
 module.exports = {
     normalizar: normalizar,
     extraerPresentacion: extraerPresentacion,
+    extraerAtributos: extraerAtributos,
+    calcularPrecioNormalizado: calcularPrecioNormalizado,
+    sonComparables: sonComparables,
     detectarIntencion: detectarIntencion,
     obtenerConfiguracionBusqueda: obtenerConfiguracionBusqueda,
     validarCoincidencia: validarCoincidencia,
@@ -943,6 +1256,10 @@ module.exports = {
     crearTempInput: crearTempInput,
     MARCAS_CONOCIDAS: MARCAS_CONOCIDAS,
     DEFINICION_CATEGORIAS: DEFINICION_CATEGORIAS,
-    CATEGORIAS_PRODUCTO: CATEGORIAS_PRODUCTO
+    CATEGORIAS_PRODUCTO: CATEGORIAS_PRODUCTO,
+    ACCESORIOS_INCOMPATIBLES: ACCESORIOS_INCOMPATIBLES,
+    SUBCATEGORIAS_COMUNES: SUBCATEGORIAS_COMUNES,
+    LINEAS_PRODUCTO: LINEAS_PRODUCTO
 };
+
 

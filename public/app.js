@@ -14,27 +14,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCerrarModal = document.getElementById('btn-cerrar-modal');
     const btnsClean = document.querySelectorAll('.btn-clean');
 
-    // Elementos del Reproductor
-    const playerCanvas = document.getElementById('rpa-stream-canvas');
-    const canvasCtx = playerCanvas.getContext('2d');
-    const playerOverlay = document.getElementById('player-overlay');
-    const overlayTitle = document.getElementById('overlay-title');
-    const overlaySubtitle = document.getElementById('overlay-subtitle');
-    const overlaySpinner = document.getElementById('overlay-spinner');
-    const overlayIcon = document.getElementById('overlay-icon');
-    const playerLiveBadge = document.getElementById('player-live-badge');
-    const playerStatusBadge = document.getElementById('player-status-badge');
-    const playerProgressFill = document.getElementById('player-progress-fill');
-    const playerTime = document.getElementById('player-time');
-    const btnPlayerFullscreen = document.getElementById('btn-player-fullscreen');
-    const playerScreenWrapper = document.getElementById('player-screen-wrapper');
+    // Controles de Modo Demostración
+    const checkDemoMode = document.getElementById('check-demo-mode');
+    const inputTypingDelay = document.getElementById('input-typing-delay');
+    const labelTypingDelay = document.getElementById('label-typing-delay');
+    const inputMouseDuration = document.getElementById('input-mouse-duration');
+    const labelMouseDuration = document.getElementById('label-mouse-duration');
 
-    let streamTimer = null;
-    let streamSeconds = 0;
+    if (inputTypingDelay && labelTypingDelay) {
+        inputTypingDelay.addEventListener('input', () => {
+            labelTypingDelay.textContent = `${parseFloat(inputTypingDelay.value).toFixed(2)}s`;
+        });
+    }
+
+    if (inputMouseDuration && labelMouseDuration) {
+        inputMouseDuration.addEventListener('input', () => {
+            labelMouseDuration.textContent = `${parseFloat(inputMouseDuration.value).toFixed(1)}s`;
+        });
+    }
+
+    // Monitor y Pasos de Supermercados
+    const monitorStatusText = document.getElementById('monitor-status-text');
+    const mainProgressFill = document.getElementById('main-progress-fill');
+    const stepCarrefour = document.getElementById('step-carrefour');
+    const statusCarrefour = document.getElementById('status-carrefour');
+    const stepCoto = document.getElementById('step-coto');
+    const statusCoto = document.getElementById('status-coto');
+    const stepDia = document.getElementById('step-dia');
+    const statusDia = document.getElementById('status-dia');
+
     let ws = null;
-    let currentRpaState = 'idle';
 
-    // Conectar WebSocket para Stream en Vivo del Navegador Real
+    function resetSuperSteps() {
+        if (stepCarrefour) stepCarrefour.className = 'super-step-card';
+        if (statusCarrefour) statusCarrefour.textContent = 'En espera';
+        if (stepCoto) stepCoto.className = 'super-step-card';
+        if (statusCoto) statusCoto.textContent = 'En espera';
+        if (stepDia) stepDia.className = 'super-step-card';
+        if (statusDia) statusDia.textContent = 'En espera';
+        if (mainProgressFill) mainProgressFill.style.width = '0%';
+        if (monitorStatusText) monitorStatusText.textContent = 'RPA EN ESPERA';
+    }
+
+    // Conectar WebSocket para logs en vivo del sistema
     function connectStream() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/rpa-stream`;
@@ -42,137 +64,86 @@ document.addEventListener('DOMContentLoaded', () => {
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            console.log("[Stream] WebSocket conectado con éxito.");
+            console.log("[WebSocket] Conectado con el servidor.");
         };
 
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'frame') {
-                    renderFrame(msg.data);
-                } else if (msg.type === 'status') {
-                    handlePlayerStatus(msg.state, msg.message);
-                } else if (msg.type === 'progress') {
-                    if (typeof msg.percent === 'number') {
-                        playerProgressFill.style.width = `${msg.percent}%`;
-                    }
-                } else if (msg.type === 'log') {
+                if (msg.type === 'log') {
                     addLog(msg.message);
+                    parseLogStep(msg.message);
+                } else if (msg.type === 'progress') {
+                    if (typeof msg.percent === 'number' && mainProgressFill) {
+                        mainProgressFill.style.width = `${msg.percent}%`;
+                    }
+                } else if (msg.type === 'status') {
+                    if (monitorStatusText) {
+                        if (msg.state === 'live') {
+                            monitorStatusText.textContent = '🔴 NAVEGADOR CHROME EN VIVO';
+                        } else if (msg.state === 'connecting') {
+                            monitorStatusText.textContent = 'CONECTANDO CON NAVEGADOR...';
+                        } else if (msg.state === 'finished') {
+                            monitorStatusText.textContent = '✓ RPA FINALIZADO EXITOSAMENTE';
+                            if (mainProgressFill) mainProgressFill.style.width = '100%';
+                        } else if (msg.state === 'idle') {
+                            monitorStatusText.textContent = 'RPA EN ESPERA';
+                        } else if (msg.state === 'error') {
+                            monitorStatusText.textContent = 'ERROR EN LA EJECUCIÓN';
+                        }
+                    }
                 }
             } catch (e) {
-                console.error("[Stream] Error procesando mensaje:", e);
+                console.error("[WebSocket] Error:", e);
             }
         };
 
         ws.onclose = () => {
-            console.log("[Stream] WebSocket cerrado. Reintentando en 3s...");
             setTimeout(connectStream, 3000);
-        };
-
-        ws.onerror = (err) => {
-            console.warn("[Stream] Error en WebSocket:", err);
         };
     }
 
     connectStream();
 
-    // Dibujar frame en el canvas en tiempo real
-    function renderFrame(base64Data) {
-        const img = new Image();
-        img.onload = () => {
-            canvasCtx.drawImage(img, 0, 0, playerCanvas.width, playerCanvas.height);
-            if (playerOverlay && !playerOverlay.classList.contains('hidden')) {
-                playerOverlay.classList.add('hidden');
+    // Actualiza los pasos de los 3 supermercados según los logs
+    function parseLogStep(text) {
+        if (!text) return;
+        if (text.includes('[SUPERMERCADO 1]')) {
+            if (stepCarrefour) stepCarrefour.className = 'super-step-card active';
+            if (statusCarrefour) statusCarrefour.textContent = 'En curso...';
+            if (mainProgressFill) mainProgressFill.style.width = '25%';
+            if (text.includes('Finalizado')) {
+                if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
+                if (statusCarrefour) statusCarrefour.textContent = '✓ Completado';
+                if (mainProgressFill) mainProgressFill.style.width = '35%';
             }
-        };
-        img.src = 'data:image/jpeg;base64,' + base64Data;
-    }
-
-    // Cronómetro de reproducción
-    function startTimer() {
-        stopTimer();
-        streamSeconds = 0;
-        playerTime.textContent = '00:00';
-        streamTimer = setInterval(() => {
-            streamSeconds++;
-            const m = Math.floor(streamSeconds / 60).toString().padStart(2, '0');
-            const s = (streamSeconds % 60).toString().padStart(2, '0');
-            playerTime.textContent = `${m}:${s}`;
-        }, 1000);
-    }
-
-    function stopTimer() {
-        if (streamTimer) {
-            clearInterval(streamTimer);
-            streamTimer = null;
+        } else if (text.includes('[SUPERMERCADO 2]')) {
+            if (stepCoto) stepCoto.className = 'super-step-card active';
+            if (statusCoto) statusCoto.textContent = 'En curso...';
+            if (mainProgressFill) mainProgressFill.style.width = '55%';
+            if (text.includes('Finalizado')) {
+                if (stepCoto) stepCoto.className = 'super-step-card completed';
+                if (statusCoto) statusCoto.textContent = '✓ Completado';
+                if (mainProgressFill) mainProgressFill.style.width = '70%';
+            }
+        } else if (text.includes('[SUPERMERCADO 3]')) {
+            if (stepDia) stepDia.className = 'super-step-card active';
+            if (statusDia) statusDia.textContent = 'En curso...';
+            if (mainProgressFill) mainProgressFill.style.width = '85%';
+            if (text.includes('Finalizado')) {
+                if (stepDia) stepDia.className = 'super-step-card completed';
+                if (statusDia) statusDia.textContent = '✓ Completado';
+                if (mainProgressFill) mainProgressFill.style.width = '100%';
+            }
+        } else if (text.includes('[ RPA FINALIZADO ]')) {
+            if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
+            if (stepCoto) stepCoto.className = 'super-step-card completed';
+            if (stepDia) stepDia.className = 'super-step-card completed';
+            if (mainProgressFill) mainProgressFill.style.width = '100%';
         }
     }
 
-    // Manejador de estados del reproductor conforme a las especificaciones
-    function handlePlayerStatus(state, message) {
-        currentRpaState = state;
-        if (state === 'live') {
-            playerOverlay.classList.add('hidden');
-            playerLiveBadge.className = 'live-badge';
-            playerStatusBadge.className = 'player-status live';
-            playerStatusBadge.textContent = '🔴 EN VIVO — NAVEGADOR CONECTADO';
-            startTimer();
-        } else if (state === 'connecting') {
-            playerOverlay.classList.remove('hidden');
-            overlayTitle.textContent = '🔴 EN VIVO';
-            overlaySubtitle.textContent = message || 'Conectando con el navegador Google Chrome...';
-            overlaySpinner.style.display = 'block';
-            overlayIcon.style.display = 'none';
-            playerLiveBadge.className = 'live-badge';
-            playerStatusBadge.className = 'player-status connecting';
-            playerStatusBadge.textContent = '🔴 EN VIVO — CONECTANDO...';
-            playerProgressFill.style.width = '15%';
-            startTimer();
-        } else if (state === 'finished') {
-            stopTimer();
-            playerProgressFill.style.width = '100%';
-            playerLiveBadge.className = 'live-badge inactive';
-            playerStatusBadge.className = 'player-status finished';
-            playerStatusBadge.textContent = '✓ RPA FINALIZADO';
-        } else if (state === 'stream_warn') {
-            playerStatusBadge.className = 'player-status error';
-            playerStatusBadge.textContent = '⚠ VISUALIZACIÓN NO DISPONIBLE';
-            overlayTitle.textContent = '⚠ VISUALIZACIÓN NO DISPONIBLE';
-            overlaySubtitle.textContent = message || 'El RPA continúa ejecutándose pero la transmisión no está disponible.';
-            overlaySpinner.style.display = 'none';
-            overlayIcon.style.display = 'block';
-        } else if (state === 'error') {
-            stopTimer();
-            playerOverlay.classList.remove('hidden');
-            overlayTitle.textContent = 'ERROR EN LA EJECUCIÓN';
-            overlaySubtitle.textContent = message || 'Se produjo un error en la ejecución del bot.';
-            overlaySpinner.style.display = 'none';
-            overlayIcon.style.display = 'block';
-            overlayIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>';
-            playerLiveBadge.className = 'live-badge inactive';
-            playerStatusBadge.className = 'player-status error';
-            playerStatusBadge.textContent = 'ERROR';
-        } else if (state === 'idle') {
-            stopTimer();
-            playerLiveBadge.className = 'live-badge inactive';
-            playerStatusBadge.className = 'player-status idle';
-            playerStatusBadge.textContent = 'RPA EN ESPERA';
-            playerProgressFill.style.width = '0%';
-        }
-    }
-
-    // Pantalla completa
-    if (btnPlayerFullscreen) {
-        btnPlayerFullscreen.addEventListener('click', () => {
-            if (!document.fullscreenElement) {
-                playerScreenWrapper.requestFullscreen().catch(() => {});
-            } else {
-                document.exitFullscreen().catch(() => {});
-            }
-        });
-    }
-
-    // Función para añadir mensajes a la consola virtual
+    // Añadir mensajes a la consola virtual
     function addLog(msg, isError = false) {
         const p = document.createElement('p');
         p.textContent = `> ${msg}`;
@@ -181,9 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
         logContainer.scrollTop = logContainer.scrollHeight;
     }
 
-    // Cambiar estado visual
+    // Cambiar estado visual de botones
     function setRunningState(isRunning) {
-        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal):not(.player-control-btn)');
+        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal)');
         btns.forEach(btn => btn.disabled = isRunning);
         
         if (isRunning) {
@@ -197,21 +168,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Ejecutar llamada a la API
     async function executeAction(endpoint, body = null) {
+        resetSuperSteps();
         setRunningState(true);
-        addLog(`Iniciando tarea: ${endpoint}...`);
+        addLog(`Iniciando: ${endpoint}...`);
+
+        const isDemo = checkDemoMode ? checkDemoMode.checked : true;
+        const typingDelayMs = inputTypingDelay ? Math.round(parseFloat(inputTypingDelay.value) * 1000) : 50;
+        const mouseDurationMs = inputMouseDuration ? Math.round(parseFloat(inputMouseDuration.value) * 1000) : 600;
+
+        const payload = Object.assign({}, body || {}, {
+            demoMode: isDemo,
+            typingDelay: typingDelayMs,
+            mouseDuration: mouseDurationMs
+        });
         
         try {
             const options = {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             };
-            if (body) options.body = JSON.stringify(body);
             
             const response = await fetch(endpoint, options);
             const data = await response.json();
             
             if (data.success) {
-                addLog(data.message);
+                addLog(`✓ ${data.message}`);
             } else {
                 addLog(`Error: ${data.message}`, true);
             }
@@ -424,4 +406,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Kill-switch: Si el usuario cierra el frontend en el navegador, abortar la búsqueda inmediatamente
+    window.addEventListener('beforeunload', () => {
+        try {
+            navigator.sendBeacon('/api/abort');
+        } catch (e) {}
+    });
 });

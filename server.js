@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 function getValidador() {
@@ -56,6 +56,14 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         wsClients.delete(ws);
+        // Si el usuario cierra la pestaña o ventana del frontend mientras corre el RPA, abortar de inmediato
+        if (wsClients.size === 0 && isRpaRunning) {
+            console.log('[WS] Frontend desconectado. Abortando RPA inmediatamente...');
+            try {
+                getRpaRunner().abortCurrentRun();
+            } catch (e) {}
+            isRpaRunning = false;
+        }
     });
 
     ws.on('error', () => {
@@ -163,6 +171,14 @@ app.post('/api/compra-mes', async (req, res) => {
     broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
 
     try {
+        // Cerrar Excel obligatoriamente si el usuario lo tiene abierto para evitar bloqueos EBUSY
+        try {
+            execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
+        } catch (eKill) {}
+
+        // Limpiar registros de compra del mes anteriores para iniciar con datos frescos
+        getValidador().limpiarResultados('1');
+
         console.log("Iniciando compra del mes...");
         
         // Leer input.csv
@@ -192,9 +208,14 @@ app.post('/api/compra-mes', async (req, res) => {
 
         broadcast({ type: 'log', message: `Iniciando compra mensual para ${itemsCanasta.length} productos...` });
 
+        const { demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+
         const resultados = await getRpaRunner().runRPA({
             modo: 'compra_mes',
             items: itemsCanasta,
+            demoMode,
+            typingDelay,
+            mouseDuration,
             onFrame: (base64Data) => {
                 broadcast({ type: 'frame', data: base64Data });
             },
@@ -224,10 +245,18 @@ app.post('/api/compra-mes', async (req, res) => {
         // Generar Excel consolidado
         await runCommand('node generar_excel.js');
 
+        // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda
+        try {
+            await runCommand('start "" "reporte_supermercados.xlsx"');
+        } catch (errOpen) {
+            console.warn("Aviso al abrir Excel automáticamente:", errOpen.message);
+        }
+
         if (!res.headersSent && !res.destroyed) {
             res.json({
                 success: true,
-                message: "Compra del mes finalizada exitosamente. Reporte generado."
+                message: "Compra del mes finalizada exitosamente. Reporte Excel abierto.",
+                data: ultimoProcesoData
             });
         }
     } catch (e) {
@@ -250,7 +279,7 @@ app.post('/api/buscar-individual', async (req, res) => {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
-    const { producto, cantidad = 1, unidad = '' } = req.body;
+    const { producto, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
     if (!producto || !producto.trim()) {
         return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
     }
@@ -261,7 +290,12 @@ app.post('/api/buscar-individual', async (req, res) => {
     broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
 
     try {
-        console.log(`Iniciando búsqueda para: ${producto} (x${cantNum} ${unidad})`);
+        // Cerrar Excel obligatoriamente si el usuario lo tiene abierto para evitar bloqueos EBUSY
+        try {
+            execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
+        } catch (eKill) {}
+
+        console.log(`Iniciando búsqueda para: ${producto} (x${cantNum} ${unidad}) [Demo: ${demoMode}]`);
         broadcast({ type: 'log', message: `Búsqueda individual: "${producto}" (Cantidad: ${cantNum}, Unidad: ${unidad || 'Automática'})` });
 
         // Limpieza de consulta previa
@@ -270,6 +304,9 @@ app.post('/api/buscar-individual', async (req, res) => {
         const resultados = await getRpaRunner().runRPA({
             modo: 'individual',
             items: [{ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() }],
+            demoMode,
+            typingDelay,
+            mouseDuration,
             onFrame: (base64Data) => {
                 broadcast({ type: 'frame', data: base64Data });
             },
@@ -300,10 +337,18 @@ app.post('/api/buscar-individual', async (req, res) => {
         await runCommand(`node validador.js --reporte-individual "${producto}"`);
         await runCommand('node generar_excel.js');
 
+        // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda
+        try {
+            await runCommand('start "" "reporte_supermercados.xlsx"');
+        } catch (errOpen) {
+            console.warn("Aviso al abrir Excel automáticamente:", errOpen.message);
+        }
+
         if (!res.headersSent && !res.destroyed) {
             res.json({
                 success: true,
-                message: `Búsqueda de "${producto}" completada. Reporte Excel actualizado.`
+                message: `Búsqueda de "${producto}" completada. Reporte Excel abierto.`,
+                data: ultimoProcesoData
             });
         }
     } catch (e) {
@@ -332,6 +377,17 @@ app.post('/api/abrir-excel', async (req, res) => {
     } catch (e) {
         res.status(500).json({ success: false, message: e.toString() });
     }
+});
+
+// Endpoint Kill-Switch para abortar la búsqueda inmediatamente
+app.all('/api/abort', (req, res) => {
+    console.log('[API] Solicitud de abortar RPA recibida.');
+    try {
+        getRpaRunner().abortCurrentRun();
+    } catch (e) {}
+    isRpaRunning = false;
+    broadcast({ type: 'status', state: 'idle', message: 'RPA detenido inmediatamente por el usuario.' });
+    res.json({ success: true, message: 'RPA abortado exitosamente.' });
 });
 
 app.post('/api/limpiar', async (req, res) => {

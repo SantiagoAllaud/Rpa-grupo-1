@@ -1,49 +1,19 @@
 modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status
-compra_mes,leche,Leche Protein La Serenisima 1L,"$ 2.340,00",Carrefour,https://www.carrefour.com.ar/leche-protein-la-serenisima-1l-676752/p,2026-09-10,DISPONIBLE
-compra_mes,leche,No encontrado,N/D,COTO,https://www.coto.com.ar/productos/leche,2026-09-10,NO ENCONTRADO
-compra_mes,leche,Leche Semi Descremada DIA Larga Vida 1 Lt.,$ 1.700,Día %,https://diaonline.supermercadosdia.com.ar/leche-semi-descremada-dia-larga-vida-1-lt-504/p,2026-09-10,DISPONIBLE
-compra_mes,arroz,Arroz largo fino Molinos Ala 1 kg.,"$ 1.940,00",Carrefour,https://www.carrefour.com.ar/arroz-largo-fino-molinos-ala-1-kg/p,2026-09-10,DISPONIBLE
-compra_mes,arroz,Arroz Largo Fino LUCCHETTI 1kg,"$1.999,00",COTO,https://www.coto.com.ar/productos/arroz-largo-fino-lucchetti-1kg-/_/R-00571989-00571989-200,2026-09-10,DISPONIBLE
-compra_mes,arroz,Arroz Parboil Molinos Ala 1 Kg.,"$ 1.488,50",Día %,https://diaonline.supermercadosdia.com.ar/arroz-parboil-molinos-ala-1-kg-33019/p,2026-09-10,DISPONIBLE
-compra_mes,fideos,Fideos tallarin N5 Lucchetti 500 g.,"$ 1.749,00",Carrefour,https://www.carrefour.com.ar/fideos-tallarin-n5-lucchetti-500-g-726311/p,2026-09-10,DISPONIBLE
-compra_mes,fideos,Fideos Spaghetti N° 7 LUCCHETTI 500g,"$1.750,00",COTO,https://www.coto.com.ar/productos/fideos-spaghetti-n-7-lucchetti-500g-/_/R-00573917-00573917-200,2026-09-10,DISPONIBLE
-compra_mes,fideos,Fideos Tirabuzon N28 Matarazzo 500 Gr.,$ 1.240,Día %,https://diaonline.supermercadosdia.com.ar/fideos-tirabuzon-n28-matarazzo-500-gr-38574/p,2026-09-10,DISPONIBLE
-compra_mes,aceite,Aceite de girasol alto omega Carrefour Classic pet 1.5 lts,"$ 5.405,00 c/u",Carrefour,https://www.carrefour.com.ar/aceite-de-girasol-alto-omega-carrefour-classic-pet-1-5-lts-680457/p,2026-09-10,DISPONIBLE
-compra_mes,aceite,Aceite Girasol CAÑUELAS Botella 1.5 L,"$6.530,00",COTO,https://www.coto.com.ar/productos/aceite-girasol-canuelas-botella-1-5-l-/_/R-00099437-00099437-200,2026-09-10,DISPONIBLE
-compra_mes,aceite,"Aceite de Girasol Dia 1,5 Lt.",$ 4.600,Día %,https://diaonline.supermercadosdia.com.ar/aceite-de-girasol-dia-15-lt-24114/p,2026-09-10,DISPONIBLE
-compra_mes,yerba,Yerba mate Playadito suave con palo 1 kg.,"$ 5.209,00",Carrefour,https://www.carrefour.com.ar/yerba-mate-playadito-suave-con-palo-1-kg/p,2026-09-10,DISPONIBLE
-compra_mes,yerba,Yerba Mate 4 Flex Mañanita Paq 1 Kgm,"$5.370,00",COTO,https://www.coto.com.ar/productos/yerba-mate-4-flex-mananita-paq-1-kgm-/_/R-00499475-00499475-200,2026-09-10,DISPONIBLE
-compra_mes,yerba,Yerba Mate Mañanita 4 Flex 1 Kg.,$ 3.790,Día %,https://diaonline.supermercadosdia.com.ar/yerba-mate-mananita-4-flex-1-kg-269667/p,2026-09-10,DISPONIBLE
-compra_mes,azucar,Azúcar común Azucel tipo A bolsa 1 kg.,"$ 1.390,00",Carrefour,https://www.carrefour.com.ar/azucar-comun-azucel-tipo-a-bolsa-1-kg/p,2026-09-10,DISPONIBLE
-compra_mes,azucar,Azúcar Superior Real LEDESMA 1kg,"$1.567,00",COTO,https://www.coto.com.ar/productos/azucar-superior-real-ledesma-1kg-/_/R-00218834-00218834-200,2026-09-10,DISPONIBLE
-compra_mes,azucar,Azucar Ledesma Refinado Superior 1 Kg.,$ 1.470,Día %,https://diaonline.supermercadosdia.com.ar/azucar-ledesma-refinado-superior-1-kg-129208/p,2026-09-10,DISPONIBLE
-compra_mes,cafe,Nescafé Dolca Suave 170 grs,"$ 10.210,00",Carrefour,https://www.carrefour.com.ar/nescafe-dolca-suave-170-grs-729427/p,2026-09-10,DISPONIBLE
-compra_mes,cafe,Cafe Tostado Molido Super Cabrales 500 Grm,"$29.671,00",COTO,https://www.coto.com.ar/productos/cafe-tostado-molido-super-cabrales-500-grm-/_/R-00542979-00542979-200,2026-09-10,DISPONIBLE
-compra_mes,cafe,Cafe Instantáneo Nescafe Dolca Mixes Caramel Doypack X 125 Gr.,$ 3.042,Día %,https://diaonline.supermercadosdia.com.ar/cafe-instantaneo-nescafe-dolca-mixes-caramel-doypack-x-125-gr-312066/p,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas clásicas Traviata x5 108 g,"$ 3.160,00",Carrefour,https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas PEPITOS Con Chips De Chocolate 357g. Pack X 3 Unidades De 119g.,"$6.280,00",COTO,https://www.coto.com.ar/productos/galletitas-pepitos-con-chips-de-chocolate-357g-pack-x-3-unidades-de-119g-/_/R-00532284-00532284-200,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas Oreo Rellenas con Crema Sabor Original 354 Gr.,$ 6.649,Día %,https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-354-gr-271630/p,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel higiénico doble hoja Higienol plus x4 30 mts,"$ 4.250,00",Carrefour,https://www.carrefour.com.ar/papel-higienico-doble-hoja-higienol-plus-x4-30-mts-736162/p,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel Higiénico HIGIENOL Plus Fusión Doble Hoja 30 M 4 Un,"$3.445,49",COTO,https://www.coto.com.ar/productos/papel-higienico-higienol-plus-fusion-doble-hoja-30-m-4-un-/_/R-00580544-00580544-200,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel Higiénico Doble Hoja 30mts 6 Ud.,$ 2.910,Día %,https://diaonline.supermercadosdia.com.ar/papel-higienico-doble-hoja-30mts-6-ud-834/p,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas clásicas Traviata x5 108 g,"$ 3.160,00",Carrefour,https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas Crackers CEREALITAS Clásicas 212g,"$2.030,00",COTO,https://www.coto.com.ar/productos/galletitas-crackers-cerealitas-clasicas-212g-/_/R-00563148-00563148-200,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas Oreo Rellenas con Crema Sabor Original 354 Gr.,$ 6.649,Día %,https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-354-gr-271630/p,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel higiénico doble hoja Higienol plus x4 30 mts,"$ 4.250,00",Carrefour,https://www.carrefour.com.ar/papel-higienico-doble-hoja-higienol-plus-x4-30-mts-736162/p,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel Higiénico HIGIENOL Plus Fusión Doble Hoja 30 M 4 Un,"$3.445,49",COTO,https://www.coto.com.ar/productos/papel-higienico-higienol-plus-fusion-doble-hoja-30-m-4-un-/_/R-00580544-00580544-200,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel Higiénico Doble Hoja 30mts 6 Ud.,$ 2.910,Día %,https://diaonline.supermercadosdia.com.ar/papel-higienico-doble-hoja-30mts-6-ud-834/p,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas clásicas Traviata x5 108 g,"$ 3.160,00",Carrefour,https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas Crackers CEREALITAS Clásicas 212g,"$2.030,00",COTO,https://www.coto.com.ar/productos/galletitas-crackers-cerealitas-clasicas-212g-/_/R-00563148-00563148-200,2026-09-10,DISPONIBLE
-compra_mes,galletitas,Galletitas Oreo Rellenas con Crema Sabor Original 354 Gr.,$ 6.649,Día %,https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-354-gr-271630/p,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel higiénico doble hoja Higienol plus x4 30 mts,"$ 4.250,00",Carrefour,https://www.carrefour.com.ar/papel-higienico-doble-hoja-higienol-plus-x4-30-mts-736162/p,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel Higiénico HIGIENOL Plus Fusión Doble Hoja 30 M 4 Un,"$3.445,49",COTO,https://www.coto.com.ar/productos/papel-higienico-higienol-plus-fusion-doble-hoja-30-m-4-un-/_/R-00580544-00580544-200,2026-09-10,DISPONIBLE
-compra_mes,papel higienico,Papel Higiénico Doble Hoja 30mts 6 Ud.,$ 2.910,Día %,https://diaonline.supermercadosdia.com.ar/papel-higienico-doble-hoja-30mts-6-ud-834/p,2026-09-10,DISPONIBLE
-"individual","mayonesa natura","Mayonesa Natura 475 g.","$ 3.039,00","Carrefour","https://www.carrefour.com.ar/mayonesa-natura-475-g/p","2026-09-10","DISPONIBLE",1,"500g"
-"individual","mayonesa natura","Mayonesa NATURA Pouch 475 Gr","$3.042,00","COTO","https://www.coto.com.ar/productos/mayonesa-natura-pouch-475-gr-/_/R-00075721-00075721-200","2026-09-10","DISPONIBLE",1,"500g"
-"individual","mayonesa natura","Mayonesa Natura 500 Ml.","$ 3.040","Día %","https://diaonline.supermercadosdia.com.ar/mayonesa-natura-500-ml-5527/p","2026-09-10","DISPONIBLE",1,"500g"
-"compra_mes","galletitas","Galletitas clásicas Traviata x5 108 g","$ 3.160,00","Carrefour","https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p","2026-09-10","DISPONIBLE",1,"300g"
-"compra_mes","galletitas","Galletitas Crackers CEREALITAS Clásicas 212g","$2.030,00","COTO","https://www.coto.com.ar/productos/galletitas-crackers-cerealitas-clasicas-212g-/_/R-00563148-00563148-200","2026-09-10","DISPONIBLE",1,"300g"
-"compra_mes","galletitas","Galletitas Oreo Rellenas con Crema Sabor Original 354 Gr.","$ 6.649","Día %","https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-354-gr-271630/p","2026-09-10","DISPONIBLE",1,"300g"
-"compra_mes","papel higienico","Papel higiénico doble hoja Higienol plus x4 30 mts","$ 4.250,00","Carrefour","https://www.carrefour.com.ar/papel-higienico-doble-hoja-higienol-plus-x4-30-mts-736162/p","2026-09-10","DISPONIBLE",1,"4 un."
-"compra_mes","papel higienico","Papel Higiénico HIGIENOL Plus Fusión Doble Hoja 30 M 4 Un","$3.445,49","COTO","https://www.coto.com.ar/productos/papel-higienico-higienol-plus-fusion-doble-hoja-30-m-4-un-/_/R-00580544-00580544-200","2026-09-10","DISPONIBLE",1,"4 un."
-"compra_mes","papel higienico","Papel Higiénico Doble Hoja 30mts 6 Ud.","$ 2.910","Día %","https://diaonline.supermercadosdia.com.ar/papel-higienico-doble-hoja-30mts-6-ud-834/p","2026-09-10","DISPONIBLE",1,"4 un."
+individual,leche,Leche Protein La Serenisima 1L,"$ 2.340,00",Carrefour,https://www.carrefour.com.ar/leche-protein-la-serenisima-1l-676752/p,2026-09-11,DISPONIBLE
+individual,leche,Leche Multidefensas 3% LA SERENISIMA Sachet 1l,"$2.140,00",COTO,https://www.coto.com.ar/productos/leche-multidefensas-3-la-serenisima-sachet-1l-/_/R-00511510-00511510-200,2026-09-11,DISPONIBLE
+individual,leche,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar/leche,2026-09-11,NO ENCONTRADO
+individual,leche,Leche Protein La Serenisima 1L,"$ 2.340,00",Carrefour,https://www.carrefour.com.ar/leche-protein-la-serenisima-1l-676752/p,2026-09-11,DISPONIBLE
+individual,leche,Leche Protein La Serenisima 1L,"$3.118,00",COTO,https://www.coto.com.ar/productos/leche-protein-la-serenisima-1l-/_/R-00508911-00508911-200,2026-09-11,DISPONIBLE
+individual,leche,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar/leche,2026-09-11,NO ENCONTRADO
+individual,leche,Leche Protein La Serenisima 1L,"$ 2.340,00",Carrefour,https://www.carrefour.com.ar/leche-protein-la-serenisima-1l-676752/p,2026-09-11,DISPONIBLE
+individual,leche,Leche Protein La Serenisima 1L,"$3.118,00",COTO,https://www.coto.com.ar/productos/leche-protein-la-serenisima-1l-/_/R-00508911-00508911-200,2026-09-11,DISPONIBLE
+individual,leche,Leche Protein La Serenisima 1L,"$ 2.340,00",Carrefour,https://www.carrefour.com.ar/leche-protein-la-serenisima-1l-676752/p,2026-09-11,DISPONIBLE
+individual,leche,Leche Multidefensas 3% LA SERENISIMA Sachet 1l,"$2.140,00",COTO,https://www.coto.com.ar/productos/leche-multidefensas-3-la-serenisima-sachet-1l-/_/R-00511510-00511510-200,2026-09-11,DISPONIBLE
+individual,leche,Leche Semi Descremada DIA Larga Vida 1 Lt.,$ 2.290,Día %,https://diaonline.supermercadosdia.com.ar/leche-semi-descremada-dia-larga-vida-1-lt-504/p,2026-09-11,DISPONIBLE
+individual,arroz,Arroz largo fino Molinos Ala 1 kg.,"$ 1.940,00",Carrefour,https://www.carrefour.com.ar/arroz-largo-fino-molinos-ala-1-kg/p,2026-09-11,DISPONIBLE
+individual,arroz,Arroz Largo Fino LUCCHETTI 1kg,"$2.135,00",COTO,https://www.coto.com.ar/productos/arroz-largo-fino-lucchetti-1kg-/_/R-00571989-00571989-200,2026-09-11,DISPONIBLE
+individual,arroz,Arroz Parboil Molinos Ala 1 Kg.,$ 2.290,Día %,https://diaonline.supermercadosdia.com.ar/arroz-parboil-molinos-ala-1-kg-33019/p,2026-09-11,DISPONIBLE
+individual,leche,Leche Protein La Serenisima 1L,"$ 2.340,00",Carrefour,https://www.carrefour.com.ar/leche-protein-la-serenisima-1l-676752/p,2026-09-11,DISPONIBLE
+individual,leche,Leche Protein La Serenisima 1L,"$3.118,00",COTO,https://www.coto.com.ar/productos/leche-protein-la-serenisima-1l-/_/R-00508911-00508911-200,2026-09-11,DISPONIBLE
+individual,leche,Leche Infantil Nutrilon Profutura Etapa 1 Brick 200 Ml.,$ 3.335,Día %,https://diaonline.supermercadosdia.com.ar/leche-infantil-nutrilon-profutura-etapa-1-brick-200-ml-181493/p,2026-09-11,DISPONIBLE
+"compra_mes","galletitas","Galletitas clásicas Traviata x5 108 g","$ 3.160,00","Carrefour","https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p","2026-09-11","DISPONIBLE","1","300g"

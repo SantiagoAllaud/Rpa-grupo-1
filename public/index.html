@@ -80,39 +80,72 @@
                 </div>
             </div>
 
-            <!-- Visor en Vivo RPA (Reproductor Moderno del Chrome Real) -->
-            <div class="player-panel" id="player-panel">
-                <div class="player-header">
-                    <div class="player-header-left">
-                        <span class="live-badge" id="player-live-badge"><i class="fa-solid fa-circle"></i> EN VIVO</span>
-                        <span class="player-title"><i class="fa-solid fa-desktop"></i> NAVEGADOR DEL RPA</span>
+            <!-- Panel de Controles de Demostración -->
+            <div class="card demo-config-card">
+                <div class="demo-config-header">
+                    <div class="demo-config-title">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color: #6366f1;"></i>
+                        <div>
+                            <h4>Modo Demostración Visual</h4>
+                            <p class="text-muted">Abre Google Chrome con cursor virtual autónomo: ves cómo se mueve, tipea y busca sin interferir con tu mouse físico.</p>
+                        </div>
                     </div>
-                    <div class="player-header-right">
-                        <span id="player-status-badge" class="player-status idle">RPA EN ESPERA</span>
+                    <label class="switch-toggle" title="Activar/Desactivar modo demostración">
+                        <input type="checkbox" id="check-demo-mode" checked>
+                        <span class="slider-round"></span>
+                    </label>
+                </div>
+                <div class="demo-params-grid" id="demo-params-grid">
+                    <div class="demo-param-item">
+                        <label for="input-typing-delay"><i class="fa-solid fa-keyboard"></i> Velocidad de Tipeo: <span id="label-typing-delay">0.05s</span></label>
+                        <input type="range" id="input-typing-delay" min="0.02" max="0.12" step="0.01" value="0.05">
+                    </div>
+                    <div class="demo-param-item">
+                        <label for="input-mouse-duration"><i class="fa-solid fa-arrow-pointer"></i> Velocidad del Mouse: <span id="label-mouse-duration">0.6s</span></label>
+                        <input type="range" id="input-mouse-duration" min="0.2" max="1.2" step="0.1" value="0.6">
                     </div>
                 </div>
-                <div class="player-screen-wrapper" id="player-screen-wrapper">
-                    <canvas id="rpa-stream-canvas" width="1280" height="720"></canvas>
-                    <div class="player-overlay" id="player-overlay">
-                        <div class="overlay-content">
-                            <div class="overlay-icon" id="overlay-icon"><i class="fa-solid fa-tv"></i></div>
-                            <h3 id="overlay-title">RPA EN ESPERA</h3>
-                            <p id="overlay-subtitle">Inicia una búsqueda o Compra del Mes para observar el navegador en vivo</p>
-                            <div class="overlay-spinner" id="overlay-spinner" style="display:none;"></div>
+            </div>
+
+            <!-- Panel Monitor de Ejecución de Supermercados -->
+            <div class="monitor-panel" id="monitor-panel">
+                <div class="monitor-header">
+                    <div class="monitor-title">
+                        <span class="live-pulse" id="monitor-live-pulse"><i class="fa-solid fa-circle"></i></span>
+                        <span id="monitor-status-text">RPA EN ESPERA</span>
+                    </div>
+                    <div class="monitor-badge" id="monitor-browser-badge">
+                        <i class="fa-brands fa-chrome"></i> CHROME VISIBLE EN ESCRITORIO
+                    </div>
+                </div>
+
+                <!-- Pasos de los 3 Supermercados -->
+                <div class="super-steps-grid">
+                    <div class="super-step-card" id="step-carrefour">
+                        <div class="super-step-icon"><i class="fa-solid fa-store"></i></div>
+                        <div class="super-step-info">
+                            <h5>1. Carrefour</h5>
+                            <span class="super-step-status" id="status-carrefour">En espera</span>
+                        </div>
+                    </div>
+                    <div class="super-step-card" id="step-coto">
+                        <div class="super-step-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                        <div class="super-step-info">
+                            <h5>2. COTO Digital</h5>
+                            <span class="super-step-status" id="status-coto">En espera</span>
+                        </div>
+                    </div>
+                    <div class="super-step-card" id="step-dia">
+                        <div class="super-step-icon"><i class="fa-solid fa-bag-shopping"></i></div>
+                        <div class="super-step-info">
+                            <h5>3. Día %</h5>
+                            <span class="super-step-status" id="status-dia">En espera</span>
                         </div>
                     </div>
                 </div>
-                <div class="player-controls">
-                    <button type="button" class="player-control-btn" id="btn-player-play" title="Transmisión"><i class="fa-solid fa-play"></i></button>
-                    <div class="player-progress-container" id="player-progress-container">
-                        <div class="player-progress-bar">
-                            <div class="player-progress-fill" id="player-progress-fill"></div>
-                            <div class="player-progress-thumb"></div>
-                        </div>
-                    </div>
-                    <span class="player-time" id="player-time">00:00</span>
-                    <button type="button" class="player-control-btn" title="Audio"><i class="fa-solid fa-volume-high"></i></button>
-                    <button type="button" class="player-control-btn" id="btn-player-fullscreen" title="Pantalla completa"><i class="fa-solid fa-expand"></i></button>
+
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="main-progress-fill"></div>
                 </div>
             </div>
         </main>

@@ -13,7 +13,7 @@ async function capture() {
     await page.setViewport({ width: 1280, height: 1024 });
     await page.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
 
-    const screenshotPath = path.join('C:\\Users\\Santi\\.gemini\\antigravity-ide\\brain\\c9b0791c-37a6-41e6-a587-79b4fa0291d2', 'frontend_clean_player_idle.png');
+    const screenshotPath = path.join('C:\\Users\\Santi\\.gemini\\antigravity-ide\\brain\\c711ad64-5987-4da0-b4a1-f2753f839e4b', 'ui_after_cleanup.png');
     await page.screenshot({ path: screenshotPath, fullPage: true });
     console.log('Captura guardada en:', screenshotPath);
 

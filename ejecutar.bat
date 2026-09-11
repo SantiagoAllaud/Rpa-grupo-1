@@ -182,13 +182,16 @@ echo [INFO] Se consultará Carrefour, COTO y Día %% sin modificar input.csv...
 echo ==============================================================================
 echo.
 
+:: Cerrar Excel si estuviera abierto para evitar bloqueos de archivo
+taskkill /F /IM EXCEL.EXE >nul 2>&1
+
 :: Limpiar consulta individual anterior para que el reporte se enfoque en la nueva
 call node validador.js --limpiar 2 >nul 2>&1
 
 :: Crear temp_input.csv de forma 100%% segura usando validador.js (maneja comas, comillas y acentos RFC-4180)
 call node validador.js --crear-temp "!PROD_MANUAL!"
 
-call tagui supermercados.tag temp_input.csv
+call node -e "require('./rpa_runner.js').runRPA({ modo: 'individual', items: [{ producto: process.argv[1] }], demoMode: true, onStatus: (s) => console.log(s.message || s) })" "!PROD_MANUAL!"
 if exist "temp_input.csv" del "temp_input.csv" >nul 2>&1
 
 :: Validación inteligente y reporte comparativo en vivo por consola
@@ -221,7 +224,14 @@ echo [INFO] Iniciando MODO COMPRA DEL MES
 echo [INFO] Leyendo canasta mensual predefinida desde input.csv...
 echo ==============================================================================
 echo.
-call tagui supermercados.tag input.csv
+
+:: Cerrar Excel si estuviera abierto para evitar bloqueos de archivo
+taskkill /F /IM EXCEL.EXE >nul 2>&1
+
+:: Limpiar registros anteriores de compra del mes para iniciar búsqueda limpia
+call node validador.js --limpiar 1 >nul 2>&1
+
+call node -e "const fs = require('fs'); const lines = fs.readFileSync('input.csv','utf8').split('\n').slice(1).map(l => l.trim()).filter(l => l).map(l => { const p = l.split(','); return { producto: p[0], cantidad: parseInt(p[1])||1, unidad: p[2]||'' }; }); require('./rpa_runner.js').runRPA({ modo: 'compra_mes', items: lines, demoMode: true, onStatus: (s) => console.log(s.message || s) })"
 
 echo.
 echo [INFO] Procesando datos y generando reporte Excel con 5 hojas...
