@@ -43,6 +43,7 @@ public class MouseHelper {
     public const int MOUSEEVENTF_WHEEL = 0x0800;
 
     public const int SW_RESTORE = 9;
+    public const int SW_MAXIMIZE = 3;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT {
@@ -84,22 +85,28 @@ public class MouseHelper {
     [DllImport("user32.dll")]
     public static extern bool BringWindowToTop(IntPtr hWnd);
 
-    public static IntPtr GetChromeHwnd() {
+    public static IntPtr GetChromeHwnd(int targetPid = 0) {
         IntPtr found = IntPtr.Zero;
         try {
             EnumWindows(delegate(IntPtr hWnd, IntPtr lParam) {
-                if (IsWindowVisible(hWnd)) {
-                    System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
-                    GetClassName(hWnd, sb, sb.Capacity);
-                    if (sb.ToString() == "Chrome_WidgetWin_1") {
-                        RECT r;
-                        if (GetWindowRect(hWnd, out r)) {
-                            int w = r.Right - r.Left;
-                            int h = r.Bottom - r.Top;
-                            if (w >= 400 && h >= 300) {
-                                found = hWnd;
-                                return false; // Encontrada la ventana principal del navegador
-                            }
+                System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
+                GetClassName(hWnd, sb, sb.Capacity);
+                if (sb.ToString() == "Chrome_WidgetWin_1") {
+                    if (targetPid > 0) {
+                        uint pid = 0;
+                        GetWindowThreadProcessId(hWnd, out pid);
+                        if (pid != (uint)targetPid) {
+                            return true; // Sigue buscando la ventana con el PID específico
+                        }
+                    }
+                    RECT r;
+                    if (GetWindowRect(hWnd, out r)) {
+                        int w = r.Right - r.Left;
+                        int h = r.Bottom - r.Top;
+                        // Si buscamos por PID o si es una ventana visible estándar
+                        if (targetPid > 0 || (w >= 400 && h >= 300)) {
+                            found = hWnd;
+                            return false; // Encontrada
                         }
                     }
                 }
@@ -107,6 +114,17 @@ public class MouseHelper {
             }, IntPtr.Zero);
         } catch {}
         return found;
+    }
+
+    public static IntPtr FindChromeHwndWithRetry(int targetPid = 0, int maxWaitMs = 2500) {
+        int elapsed = 0;
+        while (elapsed < maxWaitMs) {
+            IntPtr hwnd = GetChromeHwnd(targetPid);
+            if (hwnd != IntPtr.Zero) return hwnd;
+            Thread.Sleep(100);
+            elapsed += 100;
+        }
+        return GetChromeHwnd(0); // Fallback a cualquier ventana de Chrome
     }
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -130,23 +148,53 @@ public class MouseHelper {
     public const int KEYEVENTF_KEYUP = 0x0002;
     public const byte VK_MENU = 0x12;
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll")]
+    public static extern bool IsIconic(IntPtr hWnd);
 
-    public const int SW_MAXIMIZE = 3;
+    [DllImport("user32.dll")]
+    public static extern bool IsZoomed(IntPtr hWnd);
 
-    public static bool FocusChrome() {
+    public static bool FocusChrome(int targetPid = 0) {
         try {
-            IntPtr hwnd = GetChromeHwnd();
+            AttachToDefaultDesktop();
+            IntPtr hwnd = FindChromeHwndWithRetry(targetPid, 2000);
             if (hwnd != IntPtr.Zero) {
+                // 1. Des-minimizar ÚNICAMENTE si la ventana se encuentra minimizada (evita achicar ventanas maximizadas)
+                if (IsIconic(hwnd)) {
+                    ShowWindow(hwnd, SW_RESTORE);
+                    Thread.Sleep(60);
+                }
+
+                // 2. Maximizar a pantalla completa ÚNICAMENTE si no está ya maximizada
+                if (!IsZoomed(hwnd)) {
+                    ShowWindow(hwnd, SW_MAXIMIZE);
+                    Thread.Sleep(60);
+                }
+
+                // 3. Traer al frente saltando la restricción ForegroundLockTimeout de Windows
+                IntPtr foreWnd = GetForegroundWindow();
+                uint dummyPid;
+                uint foreThread = GetWindowThreadProcessId(foreWnd, out dummyPid);
+                uint curThread = GetCurrentThreadId();
+                bool attached = false;
+                if (foreThread != 0 && foreThread != curThread) {
+                    attached = AttachThreadInput(curThread, foreThread, true);
+                }
+
+                BringWindowToTop(hwnd);
+                SetForegroundWindow(hwnd);
+
+                if (attached) {
+                    AttachThreadInput(curThread, foreThread, false);
+                }
+
+                // 4. Liberar bloqueo de foco con tecla ALT
                 keybd_event(VK_MENU, 0, 0, UIntPtr.Zero);
                 keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                SetForegroundWindow(hwnd);
 
-                ShowWindow(hwnd, SW_MAXIMIZE);
-                BringWindowToTop(hwnd);
-                bool ok = SetForegroundWindow(hwnd);
-                Thread.Sleep(180);
-                return ok;
+                Thread.Sleep(60);
+                return true;
             }
         } catch {}
         return false;
@@ -556,7 +604,9 @@ public class MouseHelper {
                     break;
                 }
                 case "focus": {
-                    bool ok = FocusChrome();
+                    int targetPid = 0;
+                    if (args.Length > 1) int.TryParse(args[1], out targetPid);
+                    bool ok = FocusChrome(targetPid);
                     Console.WriteLine(ok ? "OK" : "NOT_FOUND");
                     break;
                 }

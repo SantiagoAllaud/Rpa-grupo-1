@@ -153,16 +153,37 @@ function asegurarCSV() {
     }
 }
 
-// El consentimiento se cierra con el mismo click nativo que ve la persona.
-// No se elimina ni se modifica ningún nodo del DOM.
+// El consentimiento y los modales emergentes se cierran para permitir la interacción visible limpia
 async function eliminarCookies(page) {
+    try {
+        await page.evaluate(() => {
+            const candidates = Array.from(document.querySelectorAll('button, a, div[role="button"]'));
+            for (const el of candidates) {
+                const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+                if (txt === 'seguí navegando' || txt === 'segui navegando' || txt === 'aceptar todo' || txt === 'rechazar todo' || txt === 'entendido') {
+                    el.click();
+                }
+            }
+            const closeBtns = document.querySelectorAll('.vtex-modal__close-button, [class*="modal__close"], [aria-label*="Cerrar" i], [aria-label="Close"]');
+            for (const cb of closeBtns) {
+                cb.click();
+            }
+        });
+    } catch (e) {}
+
     const selectors = [
         '#onetrust-accept-btn-handler', '#onetrust-reject-all-handler',
         'button[id*="cookie" i]', 'button[class*="cookie" i]',
         'button[aria-label*="Aceptar" i]', '.vtex-modal__close-button'
     ];
     for (const selector of selectors) {
-        if (await visibleClick(page, selector, 300)) return true;
+        try {
+            const el = await page.$(selector);
+            if (el) {
+                await visibleClick(page, selector, 300);
+                return true;
+            }
+        } catch (e) {}
     }
     return false;
 }
@@ -537,13 +558,24 @@ async function searchCarrefour(page, prodClean, options = {}) {
     // 1. Navegar por barra de direcciones
     await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
 
-    // 2. Localizar buscador
+    // 2. Despejar modales o avisos promocionales que puedan cubrir el buscador
+    await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+    await eliminarCookies(page);
+    await sleep(400);
+
+    // 3. Localizar buscador
     if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Localizando buscador para: "${prodClean}"...` });
     const searchSel = 'input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input';
     await page.waitForSelector(searchSel, { timeout: 10000 }).catch(() => {});
 
-    // 3. Escribir carácter por carácter de forma visible
-    if (!await visibleType(page, searchSel, prodClean, typingDelay, mouseDuration)) {
+    // 4. Escribir carácter por carácter de forma visible
+    let typedCarrefour = await visibleType(page, searchSel, prodClean, typingDelay, mouseDuration);
+    if (!typedCarrefour) {
+        await eliminarCookies(page);
+        await sleep(500);
+        typedCarrefour = await visibleType(page, searchSel, prodClean, typingDelay, mouseDuration);
+    }
+    if (!typedCarrefour) {
         throw new Error('No se encontró un buscador visible de Carrefour.');
     }
 
@@ -933,17 +965,6 @@ async function runRPA({
     const currentTypingDelay = typingDelay || CONFIG.TYPING_DELAY;
     const currentMouseDuration = mouseDuration || CONFIG.MOUSE_MOVE_DURATION;
 
-    // Regla estricta: Detección activa de cualquier movimiento físico del mouse
-    startMouseWatchdog((reason) => {
-        if (onStatus) {
-            onStatus({
-                type: 'error',
-                state: 'aborted',
-                message: '🛑 Regla estricta activada: Se detectó movimiento manual del mouse. El proceso de automatización se ha detenido de inmediato.'
-            });
-        }
-    });
-
     if (onStatus) {
         onStatus({
             type: 'init',
@@ -961,14 +982,26 @@ async function runRPA({
             defaultViewport: null, // Ventana completa
             args: [
                 '--start-maximized',
+                '--window-position=0,0',
+                '--window-size=1920,1080',
                 '--no-first-run',
                 '--no-default-browser-check',
                 '--disable-blink-features=AutomationControlled',
+                '--deny-permission-prompts',
+                '--use-fake-ui-for-media-stream',
                 '--lang=es-419,es'
             ]
         });
 
+        try {
+            const context = browser.defaultBrowserContext();
+            await context.overridePermissions('https://www.carrefour.com.ar', []);
+            await context.overridePermissions('https://www.coto.com.ar', []);
+            await context.overridePermissions('https://diaonline.supermercadosdia.com.ar', []);
+        } catch (ePerm) {}
+
         activeBrowser = browser;
+        const chromePid = browser.process() ? browser.process().pid : 0;
 
         // Kill-switch: abortar inmediatamente si el usuario cierra la ventana de Chrome
         browser.on('disconnected', () => {
@@ -984,18 +1017,49 @@ async function runRPA({
             abortCurrentRun();
         });
 
-        checkAborted();
+        // 1. Forzar maximizado interno vía CDP (Chrome DevTools Protocol)
+        try {
+            const session = await page.target().createCDPSession();
+            const { windowId } = await session.send('Browser.getWindowForTarget');
+            await session.send('Browser.setWindowBounds', {
+                windowId,
+                bounds: { windowState: 'maximized' }
+            });
+        } catch (eCDP) {}
 
-        await sleep(1000);
+        // 2. Traer al frente, des-minimizar y enfocar en el escritorio de Windows con mouse_helper
+        try {
+            const { spawnSync } = require('child_process');
+            spawnSync(MOUSE_HELPER_PATH, ['focus', chromePid ? chromePid.toString() : '0'], { windowsHide: true });
+        } catch (eFoc) {}
+
+        try {
+            await page.bringToFront();
+        } catch (eBtf) {}
+
+        checkAborted();
 
         if (onStatus) {
             onStatus({
                 type: 'connected',
-                message: 'Chrome conectado en Google. Iniciando recorrido visual por los supermercados...'
+                message: 'Chrome abierto y en pantalla completa. El robot tomará el control visible en 2 segundos...'
             });
         }
 
-        await sleep(1500);
+        // Gracia de 2 segundos para que el usuario suelte el mouse cómodamente viendo la pantalla completa
+        await sleep(2000);
+        checkAborted();
+
+        // 3. Activar la regla estricta de vigilancia de mouse una vez que Chrome ya está en pantalla
+        startMouseWatchdog((reason) => {
+            if (onStatus) {
+                onStatus({
+                    type: 'error',
+                    state: 'aborted',
+                    message: '🛑 Regla estricta activada: Se detectó movimiento manual del mouse. El proceso de automatización se ha detenido de inmediato.'
+                });
+            }
+        });
 
         const totalItems = items.length;
 
