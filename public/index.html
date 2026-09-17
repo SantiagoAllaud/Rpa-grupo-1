@@ -10,12 +10,49 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
 </head>
 <body>
     <!-- Efectos de fondo ambientales -->
     <div class="ambient-glow glow-1"></div>
     <div class="ambient-glow glow-2"></div>
     <div class="ambient-glow glow-3"></div>
+
+    <!-- ============================================================== -->
+    <!-- PORTADA DE BIENVENIDA / PRESENTACIÓN (MODALIDAD EXPOSICIÓN)   -->
+    <!-- ============================================================== -->
+    <div id="welcome-screen" class="welcome-screen">
+        <div class="welcome-card glass-card">
+            <div class="welcome-badge">
+                <i class="fa-solid fa-graduation-cap"></i> UTN FRCU • Tecnologías para la Automatización 2026
+            </div>
+            
+            <div class="welcome-hero">
+                <div class="welcome-icon">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2>Bot RPA Comparador</h2>
+                <p class="welcome-desc">
+                    Automatización robótica de procesos para comparación de precios en tiempo real sobre <strong>Carrefour</strong>, <strong>COTO Digital</strong> y <strong>Día %</strong>.
+                </p>
+            </div>
+
+            <div class="welcome-team-box">
+                <span class="team-title"><i class="fa-solid fa-users"></i> Grupo 1 — Integrantes</span>
+                <div class="team-members-grid">
+                    <div class="member-tag"><i class="fa-solid fa-user"></i> Integrante 1</div>
+                    <div class="member-tag"><i class="fa-solid fa-user"></i> Integrante 2</div>
+                    <div class="member-tag"><i class="fa-solid fa-user"></i> Integrante 3</div>
+                </div>
+            </div>
+
+            <div class="welcome-actions">
+                <button id="btn-entrar-dashboard" class="btn btn-hero">
+                    <i class="fa-solid fa-play"></i> Iniciar Demostración en Vivo
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div class="dashboard-wrapper">
         <!-- Barra de Navegación Superior (Top Navbar) -->
@@ -34,6 +71,9 @@
             </div>
 
             <div class="topbar-actions">
+                <button id="btn-volver-portada" class="btn-topbar-link" title="Ver portada de presentación">
+                    <i class="fa-solid fa-graduation-cap"></i> Presentación
+                </button>
                 <div class="status-badge-container">
                     <span class="status-pulse-dot" id="system-pulse"></span>
                     <span id="status-indicator" class="indicator idle">Listo</span>
@@ -161,7 +201,7 @@
                             <span id="monitor-status-text">RPA EN ESPERA</span>
                         </div>
                         <div class="monitor-badge" id="monitor-browser-badge">
-                            <i class="fa-brands fa-chrome"></i> CHROME VISIBLE EN ESCRITORIO
+                            <i class="fa-solid fa-display"></i> PANTALLA INTEGRADA
                         </div>
                     </div>
 
@@ -198,44 +238,59 @@
                         </div>
                     </div>
 
-                    <!-- Barra de Progreso General -->
-                    <div class="progress-bar-container">
-                        <div class="progress-bar-fill" id="main-progress-fill"></div>
+                    <!-- Barra de Progreso General con Porcentaje Destacado -->
+                    <div class="progress-section">
+                        <div class="progress-meta-row">
+                            <span class="progress-meta-label"><i class="fa-solid fa-bars-progress"></i> Progreso General</span>
+                            <span class="progress-percent-badge" id="progress-percent-badge">0%</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="main-progress-fill"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Panel de Controles de Demostración Visual -->
-                <div class="glass-card demo-config-card">
-                    <div class="demo-config-header">
-                        <div class="demo-config-title">
-                            <div class="demo-icon">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            </div>
-                            <div>
-                                <h4>Modo Demostración Visual</h4>
-                                <p class="text-muted">Abre Chrome con cursor virtual autónomo: ves cómo se mueve y busca sin interferir con tu mouse.</p>
-                            </div>
+                <!-- Pantalla Virtual Integrada del Navegador RPA -->
+                <div class="glass-card virtual-screen-card" id="virtual-screen-card">
+                    <div class="virtual-screen-window-bar">
+                        <div class="window-controls">
+                            <span class="dot dot-red"></span>
+                            <span class="dot dot-yellow"></span>
+                            <span class="dot dot-green"></span>
                         </div>
-                        <label class="switch-toggle" title="Activar o desactivar modo demostración">
-                            <input type="checkbox" id="check-demo-mode" checked>
-                            <span class="slider-round"></span>
-                        </label>
+                        <div class="virtual-address-bar">
+                            <i class="fa-solid fa-lock icon-secure"></i>
+                            <span id="virtual-url-display" class="virtual-url-text">chrome://navegador-virtual</span>
+                        </div>
+                        <div class="screen-controls">
+                            <button id="btn-toggle-screen" class="btn-toggle-screen" title="Mostrar u ocultar la pantalla en vivo">
+                                <i class="fa-solid fa-eye" id="icon-toggle-screen"></i>
+                                <span id="label-toggle-screen">Ocultar pantalla</span>
+                            </button>
+                            <span class="screen-live-tag" id="screen-live-tag"><i class="fa-solid fa-satellite-dish"></i> EN ESPERA</span>
+                        </div>
                     </div>
 
-                    <div class="demo-params-grid" id="demo-params-grid">
-                        <div class="demo-param-item">
-                            <div class="param-label-row">
-                                <span><i class="fa-solid fa-keyboard"></i> Velocidad de Tipeo</span>
-                                <span class="param-val" id="label-typing-delay">0.05s</span>
+                    <div class="virtual-screen-body" id="virtual-screen-body">
+                        <div class="virtual-screen-viewport" id="virtual-screen-viewport">
+                            <!-- Imagen en tiempo real del screencast CDP -->
+                            <img id="live-screen-img" class="live-screen-img" alt="Pantalla virtual del robot RPA" src="" style="display: none;">
+                            
+                            <!-- Placeholder cuando el bot está en espera -->
+                            <div id="screen-placeholder" class="screen-placeholder">
+                                <div class="placeholder-content">
+                                    <div class="placeholder-icon-wrap">
+                                        <i class="fa-solid fa-display"></i>
+                                    </div>
+                                    <h4>Pantalla Virtual Lista</h4>
+                                    <p>Presiona <strong>Iniciar Proceso Completo</strong> o <strong>Buscar Producto</strong> para observar la navegación paso a paso dentro del Dashboard sin abrir ventanas externas.</p>
+                                    <div class="placeholder-tags">
+                                        <span><i class="fa-solid fa-check"></i> Sin ventanas externas</span>
+                                        <span><i class="fa-solid fa-check"></i> Cursor visible en pantalla</span>
+                                        <span><i class="fa-solid fa-check"></i> 100% Paso a paso</span>
+                                    </div>
+                                </div>
                             </div>
-                            <input type="range" id="input-typing-delay" min="0.02" max="0.12" step="0.01" value="0.05">
-                        </div>
-                        <div class="demo-param-item">
-                            <div class="param-label-row">
-                                <span><i class="fa-solid fa-arrow-pointer"></i> Velocidad del Mouse</span>
-                                <span class="param-val" id="label-mouse-duration">0.6s</span>
-                            </div>
-                            <input type="range" id="input-mouse-duration" min="0.2" max="1.2" step="0.1" value="0.6">
                         </div>
                     </div>
                 </div>

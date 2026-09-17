@@ -16,34 +16,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCerrarModal = document.getElementById('btn-cerrar-modal');
     const btnsClean = document.querySelectorAll('.btn-clean');
 
-    // Controles de Modo Demostración
-    const checkDemoMode = document.getElementById('check-demo-mode');
-    const inputTypingDelay = document.getElementById('input-typing-delay');
-    const labelTypingDelay = document.getElementById('label-typing-delay');
-    const inputMouseDuration = document.getElementById('input-mouse-duration');
-    const labelMouseDuration = document.getElementById('label-mouse-duration');
-
-    if (inputTypingDelay && labelTypingDelay) {
-        inputTypingDelay.addEventListener('input', () => {
-            labelTypingDelay.textContent = `${parseFloat(inputTypingDelay.value).toFixed(2)}s`;
-        });
-    }
-
-    if (inputMouseDuration && labelMouseDuration) {
-        inputMouseDuration.addEventListener('input', () => {
-            labelMouseDuration.textContent = `${parseFloat(inputMouseDuration.value).toFixed(1)}s`;
-        });
-    }
 
     // Monitor y Pasos de Supermercados
     const monitorStatusText = document.getElementById('monitor-status-text');
     const mainProgressFill = document.getElementById('main-progress-fill');
+    const progressPercentBadge = document.getElementById('progress-percent-badge');
     const stepCarrefour = document.getElementById('step-carrefour');
     const statusCarrefour = document.getElementById('status-carrefour');
     const stepCoto = document.getElementById('step-coto');
     const statusCoto = document.getElementById('status-coto');
     const stepDia = document.getElementById('step-dia');
     const statusDia = document.getElementById('status-dia');
+
+    // Pantalla Virtual Integrada
+    const virtualScreenCard = document.getElementById('virtual-screen-card');
+    const virtualScreenBody = document.getElementById('virtual-screen-body');
+    const virtualUrlDisplay = document.getElementById('virtual-url-display');
+    const liveScreenImg = document.getElementById('live-screen-img');
+    const screenPlaceholder = document.getElementById('screen-placeholder');
+    const btnToggleScreen = document.getElementById('btn-toggle-screen');
+    const iconToggleScreen = document.getElementById('icon-toggle-screen');
+    const labelToggleScreen = document.getElementById('label-toggle-screen');
+    const screenLiveTag = document.getElementById('screen-live-tag');
+
+    let isScreenVisible = true;
+
+    // Toggle para mostrar u ocultar la pantalla virtual en vivo
+    if (btnToggleScreen && virtualScreenBody) {
+        btnToggleScreen.addEventListener('click', () => {
+            isScreenVisible = !isScreenVisible;
+            if (isScreenVisible) {
+                virtualScreenBody.style.display = 'block';
+                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye';
+                if (labelToggleScreen) labelToggleScreen.textContent = 'Ocultar pantalla';
+                btnToggleScreen.classList.remove('active');
+            } else {
+                virtualScreenBody.style.display = 'none';
+                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye-slash';
+                if (labelToggleScreen) labelToggleScreen.textContent = 'Ver en vivo';
+                btnToggleScreen.classList.add('active');
+            }
+        });
+    }
 
     let ws = null;
 
@@ -55,7 +69,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (stepDia) stepDia.className = 'super-step-card';
         if (statusDia) statusDia.textContent = 'En espera';
         if (mainProgressFill) mainProgressFill.style.width = '0%';
+        if (progressPercentBadge) progressPercentBadge.textContent = '0%';
         if (monitorStatusText) monitorStatusText.textContent = 'RPA EN ESPERA';
+        if (virtualUrlDisplay) virtualUrlDisplay.textContent = 'chrome://navegador-virtual';
+        if (liveScreenImg) {
+            liveScreenImg.style.display = 'none';
+            liveScreenImg.src = '';
+        }
+        if (screenPlaceholder) screenPlaceholder.style.display = 'flex';
+        if (screenLiveTag) {
+            screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
+            screenLiveTag.className = 'screen-live-tag';
+        }
     }
 
     // Conectar WebSocket para logs en vivo del sistema
@@ -72,30 +97,67 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'log') {
+                if (msg.type === 'screencast') {
+                    if (isScreenVisible && liveScreenImg) {
+                        liveScreenImg.src = msg.data;
+                        liveScreenImg.style.display = 'block';
+                        if (screenPlaceholder) screenPlaceholder.style.display = 'none';
+                    }
+                    if (virtualUrlDisplay && msg.url) {
+                        virtualUrlDisplay.textContent = msg.url;
+                    }
+                    if (screenLiveTag) {
+                        screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
+                        screenLiveTag.className = 'screen-live-tag live';
+                    }
+                } else if (msg.type === 'nav_url') {
+                    if (virtualUrlDisplay && msg.url) {
+                        virtualUrlDisplay.textContent = msg.url;
+                    }
+                } else if (msg.type === 'log') {
                     addLog(msg.message);
                     parseLogStep(msg.message);
                 } else if (msg.type === 'progress') {
-                    if (typeof msg.percent === 'number' && mainProgressFill) {
-                        mainProgressFill.style.width = `${msg.percent}%`;
+                    if (typeof msg.percent === 'number') {
+                        if (mainProgressFill) mainProgressFill.style.width = `${msg.percent}%`;
+                        if (progressPercentBadge) progressPercentBadge.textContent = `${msg.percent}%`;
                     }
                 } else if (msg.type === 'status') {
                     if (monitorStatusText) {
                         if (msg.state === 'live') {
-                            monitorStatusText.textContent = '🔴 NAVEGADOR CHROME EN VIVO';
+                            monitorStatusText.textContent = '🔴 NAVEGADOR VIRTUAL EN VIVO';
+                            if (screenLiveTag) {
+                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
+                                screenLiveTag.className = 'screen-live-tag live';
+                            }
                         } else if (msg.state === 'connecting') {
                             monitorStatusText.textContent = 'CONECTANDO CON NAVEGADOR...';
                         } else if (msg.state === 'finished') {
                             monitorStatusText.textContent = '✓ RPA FINALIZADO EXITOSAMENTE';
                             if (mainProgressFill) mainProgressFill.style.width = '100%';
+                            if (progressPercentBadge) progressPercentBadge.textContent = '100%';
+                            if (screenLiveTag) {
+                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-check"></i> COMPLETADO';
+                                screenLiveTag.className = 'screen-live-tag finished';
+                            }
                         } else if (msg.state === 'idle') {
                             monitorStatusText.textContent = 'RPA EN ESPERA';
+                            if (screenLiveTag) {
+                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
+                                screenLiveTag.className = 'screen-live-tag';
+                            }
                         } else if (msg.state === 'aborted') {
-                            monitorStatusText.textContent = (msg.message && msg.message.includes('mouse'))
-                                ? '🛑 DETENIDO: MOVIMIENTO DE MOUSE'
-                                : '🛑 RPA DETENIDO';
+                            monitorStatusText.textContent = '🛑 RPA DETENIDO';
+                            if (screenLiveTag) {
+                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> DETENIDO';
+                                screenLiveTag.className = 'screen-live-tag aborted';
+                            }
                         } else if (msg.state === 'error') {
                             monitorStatusText.textContent = 'ERROR EN LA EJECUCIÓN';
+                            if (screenLiveTag) {
+                                screenLiveTag.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ERROR';
+                                screenLiveTag.className = 'screen-live-tag error';
+                            }
                         }
                     }
                 }
@@ -118,34 +180,41 @@ document.addEventListener('DOMContentLoaded', () => {
             if (stepCarrefour) stepCarrefour.className = 'super-step-card active';
             if (statusCarrefour) statusCarrefour.textContent = 'En curso...';
             if (mainProgressFill) mainProgressFill.style.width = '25%';
+            if (progressPercentBadge) progressPercentBadge.textContent = '25%';
             if (text.includes('Finalizado')) {
                 if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
                 if (statusCarrefour) statusCarrefour.textContent = '✓ Completado';
                 if (mainProgressFill) mainProgressFill.style.width = '35%';
+                if (progressPercentBadge) progressPercentBadge.textContent = '35%';
             }
         } else if (text.includes('[SUPERMERCADO 2]')) {
             if (stepCoto) stepCoto.className = 'super-step-card active';
             if (statusCoto) statusCoto.textContent = 'En curso...';
             if (mainProgressFill) mainProgressFill.style.width = '55%';
+            if (progressPercentBadge) progressPercentBadge.textContent = '55%';
             if (text.includes('Finalizado')) {
                 if (stepCoto) stepCoto.className = 'super-step-card completed';
                 if (statusCoto) statusCoto.textContent = '✓ Completado';
                 if (mainProgressFill) mainProgressFill.style.width = '70%';
+                if (progressPercentBadge) progressPercentBadge.textContent = '70%';
             }
         } else if (text.includes('[SUPERMERCADO 3]')) {
             if (stepDia) stepDia.className = 'super-step-card active';
             if (statusDia) statusDia.textContent = 'En curso...';
             if (mainProgressFill) mainProgressFill.style.width = '85%';
+            if (progressPercentBadge) progressPercentBadge.textContent = '85%';
             if (text.includes('Finalizado')) {
                 if (stepDia) stepDia.className = 'super-step-card completed';
                 if (statusDia) statusDia.textContent = '✓ Completado';
                 if (mainProgressFill) mainProgressFill.style.width = '100%';
+                if (progressPercentBadge) progressPercentBadge.textContent = '100%';
             }
         } else if (text.includes('[ RPA FINALIZADO ]')) {
             if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
             if (stepCoto) stepCoto.className = 'super-step-card completed';
             if (stepDia) stepDia.className = 'super-step-card completed';
             if (mainProgressFill) mainProgressFill.style.width = '100%';
+            if (progressPercentBadge) progressPercentBadge.textContent = '100%';
         }
     }
 
@@ -160,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cambiar estado visual de botones
     function setRunningState(isRunning) {
-        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal):not(#btn-abort)');
+        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal):not(#btn-abort):not(#btn-toggle-screen)');
         btns.forEach(btn => btn.disabled = isRunning);
         
         if (isRunning) {
@@ -181,14 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setRunningState(true);
         addLog(`Iniciando: ${endpoint}...`);
 
-        const isDemo = checkDemoMode ? checkDemoMode.checked : true;
-        const typingDelayMs = inputTypingDelay ? Math.round(parseFloat(inputTypingDelay.value) * 1000) : 50;
-        const mouseDurationMs = inputMouseDuration ? Math.round(parseFloat(inputMouseDuration.value) * 1000) : 600;
-
         const payload = Object.assign({}, body || {}, {
-            demoMode: isDemo,
-            typingDelay: typingDelayMs,
-            mouseDuration: mouseDurationMs
+            demoMode: true,
+            typingDelay: 50,
+            mouseDuration: 600,
+            headless: true
         });
         
         try {
@@ -428,6 +494,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog('Error al abortar: ' + e.message, true);
             }
             setRunningState(false);
+        });
+    }
+
+    // Control de Portada / Pantalla de Bienvenida
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const btnEntrarDashboard = document.getElementById('btn-entrar-dashboard');
+    const btnVolverPortada = document.getElementById('btn-volver-portada');
+
+    if (btnEntrarDashboard && welcomeScreen) {
+        btnEntrarDashboard.addEventListener('click', () => {
+            welcomeScreen.classList.add('hidden');
+        });
+    }
+
+    if (btnVolverPortada && welcomeScreen) {
+        btnVolverPortada.addEventListener('click', () => {
+            welcomeScreen.classList.remove('hidden');
         });
     }
 
