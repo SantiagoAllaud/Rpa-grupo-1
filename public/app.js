@@ -3,75 +3,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const logContainer = document.getElementById('log-container');
     const statusIndicator = document.getElementById('status-indicator');
     const btnAbort = document.getElementById('btn-abort');
-    const abortBar = document.getElementById('abort-bar');
 
-    // Monitor y Pasos de Supermercados
-    const monitorStatusText = document.getElementById('monitor-status-text');
+    // Elementos del Banner de Progreso Activo y Estado de Búsqueda
+    const activeProcessBanner = document.getElementById('active-process-banner');
+    const processBannerText = document.getElementById('process-banner-text');
     const mainProgressFill = document.getElementById('main-progress-fill');
     const progressPercentBadge = document.getElementById('progress-percent-badge');
-    const stepCarrefour = document.getElementById('step-carrefour');
-    const statusCarrefour = document.getElementById('status-carrefour');
-    const stepCoto = document.getElementById('step-coto');
-    const statusCoto = document.getElementById('status-coto');
-    const stepDia = document.getElementById('step-dia');
-    const statusDia = document.getElementById('status-dia');
-
-    // Pantalla Virtual Integrada
-    const virtualScreenCard = document.getElementById('virtual-screen-card');
-    const virtualScreenBody = document.getElementById('virtual-screen-body');
-    const virtualUrlDisplay = document.getElementById('virtual-url-display');
-    const liveScreenImg = document.getElementById('live-screen-img');
-    const screenPlaceholder = document.getElementById('screen-placeholder');
-    const btnToggleScreen = document.getElementById('btn-toggle-screen');
-    const iconToggleScreen = document.getElementById('icon-toggle-screen');
-    const labelToggleScreen = document.getElementById('label-toggle-screen');
-    const screenLiveTag = document.getElementById('screen-live-tag');
-
-    let isScreenVisible = true;
-
-    // Toggle para mostrar u ocultar la pantalla virtual en vivo
-    if (btnToggleScreen && virtualScreenBody) {
-        btnToggleScreen.addEventListener('click', () => {
-            isScreenVisible = !isScreenVisible;
-            if (isScreenVisible) {
-                virtualScreenBody.style.display = 'block';
-                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye';
-                if (labelToggleScreen) labelToggleScreen.textContent = 'Ocultar pantalla';
-                btnToggleScreen.classList.remove('active');
-            } else {
-                virtualScreenBody.style.display = 'none';
-                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye-slash';
-                if (labelToggleScreen) labelToggleScreen.textContent = 'Ver en vivo';
-                btnToggleScreen.classList.add('active');
-            }
-        });
-    }
+    const estadoBusqueda = document.getElementById('estado-busqueda');
+    const textoEstadoBusqueda = document.getElementById('texto-estado-busqueda');
 
     let ws = null;
 
     function resetSuperSteps() {
-        if (stepCarrefour) stepCarrefour.className = 'super-step-card';
-        if (statusCarrefour) statusCarrefour.textContent = 'En espera';
-        if (stepCoto) stepCoto.className = 'super-step-card';
-        if (statusCoto) statusCoto.textContent = 'En espera';
-        if (stepDia) stepDia.className = 'super-step-card';
-        if (statusDia) statusDia.textContent = 'En espera';
         if (mainProgressFill) mainProgressFill.style.width = '0%';
         if (progressPercentBadge) progressPercentBadge.textContent = '0%';
-        if (monitorStatusText) monitorStatusText.textContent = 'RPA EN ESPERA';
-        if (virtualUrlDisplay) virtualUrlDisplay.textContent = 'chrome://navegador-virtual';
-        if (liveScreenImg) {
-            liveScreenImg.style.display = 'none';
-            liveScreenImg.src = '';
-        }
-        if (screenPlaceholder) screenPlaceholder.style.display = 'flex';
-        if (screenLiveTag) {
-            screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
-            screenLiveTag.className = 'screen-live-tag';
-        }
+        if (processBannerText) processBannerText.textContent = 'Iniciando proceso RPA visible...';
+        if (textoEstadoBusqueda) textoEstadoBusqueda.textContent = 'Buscando producto en los 3 supermercados...';
     }
 
-    // Conectar WebSocket para logs en vivo del sistema
+    // Conectar WebSocket para logs y telemetría en vivo del sistema
     function connectStream() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/rpa-stream`;
@@ -85,72 +35,45 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'screencast') {
-                    if (isScreenVisible && liveScreenImg) {
-                        liveScreenImg.src = msg.data;
-                        liveScreenImg.style.display = 'block';
-                        if (screenPlaceholder) screenPlaceholder.style.display = 'none';
-                    }
-                    if (virtualUrlDisplay && msg.url) {
-                        virtualUrlDisplay.textContent = msg.url;
-                    }
-                    if (screenLiveTag) {
-                        screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
-                        screenLiveTag.className = 'screen-live-tag live';
-                    }
-                } else if (msg.type === 'nav_url') {
-                    if (virtualUrlDisplay && msg.url) {
-                        virtualUrlDisplay.textContent = msg.url;
-                    }
-                } else if (msg.type === 'log') {
+
+                if (msg.type === 'log') {
                     addLog(msg.message);
-                    parseLogStep(msg.message);
+                    if (processBannerText) processBannerText.textContent = msg.message;
+                    if (textoEstadoBusqueda) textoEstadoBusqueda.textContent = msg.message;
                 } else if (msg.type === 'progress') {
                     if (typeof msg.percent === 'number') {
                         if (mainProgressFill) mainProgressFill.style.width = `${msg.percent}%`;
                         if (progressPercentBadge) progressPercentBadge.textContent = `${msg.percent}%`;
                     }
+                    if (msg.message) {
+                        addLog(msg.message);
+                        if (processBannerText) processBannerText.textContent = msg.message;
+                        if (textoEstadoBusqueda) textoEstadoBusqueda.textContent = msg.message;
+                    }
                 } else if (msg.type === 'status') {
-                    if (monitorStatusText) {
-                        if (msg.state === 'live') {
-                            monitorStatusText.textContent = '🔴 NAVEGADOR VIRTUAL EN VIVO';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
-                                screenLiveTag.className = 'screen-live-tag live';
-                            }
-                        } else if (msg.state === 'connecting') {
-                            monitorStatusText.textContent = 'CONECTANDO CON NAVEGADOR...';
-                        } else if (msg.state === 'finished') {
-                            monitorStatusText.textContent = '✓ RPA FINALIZADO EXITOSAMENTE';
-                            if (mainProgressFill) mainProgressFill.style.width = '100%';
-                            if (progressPercentBadge) progressPercentBadge.textContent = '100%';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-check"></i> COMPLETADO';
-                                screenLiveTag.className = 'screen-live-tag finished';
-                            }
-                        } else if (msg.state === 'idle') {
-                            monitorStatusText.textContent = 'RPA EN ESPERA';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
-                                screenLiveTag.className = 'screen-live-tag';
-                            }
-                        } else if (msg.state === 'aborted') {
-                            monitorStatusText.textContent = '🛑 RPA DETENIDO';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> DETENIDO';
-                                screenLiveTag.className = 'screen-live-tag aborted';
-                            }
-                        } else if (msg.state === 'error') {
-                            monitorStatusText.textContent = 'ERROR EN LA EJECUCIÓN';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ERROR';
-                                screenLiveTag.className = 'screen-live-tag error';
-                            }
+                    if (msg.state === 'live' || msg.state === 'connecting') {
+                        setRunningState(true);
+                        if (msg.message) {
+                            if (processBannerText) processBannerText.textContent = msg.message;
+                            if (textoEstadoBusqueda) textoEstadoBusqueda.textContent = msg.message;
                         }
+                    } else if (msg.state === 'finished') {
+                        if (mainProgressFill) mainProgressFill.style.width = '100%';
+                        if (progressPercentBadge) progressPercentBadge.textContent = '100%';
+                        if (processBannerText) processBannerText.textContent = '✓ Proceso finalizado exitosamente';
+                        setTimeout(() => {
+                            setRunningState(false);
+                            cargarResultadosRecientes();
+                        }, 1200);
+                    } else if (msg.state === 'idle') {
+                        setRunningState(false);
+                    } else if (msg.state === 'aborted' || msg.state === 'error') {
+                        setRunningState(false);
+                        if (msg.message) addLog(`[AVISO] ${msg.message}`, true);
                     }
                 }
             } catch (e) {
-                console.error("[WebSocket] Error:", e);
+                console.error("[WebSocket] Error parseando mensaje:", e);
             }
         };
 
@@ -161,74 +84,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     connectStream();
 
-    // Actualiza los pasos de los 3 supermercados según los logs
-    function parseLogStep(text) {
-        if (!text) return;
-        if (text.includes('[SUPERMERCADO 1]')) {
-            if (stepCarrefour) stepCarrefour.className = 'super-step-card active';
-            if (statusCarrefour) statusCarrefour.textContent = 'En curso...';
-            if (mainProgressFill) mainProgressFill.style.width = '25%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '25%';
-            if (text.includes('Finalizado')) {
-                if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
-                if (statusCarrefour) statusCarrefour.textContent = '✓ Completado';
-                if (mainProgressFill) mainProgressFill.style.width = '35%';
-                if (progressPercentBadge) progressPercentBadge.textContent = '35%';
-            }
-        } else if (text.includes('[SUPERMERCADO 2]')) {
-            if (stepCoto) stepCoto.className = 'super-step-card active';
-            if (statusCoto) statusCoto.textContent = 'En curso...';
-            if (mainProgressFill) mainProgressFill.style.width = '55%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '55%';
-            if (text.includes('Finalizado')) {
-                if (stepCoto) stepCoto.className = 'super-step-card completed';
-                if (statusCoto) statusCoto.textContent = '✓ Completado';
-                if (mainProgressFill) mainProgressFill.style.width = '70%';
-                if (progressPercentBadge) progressPercentBadge.textContent = '70%';
-            }
-        } else if (text.includes('[SUPERMERCADO 3]')) {
-            if (stepDia) stepDia.className = 'super-step-card active';
-            if (statusDia) statusDia.textContent = 'En curso...';
-            if (mainProgressFill) mainProgressFill.style.width = '85%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '85%';
-            if (text.includes('Finalizado')) {
-                if (stepDia) stepDia.className = 'super-step-card completed';
-                if (statusDia) statusDia.textContent = '✓ Completado';
-                if (mainProgressFill) mainProgressFill.style.width = '100%';
-                if (progressPercentBadge) progressPercentBadge.textContent = '100%';
-            }
-        } else if (text.includes('[ RPA FINALIZADO ]')) {
-            if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
-            if (stepCoto) stepCoto.className = 'super-step-card completed';
-            if (stepDia) stepDia.className = 'super-step-card completed';
-            if (mainProgressFill) mainProgressFill.style.width = '100%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '100%';
+    // Añadir mensajes a la consola (con salvaguarda segura si no existe logContainer)
+    function addLog(msg, isError = false) {
+        if (isError) {
+            console.error(`[RPA] ${msg}`);
+        } else {
+            console.log(`[RPA] ${msg}`);
+        }
+
+        if (logContainer) {
+            const p = document.createElement('p');
+            p.textContent = `> ${msg}`;
+            if (isError) p.classList.add('log-error');
+            logContainer.appendChild(p);
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
     }
 
-    // Añadir mensajes a la consola virtual
-    function addLog(msg, isError = false) {
-        const p = document.createElement('p');
-        p.textContent = `> ${msg}`;
-        if (isError) p.classList.add('log-error');
-        logContainer.appendChild(p);
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
-
-    // Cambiar estado visual de botones
+    // Cambiar estado visual de la interfaz según si el RPA está corriendo
     function setRunningState(isRunning) {
-        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal):not(#btn-abort):not(#btn-toggle-screen)');
+        const btns = document.querySelectorAll('button:not(#btn-abort):not(#btn-cerrar-x-modal):not(#btn-cerrar-editar-modal)');
         btns.forEach(btn => btn.disabled = isRunning);
         
         if (isRunning) {
-            statusIndicator.textContent = "Procesando...";
-            statusIndicator.className = "indicator running";
-            if (abortBar) abortBar.classList.add('visible');
+            if (statusIndicator) {
+                statusIndicator.textContent = "Buscando en vivo...";
+                statusIndicator.className = "indicator running";
+            }
+            if (activeProcessBanner) activeProcessBanner.style.display = 'block';
+            if (estadoBusqueda) estadoBusqueda.style.display = 'flex';
             if (btnAbort) btnAbort.disabled = false;
         } else {
-            statusIndicator.textContent = "Listo";
-            statusIndicator.className = "indicator idle";
-            if (abortBar) abortBar.classList.remove('visible');
+            if (statusIndicator) {
+                statusIndicator.textContent = "Listo";
+                statusIndicator.className = "indicator idle";
+            }
+            if (activeProcessBanner) activeProcessBanner.style.display = 'none';
+            if (estadoBusqueda) estadoBusqueda.style.display = 'none';
+            if (btnAbort) btnAbort.disabled = true;
         }
     }
 
@@ -236,13 +129,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function executeAction(endpoint, body = null) {
         resetSuperSteps();
         setRunningState(true);
-        addLog(`Iniciando: ${endpoint}...`);
+        addLog(`Iniciando acción: ${endpoint}...`);
 
+        // NOTA: demoMode: true y headless: false aseguran que Chrome abra visiblemente en el escritorio
         const payload = Object.assign({}, body || {}, {
             demoMode: true,
             typingDelay: 50,
-            mouseDuration: 600,
-            headless: true
+            mouseDuration: 600
         });
         
         try {
@@ -257,11 +150,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (data.success) {
                 addLog(`✓ ${data.message}`);
+                await cargarResultadosRecientes();
             } else {
                 addLog(`Error: ${data.message}`, true);
+                alert(data.message || 'Error en la ejecución del RPA');
             }
         } catch (error) {
             addLog(`Error de conexión: ${error.message}`, true);
+            alert(`Error de conexión con el servidor: ${error.message}`);
         } finally {
             setRunningState(false);
         }
@@ -476,23 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cargar datos existentes al inicio
     cargarResultadosRecientes();
 
-    // Actualizar resultados al completar el RPA
-    const originalOnMessage = ws ? ws.onmessage : null;
-    function suscribirFinDeRPA() {
-        if (!ws) return;
-        const currentHandler = ws.onmessage;
-        ws.onmessage = (event) => {
-            if (currentHandler) currentHandler(event);
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'status' && msg.state === 'finished') {
-                    setTimeout(cargarResultadosRecientes, 1200);
-                }
-            } catch (err) {}
-        };
-    }
-    suscribirFinDeRPA();
-
     // ==========================================================================
     // NAVEGACIÓN ENTRE SECCIONES (PILLS)
     // ==========================================================================
@@ -520,14 +399,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function ejecutarBusquedaRapida() {
         const query = inputBusquedaRapida ? inputBusquedaRapida.value.trim() : '';
         if (!query) {
-            alert("Por favor ingresa un producto a buscar (ej: Yerba Playadito, Arroz Gallo, Leche La Serenísima).");
+            alert("Por favor ingresa o selecciona un producto a buscar (ej: Yerba Playadito, Arroz Gallo, Leche La Serenísima).");
             if (inputBusquedaRapida) inputBusquedaRapida.focus();
             return;
         }
 
-        executeAction('/api/buscar-individual', {
+        const prodId = selectProducto ? selectProducto.value : '';
+        const itemCat = itemsCatalogoGlobal.find(it => it.id === prodId || it.nombre_completo.toLowerCase() === query.toLowerCase());
+
+        const body = {
             producto: query
-        });
+        };
+
+        if (itemCat) {
+            body.terminoBusqueda = itemCat.termino_busqueda || itemCat.producto;
+            body.cantidad = itemCat.cantidad;
+            body.unidad = itemCat.unidad;
+        }
+
+        executeAction('/api/buscar-individual', body);
     }
 
     if (btnBuscarRapido) {
@@ -741,10 +631,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Kill-switch: Si el usuario cierra el frontend en el navegador, abortar la búsqueda inmediatamente
+    // Kill-switch: Si el usuario cierra el frontend mientras el RPA está corriendo, abortar inmediatamente
     window.addEventListener('beforeunload', () => {
-        try {
-            navigator.sendBeacon('/api/abort');
-        } catch (e) {}
+        if (activeProcessBanner && activeProcessBanner.style.display !== 'none') {
+            try {
+                navigator.sendBeacon('/api/abort');
+            } catch (e) {}
+        }
     });
 });
