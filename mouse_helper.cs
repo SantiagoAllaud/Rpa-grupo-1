@@ -6,8 +6,26 @@ using System.Threading;
 using System.Windows.Forms;
 
 public class MouseHelper {
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
     [DllImport("user32.dll")]
     public static extern bool SetProcessDPIAware();
+
+    public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
+    public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
+
+    public static void InitializeDpi() {
+        try {
+            if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+                SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+            }
+        } catch {
+            try {
+                SetProcessDPIAware();
+            } catch {}
+        }
+    }
 
     [DllImport("user32.dll")]
     public static extern bool SetCursorPos(int X, int Y);
@@ -205,26 +223,33 @@ public class MouseHelper {
 
     public static void SetFailsafeState(bool isMoving, int x, int y) {
         try {
-            using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite))
-            using (var sw = new System.IO.StreamWriter(fs)) {
-                sw.Write((isMoving ? "1" : "0") + "," + x + "," + y);
+            byte[] bytes = System.Text.Encoding.ASCII.GetBytes((isMoving ? "1" : "0") + "," + x + "," + y);
+            using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite)) {
+                fs.Position = 0;
+                fs.Write(bytes, 0, bytes.Length);
+                fs.SetLength(bytes.Length);
+                fs.Flush();
             }
         } catch {}
     }
 
-    public static void TriggerFailsafe(int x, int y) {
+    public static void TriggerFailsafe(int x, int y, string reason = "") {
         try {
-            using (var fs = new System.IO.FileStream(FlagFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite))
-            using (var sw = new System.IO.StreamWriter(fs)) {
-                sw.Write("USER_MOUSE_INTERVENTION," + x + "," + y);
+            byte[] bytes = System.Text.Encoding.ASCII.GetBytes("USER_MOUSE_INTERVENTION," + x + "," + y);
+            using (var fs = new System.IO.FileStream(FlagFilePath, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite)) {
+                fs.Position = 0;
+                fs.Write(bytes, 0, bytes.Length);
+                fs.SetLength(bytes.Length);
+                fs.Flush();
             }
         } catch {}
-        Console.WriteLine("USER_MOUSE_INTERVENTION");
+        Console.WriteLine("USER_MOUSE_INTERVENTION " + reason);
         Environment.Exit(99);
     }
 
     public static void RunWatchdog() {
         AttachToDefaultDesktop();
+        InitializeDpi();
         if (System.IO.File.Exists(FlagFilePath)) {
             try { System.IO.File.Delete(FlagFilePath); } catch {}
         }
@@ -232,12 +257,18 @@ public class MouseHelper {
         POINT initPos = GetPosition();
         SetFailsafeState(false, initPos.X, initPos.Y);
 
+        bool lastWasMoving = false;
+        int lastExpX = initPos.X;
+        int lastExpY = initPos.Y;
+        int consecutiveDeviations = 0;
+
         while (true) {
             Thread.Sleep(30);
             POINT cur = GetPosition();
 
-            bool isMoving = false;
-            int expX = cur.X, expY = cur.Y;
+            bool isMoving = lastWasMoving;
+            int expX = lastExpX;
+            int expY = lastExpY;
 
             if (System.IO.File.Exists(StateFilePath)) {
                 try {
@@ -249,24 +280,39 @@ public class MouseHelper {
                             isMoving = parts[0] == "1";
                             expX = int.Parse(parts[1]);
                             expY = int.Parse(parts[2]);
+                            lastWasMoving = isMoving;
+                            lastExpX = expX;
+                            lastExpY = expY;
                         }
                     }
                 } catch {}
             }
 
+            double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
+
             if (isMoving) {
-                // Durante movimiento activo del robot: tolerancia de trayectoria
-                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
-                if (dist > 50.0) {
-                    TriggerFailsafe(cur.X, cur.Y);
+                consecutiveDeviations = 0;
+                // Durante movimiento activo del robot: tolerancia amplia para velocidad de curvas de Bézier
+                if (dist > 140.0) {
+                    TriggerFailsafe(cur.X, cur.Y, string.Format("isMoving=true immediate dist={0:F1} cur=({1},{2}) exp=({3},{4})", dist, cur.X, cur.Y, expX, expY));
                     return;
                 }
             } else {
-                // Durante reposo / espera del robot: cualquier movimiento de más de 14px aborta de inmediato
-                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
-                if (dist > 14.0) {
-                    TriggerFailsafe(cur.X, cur.Y);
+                // Durante reposo / espera del robot:
+                // Si la desviación es contundente (> 75px): aborto inmediato (< 0.03s)
+                if (dist > 75.0) {
+                    TriggerFailsafe(cur.X, cur.Y, string.Format("isMoving=false immediate dist={0:F1} cur=({1},{2}) exp=({3},{4})", dist, cur.X, cur.Y, expX, expY));
                     return;
+                }
+                // Si la desviación es moderada (> 35px): confirmar en 2 ticks consecutivos (60ms) para filtrar ruidos transitorios de cambio de ventana de Windows
+                else if (dist > 35.0) {
+                    consecutiveDeviations++;
+                    if (consecutiveDeviations >= 2) {
+                        TriggerFailsafe(cur.X, cur.Y, string.Format("isMoving=false debounced dist={0:F1} cur=({1},{2}) exp=({3},{4})", dist, cur.X, cur.Y, expX, expY));
+                        return;
+                    }
+                } else {
+                    consecutiveDeviations = 0;
                 }
             }
         }
@@ -276,7 +322,7 @@ public class MouseHelper {
     public static void MoveSmooth(int targetX, int targetY, int durationMs) {
         POINT start = GetPosition();
         if (start.X == targetX && start.Y == targetY) {
-            SetFailsafeState(false, targetX, targetY);
+            SetFailsafeState(true, targetX, targetY);
             return;
         }
 
@@ -284,7 +330,7 @@ public class MouseHelper {
 
         if (durationMs <= 30) {
             SetCursorPos(targetX, targetY);
-            SetFailsafeState(false, targetX, targetY);
+            SetFailsafeState(true, targetX, targetY);
             return;
         }
 
@@ -302,14 +348,25 @@ public class MouseHelper {
         int sleepPerStep = Math.Max(durationMs / steps, 8);
         int lastSetX = start.X;
         int lastSetY = start.Y;
+        int moveDeviations = 0;
 
         for (int i = 1; i <= steps; i++) {
             // Regla estricta: Detección de intervención física del usuario durante el movimiento
             POINT current = GetPosition();
             double userDeviation = Math.Sqrt(Math.Pow(current.X - lastSetX, 2) + Math.Pow(current.Y - lastSetY, 2));
-            if (i > 1 && userDeviation > 35.0) {
-                TriggerFailsafe(current.X, current.Y);
-                return;
+            if (i > 1) {
+                if (userDeviation > 140.0) {
+                    TriggerFailsafe(current.X, current.Y, string.Format("MoveSmooth immediate userDeviation={0:F1} cur=({1},{2}) lastSet=({3},{4})", userDeviation, current.X, current.Y, lastSetX, lastSetY));
+                    return;
+                } else if (userDeviation > 75.0) {
+                    moveDeviations++;
+                    if (moveDeviations >= 2) {
+                        TriggerFailsafe(current.X, current.Y, string.Format("MoveSmooth debounced userDeviation={0:F1} cur=({1},{2}) lastSet=({3},{4})", userDeviation, current.X, current.Y, lastSetX, lastSetY));
+                        return;
+                    }
+                } else {
+                    moveDeviations = 0;
+                }
             }
 
             double tLinear = (double)i / steps;
@@ -334,7 +391,7 @@ public class MouseHelper {
         }
 
         SetCursorPos(targetX, targetY);
-        SetFailsafeState(false, targetX, targetY);
+        SetFailsafeState(true, targetX, targetY);
         Thread.Sleep(50);
     }
 
@@ -348,8 +405,6 @@ public class MouseHelper {
         Thread.Sleep(110);
         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         Thread.Sleep(120);
-        POINT p = GetPosition();
-        SetFailsafeState(false, p.X, p.Y);
     }
 
     // Convierte coordenadas CSS del viewport al escritorio físico. Puppeteer sólo
@@ -385,16 +440,12 @@ public class MouseHelper {
     // pixels positivos representan un desplazamiento hacia abajo, como la rueda.
     public static void ScrollVisible(int pixels, int steps, int delayMs) {
         FocusChrome();
-        POINT p = GetPosition();
-        SetFailsafeState(false, p.X, p.Y);
         int count = Math.Max(1, Math.Abs(pixels) / Math.Max(1, steps * 90));
         int direction = pixels >= 0 ? -120 : 120;
         for (int i = 0; i < count; i++) {
             mouse_event(MOUSEEVENTF_WHEEL, 0, 0, direction, 0);
             Thread.Sleep(Math.Max(delayMs, 40));
         }
-        POINT pEnd = GetPosition();
-        SetFailsafeState(false, pEnd.X, pEnd.Y);
     }
 
     // Arrastre fluido de sliders y rangos
@@ -407,15 +458,11 @@ public class MouseHelper {
         Thread.Sleep(150);
         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         Thread.Sleep(120);
-        POINT p = GetPosition();
-        SetFailsafeState(false, p.X, p.Y);
     }
 
     // Escritura progresiva letra por letra visible (sin utilizar clipboard)
     public static void TypeText(string text, int charDelayMs) {
         if (string.IsNullOrEmpty(text)) return;
-        POINT p = GetPosition();
-        SetFailsafeState(false, p.X, p.Y);
         foreach (char c in text) {
             string s = c.ToString();
             try {
@@ -431,8 +478,6 @@ public class MouseHelper {
             }
             Thread.Sleep(Math.Max(charDelayMs, 15));
         }
-        POINT pEnd = GetPosition();
-        SetFailsafeState(false, pEnd.X, pEnd.Y);
     }
 
     // Navegación 100% VISIBLE por la barra de direcciones de Chrome:
@@ -482,19 +527,15 @@ public class MouseHelper {
         try {
             SendKeys.SendWait("{ENTER}");
         } catch {}
-
-        POINT finalPos = GetPosition();
-        SetFailsafeState(false, finalPos.X, finalPos.Y);
     }
 
     [STAThread]
     public static void Main(string[] args) {
-        try {
-            SetProcessDPIAware();
-        } catch {}
+        InitializeDpi();
 
         Thread t = new Thread(() => {
             AttachToDefaultDesktop();
+            InitializeDpi();
             Run(args);
         });
         t.SetApartmentState(ApartmentState.STA);
@@ -522,6 +563,12 @@ public class MouseHelper {
         }
 
         string cmd = args[0].ToLowerInvariant();
+        bool isActionCmd = (cmd != "watchdog" && cmd != "pos");
+
+        if (isActionCmd) {
+            POINT pInit = GetPosition();
+            SetFailsafeState(true, pInit.X, pInit.Y);
+        }
 
         try {
             switch (cmd) {
@@ -617,6 +664,11 @@ public class MouseHelper {
             }
         } catch (Exception ex) {
             Console.Error.WriteLine("ERROR: " + ex.Message);
+        } finally {
+            if (isActionCmd) {
+                POINT pFin = GetPosition();
+                SetFailsafeState(false, pFin.X, pFin.Y);
+            }
         }
     }
 }

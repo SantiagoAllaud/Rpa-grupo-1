@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Bot RPA que compara precios de productos en supermercados argentinos (Carrefour, COTO y Día %) de forma 100% visible y automatizada. UTN FRCU 2026.">
-    <title>RPA Comparador de Precios | Dashboard Inteligente</title>
+    <meta name="description" content="Bot RPA que compara precios de productos en supermercados argentinos (Carrefour, COTO y Día %) de forma automatizada. UTN FRCU 2026.">
+    <title>RPA Comparador de Precios | Dashboard</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,13 +13,13 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
 </head>
 <body>
-    <!-- Efectos de fondo ambientales -->
+    <!-- Efectos ambientales de fondo -->
     <div class="ambient-glow glow-1"></div>
     <div class="ambient-glow glow-2"></div>
     <div class="ambient-glow glow-3"></div>
 
     <!-- ============================================================== -->
-    <!-- PORTADA DE BIENVENIDA / PRESENTACIÓN (MODALIDAD EXPOSICIÓN)   -->
+    <!-- PORTADA DE BIENVENIDA / PRESENTACIÓN ACADÉMICA                -->
     <!-- ============================================================== -->
     <div id="welcome-screen" class="welcome-screen">
         <div class="welcome-card glass-card">
@@ -33,7 +33,7 @@
                 </div>
                 <h2>Bot RPA Comparador</h2>
                 <p class="welcome-desc">
-                    ¿Querés saber dónde te conviene hacer tus compras este mes? Compará precios y optimizá tu ahorro en tiempo real entre <strong>Carrefour</strong>, <strong>COTO Digital</strong> y <strong>Día %</strong>.
+                    Optimizador inteligente de precios en tiempo real entre <strong>Carrefour</strong>, <strong>COTO Digital</strong> y <strong>Día %</strong>.
                 </p>
             </div>
 
@@ -50,14 +50,18 @@
 
             <div class="welcome-actions">
                 <button id="btn-entrar-dashboard" class="btn btn-hero">
-                    <i class="fa-solid fa-play"></i> Iniciar Demostración en Vivo
+                    <i class="fa-solid fa-play"></i> Ingresar al Comparador
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- ============================================================== -->
+    <!-- ENTORNO PRINCIPAL DEL DASHBOARD                                -->
+    <!-- ============================================================== -->
     <div class="dashboard-wrapper">
-        <!-- Barra de Navegación Superior (Top Navbar) -->
+        
+        <!-- Barra Superior (Topbar) -->
         <header class="topbar">
             <div class="topbar-brand">
                 <div class="brand-icon">
@@ -73,7 +77,7 @@
             </div>
 
             <div class="topbar-actions">
-                <button id="btn-volver-portada" class="btn-topbar-link" title="Ver portada de presentación">
+                <button id="btn-volver-portada" class="btn-topbar-link" title="Ver presentación del equipo">
                     <i class="fa-solid fa-graduation-cap"></i> Presentación
                 </button>
                 <div class="status-badge-container">
@@ -88,107 +92,148 @@
             </div>
         </header>
 
-        <!-- Grid Principal del Dashboard -->
-        <main class="dashboard-grid">
-            <!-- COLUMNA IZQUIERDA: Acciones, Búsqueda y Herramientas -->
-            <section class="grid-column left-column">
-                
-                <!-- Tarjeta 1: Compra del Mes -->
-                <div class="glass-card card-action">
-                    <div class="card-header">
-                        <div class="card-header-icon icon-primary">
-                            <i class="fa-solid fa-basket-shopping"></i>
-                        </div>
-                        <div>
-                            <h3>Compra del Mes</h3>
-                            <p class="card-desc">Procesa la canasta completa de productos (<code>input.csv</code>) comparando precios en los 3 supermercados.</p>
-                        </div>
+        <!-- Contenedor Principal en Cuadrícula -->
+        <main class="dashboard-main-container">
+
+            <!-- ========================================================== -->
+            <!-- 1. BÚSQUEDA RÁPIDA (SECCIÓN PRINCIPAL)                    -->
+            <!-- ========================================================== -->
+            <section class="glass-card section-card" id="seccion-busqueda-rapida">
+                <div class="card-header">
+                    <div class="card-header-icon icon-cyan">
+                        <i class="fa-solid fa-magnifying-glass"></i>
                     </div>
-                    <div class="card-body">
-                        <div class="btn-group-primary">
-                            <button id="btn-compra-mes" class="btn btn-primary">
-                                <i class="fa-solid fa-play"></i> Iniciar Proceso Completo
-                            </button>
-                            <button id="btn-editar-lista" class="btn btn-secondary">
-                                <i class="fa-solid fa-pen-to-square"></i> Editar Canasta
-                            </button>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                            <h3>Búsqueda Rápida</h3>
+                            <span class="super-tag" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); font-size: 0.72rem; padding: 0.2rem 0.5rem;">
+                                <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> Catálogo Oficial
+                            </span>
                         </div>
+                        <p class="card-desc">Selecciona un producto del catálogo para comparar precios en tiempo real entre COTO, Carrefour y Día %.</p>
                     </div>
                 </div>
 
-                <!-- Tarjeta 2: Búsqueda Rápida Individual -->
-                <div class="glass-card card-action">
-                    <div class="card-header">
-                        <div class="card-header-icon icon-cyan">
-                            <i class="fa-solid fa-magnifying-glass"></i>
+                <div class="card-body">
+                    <!-- Barra única de selección obligatoria del catálogo -->
+                    <div class="search-single-bar">
+                        <div class="select-wrapper-custom">
+                            <i class="fa-solid fa-basket-shopping select-icon"></i>
+                            <select id="select-producto-rapido" class="form-control-select search-select">
+                                <option value="">-- Cargando productos del catálogo... --</option>
+                            </select>
                         </div>
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                <h3>Búsqueda Rápida</h3>
-                                <span class="super-tag" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); font-size: 0.72rem; padding: 0.2rem 0.5rem;">
-                                    <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> Catálogo Cerrado
-                                </span>
-                            </div>
-                            <p class="card-desc">Selecciona un producto representativo del catálogo oficial para comparar entre Carrefour, COTO y Día %.</p>
-                        </div>
+                        <button id="btn-buscar-rapido" class="btn btn-primary btn-search-go">
+                            <i class="fa-solid fa-bolt"></i> BUSCAR
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <div class="search-form">
-                            <div class="form-group">
-                                <label for="select-categoria">
-                                    <i class="fa-solid fa-layer-group"></i> 1. Categoría de Producto
-                                </label>
-                                <select id="select-categoria" class="form-control-select">
-                                    <option value="">Cargando categorías...</option>
-                                </select>
-                            </div>
 
-                            <div class="form-group">
-                                <label for="select-producto">
-                                    <i class="fa-solid fa-tag"></i> 2. Producto del Catálogo (Marca + Variante)
-                                </label>
-                                <select id="select-producto" class="form-control-select">
-                                    <option value="">Selecciona una categoría primero...</option>
-                                </select>
-                            </div>
+                    <!-- Estado de la búsqueda (Spinner y mensaje amigable) -->
+                    <div id="busqueda-status-bar" class="process-status-box" style="display: none;">
+                        <div class="spinner-inline"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
+                        <span id="busqueda-status-msg">Iniciando búsqueda en los 3 supermercados...</span>
+                    </div>
 
-                            <!-- Ficha Técnica del Producto Seleccionado -->
-                            <div id="box-info-producto" style="display: none; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-subtle); border-radius: 12px; font-size: 0.82rem;">
-                                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
-                                    <span><strong>Marca:</strong> <span id="info-marca" style="color: #38bdf8;">-</span></span>
-                                    <span><strong>Variante:</strong> <span id="info-variante" style="color: #a78bfa;">-</span></span>
-                                    <span><strong>Presentación:</strong> <span id="info-presentacion" style="color: #34d399; font-weight: bold;">-</span></span>
-                                </div>
-                            </div>
+                    <!-- Resultados de la Búsqueda Rápida -->
+                    <div id="busqueda-resultados-wrapper" class="results-table-container" style="display: none;">
+                        <div class="winner-highlight-banner" id="busqueda-winner-banner">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
 
-                            <div class="form-row-dual">
-                                <div class="form-group" style="flex: 1;">
-                                    <label for="input-unidades-compra">
-                                        <i class="fa-solid fa-hashtag"></i> Unidades
-                                    </label>
-                                    <input type="number" id="input-unidades-compra" value="1" min="1" step="1">
-                                </div>
-                                <div class="form-group" style="flex: 1.4; display: flex; align-items: flex-end;">
-                                    <button id="btn-buscar-individual" class="btn btn-action-search" style="width: 100%;">
-                                        <i class="fa-solid fa-bolt"></i> Comparar en 3 Súper
-                                    </button>
-                                </div>
-                            </div>
+                        <div class="table-responsive">
+                            <table class="comparison-table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Coto</th>
+                                        <th>Carrefour</th>
+                                        <th>Día</th>
+                                        <th>El ganador es este</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="busqueda-tbody">
+                                    <!-- Filas generadas dinámicamente -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <!-- Tarjeta 3: Reportes y Mantenimiento -->
-                <div class="glass-card card-tools">
+            <!-- ========================================================== -->
+            <!-- 2. COMPRA DEL MES                                          -->
+            <!-- ========================================================== -->
+            <section class="glass-card section-card" id="seccion-compra-mes">
+                <div class="card-header">
+                    <div class="card-header-icon icon-primary">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                    </div>
+                    <div>
+                        <h3>Compra del Mes</h3>
+                        <p class="card-desc">Compara la canasta completa de productos en los 3 supermercados para optimizar el gasto mensual.</p>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="btn-group-primary">
+                        <button id="btn-compra-mes" class="btn btn-primary">
+                            <i class="fa-solid fa-play"></i> Iniciar Proceso Completo
+                        </button>
+                        <button id="btn-editar-lista" class="btn btn-secondary">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar Canasta
+                        </button>
+                    </div>
+
+                    <!-- Estado de proceso de compra mensual -->
+                    <div id="compra-mes-status-bar" class="process-status-box" style="display: none;">
+                        <div class="spinner-inline"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
+                        <span id="compra-mes-status-msg">Procesando canasta mensual en supermercados...</span>
+                    </div>
+
+                    <!-- Resultados de la Compra del Mes -->
+                    <div id="compra-mes-resultados-wrapper" class="results-table-container" style="display: none;">
+                        <div class="winner-highlight-banner" id="compra-mes-winner-banner">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="comparison-table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Coto</th>
+                                        <th>Carrefour</th>
+                                        <th>Día</th>
+                                        <th>El ganador es este</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="compra-mes-tbody">
+                                    <!-- Filas generadas dinámicamente -->
+                                </tbody>
+                                <tfoot id="compra-mes-tfoot">
+                                    <!-- Fila de totales -->
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="dashboard-secondary-grid">
+                <!-- ========================================================== -->
+                <!-- 3. REPORTES Y UTILIDADES                                   -->
+                <!-- ========================================================== -->
+                <section class="glass-card section-card" id="seccion-reportes">
                     <div class="card-header">
                         <div class="card-header-icon icon-emerald">
                             <i class="fa-solid fa-chart-pie"></i>
                         </div>
                         <div>
-                            <h3>Reportes y Utilidades</h3>
-                            <p class="card-desc">Visualizá los resultados obtenidos o gestioná el historial de datos.</p>
+                            <h3>Reporte y Utilidades</h3>
+                            <p class="card-desc">Descarga los resultados en Excel o visualiza la auditoría web.</p>
                         </div>
                     </div>
+
                     <div class="card-body">
                         <div class="tools-grid">
                             <button id="btn-abrir-excel" class="btn btn-tool">
@@ -199,151 +244,32 @@
                                 <i class="fa-solid fa-table-cells icon-viewer"></i>
                                 <span>Visor Web</span>
                             </a>
-                            <button id="btn-limpiar" class="btn btn-tool btn-tool-danger">
-                                <i class="fa-solid fa-trash-can icon-trash"></i>
-                                <span>Limpiar Datos</span>
-                            </button>
                         </div>
                     </div>
-                </div>
+                </section>
 
-            </section>
-
-            <!-- COLUMNA DERECHA: Monitoreo en Vivo, Configuración y Consola -->
-            <section class="grid-column right-column">
-
-                <!-- Panel Monitor de Ejecución de Supermercados -->
-                <div class="glass-card monitor-panel" id="monitor-panel">
-                    <div class="monitor-header">
-                        <div class="monitor-title">
-                            <span class="live-pulse" id="monitor-live-pulse"><i class="fa-solid fa-circle"></i></span>
-                            <span id="monitor-status-text">RPA EN ESPERA</span>
+                <!-- ========================================================== -->
+                <!-- 4. CATÁLOGO                                                -->
+                <!-- ========================================================== -->
+                <section class="glass-card section-card" id="seccion-catalogo">
+                    <div class="card-header">
+                        <div class="card-header-icon icon-amber">
+                            <i class="fa-solid fa-boxes-stacked"></i>
                         </div>
-                        <div class="monitor-badge" id="monitor-browser-badge">
-                            <i class="fa-solid fa-display"></i> PANTALLA INTEGRADA
+                        <div>
+                            <h3>Catálogo</h3>
+                            <p class="card-desc">Listado de productos homologados disponibles para comparación.</p>
                         </div>
                     </div>
 
-                    <!-- Pasos de los 3 Supermercados -->
-                    <div class="super-steps-grid">
-                        <div class="super-step-card" id="step-carrefour">
-                            <div class="super-step-icon">
-                                <i class="fa-solid fa-store"></i>
-                            </div>
-                            <div class="super-step-info">
-                                <h5>1. Carrefour</h5>
-                                <span class="super-step-status" id="status-carrefour">En espera</span>
-                            </div>
-                        </div>
-
-                        <div class="super-step-card" id="step-coto">
-                            <div class="super-step-icon">
-                                <i class="fa-solid fa-cart-shopping"></i>
-                            </div>
-                            <div class="super-step-info">
-                                <h5>2. COTO Digital</h5>
-                                <span class="super-step-status" id="status-coto">En espera</span>
-                            </div>
-                        </div>
-
-                        <div class="super-step-card" id="step-dia">
-                            <div class="super-step-icon">
-                                <i class="fa-solid fa-bag-shopping"></i>
-                            </div>
-                            <div class="super-step-info">
-                                <h5>3. Día %</h5>
-                                <span class="super-step-status" id="status-dia">En espera</span>
-                            </div>
+                    <div class="card-body">
+                        <div id="catalogo-browser-container" class="catalogo-browser-grid">
+                            <!-- Píldoras de categorías y productos cargadas dinámicamente -->
                         </div>
                     </div>
+                </section>
+            </div>
 
-                    <!-- Barra de Progreso General con Porcentaje Destacado -->
-                    <div class="progress-section">
-                        <div class="progress-meta-row">
-                            <span class="progress-meta-label"><i class="fa-solid fa-bars-progress"></i> Progreso General</span>
-                            <span class="progress-percent-badge" id="progress-percent-badge">0%</span>
-                        </div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" id="main-progress-fill"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pantalla Virtual Integrada del Navegador RPA -->
-                <div class="glass-card virtual-screen-card" id="virtual-screen-card">
-                    <div class="virtual-screen-window-bar">
-                        <div class="window-controls">
-                            <span class="dot dot-red"></span>
-                            <span class="dot dot-yellow"></span>
-                            <span class="dot dot-green"></span>
-                        </div>
-                        <div class="virtual-address-bar">
-                            <i class="fa-solid fa-lock icon-secure"></i>
-                            <span id="virtual-url-display" class="virtual-url-text">chrome://navegador-virtual</span>
-                        </div>
-                        <div class="screen-controls">
-                            <button id="btn-toggle-screen" class="btn-toggle-screen" title="Mostrar u ocultar la pantalla en vivo">
-                                <i class="fa-solid fa-eye" id="icon-toggle-screen"></i>
-                                <span id="label-toggle-screen">Ocultar pantalla</span>
-                            </button>
-                            <span class="screen-live-tag" id="screen-live-tag"><i class="fa-solid fa-satellite-dish"></i> EN ESPERA</span>
-                        </div>
-                    </div>
-
-                    <div class="virtual-screen-body" id="virtual-screen-body">
-                        <div class="virtual-screen-viewport" id="virtual-screen-viewport">
-                            <!-- Imagen en tiempo real del screencast CDP -->
-                            <img id="live-screen-img" class="live-screen-img" alt="Pantalla virtual del robot RPA" src="" style="display: none;">
-                            
-                            <!-- Placeholder cuando el bot está en espera -->
-                            <div id="screen-placeholder" class="screen-placeholder">
-                                <div class="placeholder-content">
-                                    <div class="placeholder-icon-wrap">
-                                        <i class="fa-solid fa-display"></i>
-                                    </div>
-                                    <h4>Pantalla Virtual Lista</h4>
-                                    <p>Presiona <strong>Iniciar Proceso Completo</strong> o <strong>Buscar Producto</strong> para observar la navegación paso a paso dentro del Dashboard sin abrir ventanas externas.</p>
-                                    <div class="placeholder-tags">
-                                        <span><i class="fa-solid fa-check"></i> Sin ventanas externas</span>
-                                        <span><i class="fa-solid fa-check"></i> Cursor visible en pantalla</span>
-                                        <span><i class="fa-solid fa-check"></i> 100% Paso a paso</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Consola Virtual de Logs (Terminal) -->
-                <div class="glass-card terminal-card status-panel">
-                    <div class="terminal-topbar">
-                        <div class="terminal-dots">
-                            <span class="dot dot-red"></span>
-                            <span class="dot dot-yellow"></span>
-                            <span class="dot dot-green"></span>
-                        </div>
-                        <div class="terminal-title">
-                            <i class="fa-solid fa-terminal"></i> Terminal en Vivo / Logs
-                        </div>
-                        <div class="terminal-meta">
-                            <span>UTF-8</span>
-                        </div>
-                    </div>
-
-                    <div id="log-container" class="log-container">
-                        <p class="log-msg welcome-msg">
-                            <span class="log-timestamp">[SYS]</span> Bot RPA Comparador inicializado. Selecciona una acción para comenzar...
-                        </p>
-                    </div>
-
-                    <div class="abort-bar" id="abort-bar">
-                        <button id="btn-abort" class="btn btn-abort" title="Detener inmediatamente la ejecución del RPA">
-                            <i class="fa-solid fa-stop"></i> Detener Ejecución del Bot
-                        </button>
-                    </div>
-                </div>
-
-            </section>
         </main>
 
         <!-- Footer -->
@@ -353,46 +279,9 @@
         </footer>
     </div>
 
-    <!-- Modal de Limpieza -->
-    <div id="limpiar-modal" class="modal">
-        <div class="modal-content glass-card-modal">
-            <div class="modal-header-clean">
-                <div class="modal-icon-danger">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                </div>
-                <h2>Gestión de Historial</h2>
-                <p>Selecciona qué información deseas depurar del sistema:</p>
-            </div>
-            <div class="modal-buttons-clean">
-                <button class="btn btn-clean" data-tipo="1">
-                    <i class="fa-solid fa-basket-shopping"></i>
-                    <div>
-                        <strong>Lista Mensual</strong>
-                        <small>Limpiar registros de canasta</small>
-                    </div>
-                </button>
-                <button class="btn btn-clean" data-tipo="2">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <div>
-                        <strong>Búsquedas Individuales</strong>
-                        <small>Limpiar consultas puntuales</small>
-                    </div>
-                </button>
-                <button class="btn btn-clean btn-clean-all" data-tipo="3">
-                    <i class="fa-solid fa-dumpster-fire"></i>
-                    <div>
-                        <strong>Todo el Historial</strong>
-                        <small>Borrado completo de resultados</small>
-                    </div>
-                </button>
-            </div>
-            <div class="modal-footer-action">
-                <button id="btn-cerrar-modal" class="btn btn-secondary">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Edición de Canasta Mensual -->
+    <!-- ============================================================== -->
+    <!-- MODAL DE EDICIÓN DE CANASTA MENSUAL (SIN MANEJO DE UNIDADES)   -->
+    <!-- ============================================================== -->
     <div id="editar-lista-modal" class="modal">
         <div class="modal-content glass-card-modal modal-lista-dialog">
             <div class="modal-header-flex">
@@ -403,7 +292,7 @@
                     <div>
                         <h2>Configurar Canasta Mensual</h2>
                         <p class="modal-subtitle">
-                            Ingresa cada producto con su <strong>cantidad</strong> y <strong>unidad</strong>. Si omites la cantidad será 1.
+                            Selecciona los productos del catálogo que integrarán tu canasta mensual.
                         </p>
                     </div>
                 </div>
@@ -414,10 +303,9 @@
                 <table class="modal-table" id="modal-table-canasta">
                     <thead>
                         <tr>
-                            <th style="width: 48%;">Producto</th>
-                            <th style="width: 20%;">Cantidad</th>
-                            <th style="width: 24%;">Unidad</th>
-                            <th style="width: 8%; text-align: center;"></th>
+                            <th style="width: 65%;">Producto del Catálogo</th>
+                            <th style="width: 25%;">Presentación</th>
+                            <th style="width: 10%; text-align: center;"></th>
                         </tr>
                     </thead>
                     <tbody id="modal-tbody-canasta">

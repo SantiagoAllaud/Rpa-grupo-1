@@ -273,8 +273,10 @@ app.post('/api/compra-mes', async (req, res) => {
             items: resultados
         };
 
-        // Generar Excel consolidado
-        await runCommand('node generar_excel.js');
+        // Obtener filas comparativas procesadas para el frontend
+        const { agruparPorProducto } = require('./generar_excel.js');
+        const itemsCanastaCsv = getValidador().leerResultadosCSV(path.join(__dirname, 'resultados.csv')).filter(x => x.modo === 'compra_mes');
+        const filasComparativa = agruparPorProducto(itemsCanastaCsv);
 
         // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda
         try {
@@ -286,7 +288,8 @@ app.post('/api/compra-mes', async (req, res) => {
         if (!res.headersSent && !res.destroyed) {
             res.json({
                 success: true,
-                message: "Compra del mes finalizada exitosamente. Reporte Excel abierto.",
+                message: "Compra del mes finalizada exitosamente.",
+                filas: filasComparativa,
                 data: ultimoProcesoData
             });
         }
@@ -319,35 +322,58 @@ app.post('/api/compra-mes', async (req, res) => {
     }
 });
 
+// Endpoint para obtener la tabla comparativa estructurada (Producto | Coto | Carrefour | Día | El ganador es este)
+app.get('/api/comparativa', (req, res) => {
+    try {
+        const modo = req.query.modo || 'individual';
+        const csvPath = path.join(__dirname, 'resultados.csv');
+        if (!fs.existsSync(csvPath)) {
+            return res.json({ success: true, filas: [] });
+        }
+        const vEngine = getValidador();
+        const items = vEngine.leerResultadosCSV(csvPath).filter(x => modo === 'todos' || x.modo === modo);
+        const { agruparPorProducto } = require('./generar_excel.js');
+        const filas = agruparPorProducto(items);
+        res.json({ success: true, filas });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // Endpoint para Búsqueda Individual
 app.post('/api/buscar-individual', async (req, res) => {
     if (isRpaRunning) {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
-    const { producto, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
-    if (!producto || !producto.trim()) {
-        return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
+    const { productoId, producto, demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+    
+    // Validación estricta obligatoria contra el catálogo cerrado
+    const catEngine = getCatalogo();
+    const { items: catItems } = catEngine.cargarCatalogo();
+    let itemCatalogo = null;
+
+    if (productoId) {
+        itemCatalogo = catItems.find(it => it.id === productoId);
+    }
+    if (!itemCatalogo && producto) {
+        const valCat = catEngine.validarEntrada(producto);
+        if (valCat.valido) {
+            itemCatalogo = valCat.item;
+        }
     }
 
-    const cantNum = parseFloat(cantidad) > 0 ? parseFloat(cantidad) : 1;
-
-    // Validación estricta previa contra el catálogo cerrado
-    const catEngine = getCatalogo();
-    const valCat = catEngine.validarEntrada({ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() });
-    if (!valCat.valido) {
+    if (!itemCatalogo) {
         return res.status(400).json({
             success: false,
-            message: `El producto "${producto}" no pertenece al catálogo cerrado.`,
-            opciones: valCat.opciones ? valCat.opciones.slice(0, 10) : []
+            message: "Debes seleccionar un producto válido del catálogo cerrado."
         });
     }
 
-    // Usar término oficial del catálogo
-    const prodOficial = valCat.item ? valCat.item.producto : producto.trim();
-    const cantOficial = valCat.item ? valCat.item.cantidad : cantNum;
-    const unidOficial = valCat.item ? valCat.item.unidad : unidad.trim();
-    const termOficial = (terminoBusqueda || (valCat.item ? valCat.item.termino_busqueda : ''));
+    const prodOficial = itemCatalogo.producto;
+    const cantOficial = itemCatalogo.cantidad;
+    const unidOficial = itemCatalogo.unidad;
+    const termOficial = itemCatalogo.termino_busqueda || itemCatalogo.nombre_completo;
 
     isRpaRunning = true;
     broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
@@ -358,10 +384,10 @@ app.post('/api/buscar-individual', async (req, res) => {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
         } catch (eKill) {}
 
-        console.log(`Iniciando búsqueda para: ${prodOficial} (x${cantOficial} ${unidOficial}) [Demo: ${demoMode}]`);
-        broadcast({ type: 'log', message: `Búsqueda individual: "${prodOficial}" (Cantidad: ${cantOficial}, Unidad: ${unidOficial || 'Automática'})` });
+        console.log(`Iniciando búsqueda para: ${itemCatalogo.nombre_completo} [Demo: ${demoMode}]`);
+        broadcast({ type: 'log', message: `Búsqueda individual: "${itemCatalogo.nombre_completo}"` });
 
-        // Limpieza de consulta previa
+        // Limpieza automática de consulta previa
         getValidador().limpiarResultados('2');
 
         const resultados = await getRpaRunner().runRPA({
@@ -395,15 +421,18 @@ app.post('/api/buscar-individual', async (req, res) => {
         });
 
         ultimoProcesoData = {
-            producto: producto.trim(),
-            cantidad: cantNum,
-            unidad: unidad.trim(),
+            producto: itemCatalogo.nombre_completo,
             items: resultados
         };
 
         // Reporte en consola y actualización de Excel
-        await runCommand(`node validador.js --reporte-individual "${producto}"`);
+        await runCommand(`node validador.js --reporte-individual "${prodOficial}"`);
         await runCommand('node generar_excel.js');
+
+        // Obtener filas comparativas procesadas para el frontend
+        const { agruparPorProducto } = require('./generar_excel.js');
+        const itemsIndiv = getValidador().leerResultadosCSV(path.join(__dirname, 'resultados.csv')).filter(x => x.modo === 'individual');
+        const filasComparativa = agruparPorProducto(itemsIndiv);
 
         // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda
         try {
@@ -415,7 +444,8 @@ app.post('/api/buscar-individual', async (req, res) => {
         if (!res.headersSent && !res.destroyed) {
             res.json({
                 success: true,
-                message: `Búsqueda de "${producto}" completada. Reporte Excel abierto.`,
+                message: `Búsqueda de "${itemCatalogo.nombre_completo}" completada.`,
+                filas: filasComparativa,
                 data: ultimoProcesoData
             });
         }

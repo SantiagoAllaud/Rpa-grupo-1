@@ -1,169 +1,75 @@
+// ==============================================================================
+// UTN FRCU - Tecnologías para la Automatización (Año 2026)
+// app.js - Lógica Simplificada del Dashboard de Supermercados
+// ==============================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Referencias DOM principales
+    const selectProductoRapido = document.getElementById('select-producto-rapido');
+    const btnBuscarRapido = document.getElementById('btn-buscar-rapido');
+    const busquedaStatusBar = document.getElementById('busqueda-status-bar');
+    const busquedaStatusMsg = document.getElementById('busqueda-status-msg');
+    const busquedaResultadosWrapper = document.getElementById('busqueda-resultados-wrapper');
+    const busquedaWinnerBanner = document.getElementById('busqueda-winner-banner');
+    const busquedaTbody = document.getElementById('busqueda-tbody');
+
     const btnCompraMes = document.getElementById('btn-compra-mes');
-    const btnBuscarIndividual = document.getElementById('btn-buscar-individual');
-    const inputProducto = document.getElementById('input-producto');
-    const inputCantidad = document.getElementById('input-cantidad');
-    const inputUnidad = document.getElementById('input-unidad');
+    const btnEditarLista = document.getElementById('btn-editar-lista');
+    const compraMesStatusBar = document.getElementById('compra-mes-status-bar');
+    const compraMesStatusMsg = document.getElementById('compra-mes-status-msg');
+    const compraMesResultadosWrapper = document.getElementById('compra-mes-resultados-wrapper');
+    const compraMesWinnerBanner = document.getElementById('compra-mes-winner-banner');
+    const compraMesTbody = document.getElementById('compra-mes-tbody');
+    const compraMesTfoot = document.getElementById('compra-mes-tfoot');
+
     const btnAbrirExcel = document.getElementById('btn-abrir-excel');
-    const btnLimpiar = document.getElementById('btn-limpiar');
-    
-    const logContainer = document.getElementById('log-container');
     const statusIndicator = document.getElementById('status-indicator');
-    const btnAbort = document.getElementById('btn-abort');
-    const abortBar = document.getElementById('abort-bar');
-    
-    const modal = document.getElementById('limpiar-modal');
-    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
-    const btnsClean = document.querySelectorAll('.btn-clean');
+    const catalogoBrowserContainer = document.getElementById('catalogo-browser-container');
 
+    // Estado del catálogo en memoria
+    let catalogoGlobal = null;
+    let itemsCatalogoGlobal = [];
+    let isProcessRunning = false;
 
-    // Monitor y Pasos de Supermercados
-    const monitorStatusText = document.getElementById('monitor-status-text');
-    const mainProgressFill = document.getElementById('main-progress-fill');
-    const progressPercentBadge = document.getElementById('progress-percent-badge');
-    const stepCarrefour = document.getElementById('step-carrefour');
-    const statusCarrefour = document.getElementById('status-carrefour');
-    const stepCoto = document.getElementById('step-coto');
-    const statusCoto = document.getElementById('status-coto');
-    const stepDia = document.getElementById('step-dia');
-    const statusDia = document.getElementById('status-dia');
-
-    // Pantalla Virtual Integrada
-    const virtualScreenCard = document.getElementById('virtual-screen-card');
-    const virtualScreenBody = document.getElementById('virtual-screen-body');
-    const virtualUrlDisplay = document.getElementById('virtual-url-display');
-    const liveScreenImg = document.getElementById('live-screen-img');
-    const screenPlaceholder = document.getElementById('screen-placeholder');
-    const btnToggleScreen = document.getElementById('btn-toggle-screen');
-    const iconToggleScreen = document.getElementById('icon-toggle-screen');
-    const labelToggleScreen = document.getElementById('label-toggle-screen');
-    const screenLiveTag = document.getElementById('screen-live-tag');
-
-    let isScreenVisible = true;
-
-    // Toggle para mostrar u ocultar la pantalla virtual en vivo
-    if (btnToggleScreen && virtualScreenBody) {
-        btnToggleScreen.addEventListener('click', () => {
-            isScreenVisible = !isScreenVisible;
-            if (isScreenVisible) {
-                virtualScreenBody.style.display = 'block';
-                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye';
-                if (labelToggleScreen) labelToggleScreen.textContent = 'Ocultar pantalla';
-                btnToggleScreen.classList.remove('active');
-            } else {
-                virtualScreenBody.style.display = 'none';
-                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye-slash';
-                if (labelToggleScreen) labelToggleScreen.textContent = 'Ver en vivo';
-                btnToggleScreen.classList.add('active');
-            }
-        });
-    }
-
+    // Conexión WebSocket para sincronizar estados transparentemente
     let ws = null;
-
-    function resetSuperSteps() {
-        if (stepCarrefour) stepCarrefour.className = 'super-step-card';
-        if (statusCarrefour) statusCarrefour.textContent = 'En espera';
-        if (stepCoto) stepCoto.className = 'super-step-card';
-        if (statusCoto) statusCoto.textContent = 'En espera';
-        if (stepDia) stepDia.className = 'super-step-card';
-        if (statusDia) statusDia.textContent = 'En espera';
-        if (mainProgressFill) mainProgressFill.style.width = '0%';
-        if (progressPercentBadge) progressPercentBadge.textContent = '0%';
-        if (monitorStatusText) monitorStatusText.textContent = 'RPA EN ESPERA';
-        if (virtualUrlDisplay) virtualUrlDisplay.textContent = 'chrome://navegador-virtual';
-        if (liveScreenImg) {
-            liveScreenImg.style.display = 'none';
-            liveScreenImg.src = '';
-        }
-        if (screenPlaceholder) screenPlaceholder.style.display = 'flex';
-        if (screenLiveTag) {
-            screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
-            screenLiveTag.className = 'screen-live-tag';
-        }
-    }
-
-    // Conectar WebSocket para logs en vivo del sistema
     function connectStream() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/rpa-stream`;
-        
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            console.log("[WebSocket] Conectado con el servidor.");
+            console.log('[WebSocket] Conectado.');
         };
 
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'screencast') {
-                    if (isScreenVisible && liveScreenImg) {
-                        liveScreenImg.src = msg.data;
-                        liveScreenImg.style.display = 'block';
-                        if (screenPlaceholder) screenPlaceholder.style.display = 'none';
-                    }
-                    if (virtualUrlDisplay && msg.url) {
-                        virtualUrlDisplay.textContent = msg.url;
-                    }
-                    if (screenLiveTag) {
-                        screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
-                        screenLiveTag.className = 'screen-live-tag live';
-                    }
-                } else if (msg.type === 'nav_url') {
-                    if (virtualUrlDisplay && msg.url) {
-                        virtualUrlDisplay.textContent = msg.url;
-                    }
-                } else if (msg.type === 'log') {
-                    addLog(msg.message);
-                    parseLogStep(msg.message);
-                } else if (msg.type === 'progress') {
-                    if (typeof msg.percent === 'number') {
-                        if (mainProgressFill) mainProgressFill.style.width = `${msg.percent}%`;
-                        if (progressPercentBadge) progressPercentBadge.textContent = `${msg.percent}%`;
-                    }
-                } else if (msg.type === 'status') {
-                    if (monitorStatusText) {
+                if (msg.type === 'status') {
+                    if (statusIndicator) {
                         if (msg.state === 'live') {
-                            monitorStatusText.textContent = '🔴 NAVEGADOR VIRTUAL EN VIVO';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
-                                screenLiveTag.className = 'screen-live-tag live';
-                            }
-                        } else if (msg.state === 'connecting') {
-                            monitorStatusText.textContent = 'CONECTANDO CON NAVEGADOR...';
-                        } else if (msg.state === 'finished') {
-                            monitorStatusText.textContent = '✓ RPA FINALIZADO EXITOSAMENTE';
-                            if (mainProgressFill) mainProgressFill.style.width = '100%';
-                            if (progressPercentBadge) progressPercentBadge.textContent = '100%';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-check"></i> COMPLETADO';
-                                screenLiveTag.className = 'screen-live-tag finished';
-                            }
+                            statusIndicator.textContent = 'Procesando...';
+                            statusIndicator.className = 'indicator running';
                         } else if (msg.state === 'idle') {
-                            monitorStatusText.textContent = 'RPA EN ESPERA';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
-                                screenLiveTag.className = 'screen-live-tag';
-                            }
+                            statusIndicator.textContent = 'Listo';
+                            statusIndicator.className = 'indicator idle';
                         } else if (msg.state === 'aborted') {
-                            monitorStatusText.textContent = '🛑 RPA DETENIDO';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> DETENIDO';
-                                screenLiveTag.className = 'screen-live-tag aborted';
-                            }
-                        } else if (msg.state === 'error') {
-                            monitorStatusText.textContent = 'ERROR EN LA EJECUCIÓN';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ERROR';
-                                screenLiveTag.className = 'screen-live-tag error';
-                            }
+                            statusIndicator.textContent = 'Interrumpido';
+                            statusIndicator.className = 'indicator stopped';
                         }
                     }
+                } else if (msg.type === 'log') {
+                    // Actualizar mensaje amigable según el paso actual
+                    const m = msg.message || '';
+                    if (m.toLowerCase().includes('carrefour')) {
+                        updateActiveStatus('Consultando precios en Carrefour Argentina...');
+                    } else if (m.toLowerCase().includes('coto')) {
+                        updateActiveStatus('Consultando precios en COTO Digital...');
+                    } else if (m.toLowerCase().includes('d\u00eda') || m.toLowerCase().includes('dia')) {
+                        updateActiveStatus('Consultando precios en Supermercados D\u00eda %...');
+                    }
                 }
-            } catch (e) {
-                console.error("[WebSocket] Error:", e);
-            }
+            } catch (e) {}
         };
 
         ws.onclose = () => {
@@ -171,127 +77,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    function updateActiveStatus(texto) {
+        if (busquedaStatusBar && busquedaStatusBar.style.display !== 'none') {
+            if (busquedaStatusMsg) busquedaStatusMsg.textContent = texto;
+        }
+        if (compraMesStatusBar && compraMesStatusBar.style.display !== 'none') {
+            if (compraMesStatusMsg) compraMesStatusMsg.textContent = texto;
+        }
+    }
+
     connectStream();
 
-    // Actualiza los pasos de los 3 supermercados según los logs
-    function parseLogStep(text) {
-        if (!text) return;
-        if (text.includes('[SUPERMERCADO 1]')) {
-            if (stepCarrefour) stepCarrefour.className = 'super-step-card active';
-            if (statusCarrefour) statusCarrefour.textContent = 'En curso...';
-            if (mainProgressFill) mainProgressFill.style.width = '25%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '25%';
-            if (text.includes('Finalizado')) {
-                if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
-                if (statusCarrefour) statusCarrefour.textContent = '✓ Completado';
-                if (mainProgressFill) mainProgressFill.style.width = '35%';
-                if (progressPercentBadge) progressPercentBadge.textContent = '35%';
-            }
-        } else if (text.includes('[SUPERMERCADO 2]')) {
-            if (stepCoto) stepCoto.className = 'super-step-card active';
-            if (statusCoto) statusCoto.textContent = 'En curso...';
-            if (mainProgressFill) mainProgressFill.style.width = '55%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '55%';
-            if (text.includes('Finalizado')) {
-                if (stepCoto) stepCoto.className = 'super-step-card completed';
-                if (statusCoto) statusCoto.textContent = '✓ Completado';
-                if (mainProgressFill) mainProgressFill.style.width = '70%';
-                if (progressPercentBadge) progressPercentBadge.textContent = '70%';
-            }
-        } else if (text.includes('[SUPERMERCADO 3]')) {
-            if (stepDia) stepDia.className = 'super-step-card active';
-            if (statusDia) statusDia.textContent = 'En curso...';
-            if (mainProgressFill) mainProgressFill.style.width = '85%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '85%';
-            if (text.includes('Finalizado')) {
-                if (stepDia) stepDia.className = 'super-step-card completed';
-                if (statusDia) statusDia.textContent = '✓ Completado';
-                if (mainProgressFill) mainProgressFill.style.width = '100%';
-                if (progressPercentBadge) progressPercentBadge.textContent = '100%';
-            }
-        } else if (text.includes('[ RPA FINALIZADO ]')) {
-            if (stepCarrefour) stepCarrefour.className = 'super-step-card completed';
-            if (stepCoto) stepCoto.className = 'super-step-card completed';
-            if (stepDia) stepDia.className = 'super-step-card completed';
-            if (mainProgressFill) mainProgressFill.style.width = '100%';
-            if (progressPercentBadge) progressPercentBadge.textContent = '100%';
-        }
-    }
-
-    // Añadir mensajes a la consola virtual
-    function addLog(msg, isError = false) {
-        const p = document.createElement('p');
-        p.textContent = `> ${msg}`;
-        if (isError) p.classList.add('log-error');
-        logContainer.appendChild(p);
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
-
-    // Cambiar estado visual de botones
-    function setRunningState(isRunning) {
-        const btns = document.querySelectorAll('button:not(#btn-cerrar-modal):not(#btn-abort):not(#btn-toggle-screen)');
-        btns.forEach(btn => btn.disabled = isRunning);
-        
-        if (isRunning) {
-            statusIndicator.textContent = "Procesando...";
-            statusIndicator.className = "indicator running";
-            if (abortBar) abortBar.classList.add('visible');
-            if (btnAbort) btnAbort.disabled = false;
-        } else {
-            statusIndicator.textContent = "Listo";
-            statusIndicator.className = "indicator idle";
-            if (abortBar) abortBar.classList.remove('visible');
-        }
-    }
-
-    // Ejecutar llamada a la API
-    async function executeAction(endpoint, body = null) {
-        resetSuperSteps();
-        setRunningState(true);
-        addLog(`Iniciando: ${endpoint}...`);
-
-        const payload = Object.assign({}, body || {}, {
-            demoMode: true,
-            typingDelay: 50,
-            mouseDuration: 600,
-            headless: true
-        });
-        
-        try {
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            };
-            
-            const response = await fetch(endpoint, options);
-            const data = await response.json();
-            
-            if (data.success) {
-                addLog(`✓ ${data.message}`);
-            } else {
-                addLog(`Error: ${data.message}`, true);
-            }
-        } catch (error) {
-            addLog(`Error de conexión: ${error.message}`, true);
-        } finally {
-            setRunningState(false);
-        }
-    }
-
     // ==========================================================================
-    // GESTIÓN DEL CATÁLOGO CERRADO EN EL FRONTEND
+    // 1. CARGA DEL CATÁLOGO CERRADO Y POBLADO DE SELECTORES
     // ==========================================================================
-    let catalogoGlobal = null;
-    let itemsCatalogoGlobal = [];
-    const selectCategoria = document.getElementById('select-categoria');
-    const selectProducto = document.getElementById('select-producto');
-    const inputUnidadesCompra = document.getElementById('input-unidades-compra');
-    const boxInfoProducto = document.getElementById('box-info-producto');
-    const infoMarca = document.getElementById('info-marca');
-    const infoVariante = document.getElementById('info-variante');
-    const infoPresentacion = document.getElementById('info-presentacion');
-
     async function cargarCatalogoUI() {
         try {
             const resp = await fetch('/api/catalogo');
@@ -299,121 +98,319 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success && data.catalogo) {
                 catalogoGlobal = data.catalogo;
                 itemsCatalogoGlobal = data.items || [];
-                poblarSelectCategorias();
+                poblarSelectRapido();
+                renderCatalogoBrowser();
             }
         } catch (e) {
-            console.error('Error cargando catálogo:', e);
+            console.error('Error al cargar catálogo:', e);
         }
     }
 
-    function poblarSelectCategorias() {
-        if (!selectCategoria || !catalogoGlobal) return;
-        selectCategoria.innerHTML = '<option value="">-- Selecciona una categoría --</option>';
+    function poblarSelectRapido() {
+        if (!selectProductoRapido || !catalogoGlobal) return;
+        selectProductoRapido.innerHTML = '<option value="">-- Selecciona un producto del catálogo --</option>';
+
         const categorias = Object.keys(catalogoGlobal);
         categorias.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat;
-            opt.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
-            selectCategoria.appendChild(opt);
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = cat.toUpperCase();
+
+            const prods = catalogoGlobal[cat] || [];
+            prods.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = `${item.nombre_completo}`;
+                optgroup.appendChild(opt);
+            });
+
+            selectProductoRapido.appendChild(optgroup);
         });
-        if (categorias.length > 0) {
-            selectCategoria.value = categorias[0];
-            poblarSelectProductos(categorias[0]);
-        }
     }
 
-    function poblarSelectProductos(categoria) {
-        if (!selectProducto || !catalogoGlobal) return;
-        selectProducto.innerHTML = '<option value="">-- Selecciona un producto --</option>';
-        if (!categoria || !catalogoGlobal[categoria]) {
-            if (boxInfoProducto) boxInfoProducto.style.display = 'none';
+    function renderCatalogoBrowser() {
+        if (!catalogoBrowserContainer || !catalogoGlobal) return;
+        catalogoBrowserContainer.innerHTML = '';
+
+        const categorias = Object.keys(catalogoGlobal);
+        categorias.forEach(cat => {
+            const catCard = document.createElement('div');
+            catCard.className = 'catalogo-cat-card';
+
+            const catTitle = document.createElement('h5');
+            catTitle.innerHTML = `<i class="fa-solid fa-folder-open"></i> ${cat.toUpperCase()}`;
+            catCard.appendChild(catTitle);
+
+            const list = document.createElement('div');
+            list.className = 'catalogo-items-list';
+
+            const prods = catalogoGlobal[cat] || [];
+            prods.forEach(item => {
+                const itemBtn = document.createElement('button');
+                itemBtn.type = 'button';
+                itemBtn.className = 'catalogo-item-chip';
+                itemBtn.innerHTML = `<strong>${item.nombre_completo}</strong> <span class="chip-sub">(${item.marca})</span>`;
+                itemBtn.title = 'Haz clic para seleccionar este producto para búsqueda rápida';
+                
+                itemBtn.addEventListener('click', () => {
+                    if (selectProductoRapido) {
+                        selectProductoRapido.value = item.id;
+                        selectProductoRapido.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        selectProductoRapido.focus();
+                    }
+                });
+
+                list.appendChild(itemBtn);
+            });
+
+            catCard.appendChild(list);
+            catalogoBrowserContainer.appendChild(catCard);
+        });
+    }
+
+    // ==========================================================================
+    // 2. FORMATEO DE CELDAS Y TABLAS COMPARATIVAS
+    // ==========================================================================
+    function formatearMoneda(val) {
+        if (typeof val === 'number') {
+            return '$ ' + val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        return val || 'No encontrado';
+    }
+
+    function construirFilaComparativa(item) {
+        const tr = document.createElement('tr');
+
+        // Celda 1: Producto
+        const tdProd = document.createElement('td');
+        tdProd.className = 'td-producto';
+        tdProd.innerHTML = `<strong>${escapeHtml(item.producto)}</strong>`;
+        tr.appendChild(tdProd);
+
+        // Celda 2: Coto
+        const tdCoto = document.createElement('td');
+        tdCoto.className = typeof item.coto === 'number' ? 'td-precio' : 'td-nodisp';
+        tdCoto.textContent = formatearMoneda(item.cotoTexto);
+        tr.appendChild(tdCoto);
+
+        // Celda 3: Carrefour
+        const tdCarrefour = document.createElement('td');
+        tdCarrefour.className = typeof item.carrefour === 'number' ? 'td-precio' : 'td-nodisp';
+        tdCarrefour.textContent = formatearMoneda(item.carrefourTexto);
+        tr.appendChild(tdCarrefour);
+
+        // Celda 4: Día
+        const tdDia = document.createElement('td');
+        tdDia.className = typeof item.dia === 'number' ? 'td-precio' : 'td-nodisp';
+        tdDia.textContent = formatearMoneda(item.diaTexto);
+        tr.appendChild(tdDia);
+
+        // Celda 5: El ganador es este
+        const tdGanador = document.createElement('td');
+        tdGanador.className = 'td-ganador';
+        if (item.ganador && item.ganador !== 'No se pudo determinar un ganador') {
+            tdGanador.innerHTML = `<span class="badge-winner"><i class="fa-solid fa-trophy"></i> ${escapeHtml(item.ganador)}</span>`;
+        } else {
+            tdGanador.innerHTML = `<span class="badge-no-winner">No determinado</span>`;
+        }
+        tr.appendChild(tdGanador);
+
+        return tr;
+    }
+
+    function renderTablaResultados(filas, tbodyElement, bannerElement) {
+        if (!tbodyElement) return;
+        tbodyElement.innerHTML = '';
+
+        if (!filas || filas.length === 0) {
+            tbodyElement.innerHTML = '<tr><td colspan="5" class="td-empty">No hay resultados disponibles para mostrar.</td></tr>';
+            if (bannerElement) bannerElement.innerHTML = '';
             return;
         }
 
-        const prods = catalogoGlobal[categoria];
-        prods.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.nombre_completo}`;
-            selectProducto.appendChild(opt);
+        filas.forEach(f => {
+            tbodyElement.appendChild(construirFilaComparativa(f));
         });
 
-        if (prods.length > 0) {
-            selectProducto.value = prods[0].id;
-            mostrarInfoProducto(prods[0]);
+        if (bannerElement) {
+            const primer = filas[0];
+            if (primer && primer.ganador && primer.ganador !== 'No se pudo determinar un ganador') {
+                bannerElement.innerHTML = `
+                    <div class="winner-alert-box">
+                        <div class="winner-icon"><i class="fa-solid fa-crown"></i></div>
+                        <div>
+                            <h4>EL GANADOR ES: <span>${escapeHtml(primer.ganador.toUpperCase())}</span></h4>
+                            <p>Mejor precio válido encontrado para ${escapeHtml(primer.producto)}.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                bannerElement.innerHTML = `
+                    <div class="winner-alert-box neutral">
+                        <div class="winner-icon"><i class="fa-solid fa-circle-info"></i></div>
+                        <div>
+                            <h4>No se pudo determinar un ganador</h4>
+                            <p>El producto no se encontró disponible con precio válido en los supermercados.</p>
+                        </div>
+                    </div>
+                `;
+            }
         }
     }
 
-    function mostrarInfoProducto(item) {
-        if (!boxInfoProducto) return;
-        if (!item) {
-            boxInfoProducto.style.display = 'none';
-            return;
+    // ==========================================================================
+    // 3. BÚSQUEDA RÁPIDA (SELECTOR OBLIGATORIO + SIN UNIDADES)
+    // ==========================================================================
+    if (btnBuscarRapido) {
+        btnBuscarRapido.addEventListener('click', async () => {
+            const prodId = selectProductoRapido ? selectProductoRapido.value : '';
+            if (!prodId) {
+                alert('Por favor selecciona un producto del catálogo para realizar la búsqueda.');
+                if (selectProductoRapido) selectProductoRapido.focus();
+                return;
+            }
+
+            if (isProcessRunning) {
+                alert('Ya hay un proceso de búsqueda en ejecución.');
+                return;
+            }
+
+            const item = itemsCatalogoGlobal.find(it => it.id === prodId);
+            const nombreProd = item ? item.nombre_completo : prodId;
+
+            // Mostrar estado de carga y ocultar resultados anteriores
+            isProcessRunning = true;
+            btnBuscarRapido.disabled = true;
+            if (busquedaStatusBar) {
+                busquedaStatusBar.style.display = 'flex';
+                if (busquedaStatusMsg) busquedaStatusMsg.textContent = `Buscando "${nombreProd}" en COTO, Carrefour y Día %...`;
+            }
+            if (busquedaResultadosWrapper) busquedaResultadosWrapper.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/buscar-individual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productoId: prodId, producto: item ? item.producto : '' })
+                });
+
+                const data = await resp.json();
+                if (data.success && data.filas) {
+                    renderTablaResultados(data.filas, busquedaTbody, busquedaWinnerBanner);
+                    if (busquedaResultadosWrapper) busquedaResultadosWrapper.style.display = 'block';
+                } else {
+                    alert(data.message || 'Error al realizar la búsqueda.');
+                }
+            } catch (err) {
+                alert('Ocurrió un error de comunicación con el servidor: ' + err.message);
+            } finally {
+                isProcessRunning = false;
+                btnBuscarRapido.disabled = false;
+                if (busquedaStatusBar) busquedaStatusBar.style.display = 'none';
+            }
+        });
+    }
+
+    // ==========================================================================
+    // 4. COMPRA DEL MES
+    // ==========================================================================
+    function renderCanastaTotal(filas) {
+        if (!compraMesTfoot) return;
+        compraMesTfoot.innerHTML = '';
+
+        let totalCoto = 0, countCoto = 0;
+        let totalCarrefour = 0, countCarrefour = 0;
+        let totalDia = 0, countDia = 0;
+
+        filas.forEach(f => {
+            if (typeof f.coto === 'number') { totalCoto += f.coto; countCoto++; }
+            if (typeof f.carrefour === 'number') { totalCarrefour += f.carrefour; countCarrefour++; }
+            if (typeof f.dia === 'number') { totalDia += f.dia; countDia++; }
+        });
+
+        const valCoto = countCoto > 0 ? totalCoto : null;
+        const valCarrefour = countCarrefour > 0 ? totalCarrefour : null;
+        const valDia = countDia > 0 ? totalDia : null;
+
+        // Determinar ganador total
+        const candidatos = [];
+        if (valCoto !== null) candidatos.push({ superm: 'COTO', precio: valCoto });
+        if (valCarrefour !== null) candidatos.push({ superm: 'Carrefour', precio: valCarrefour });
+        if (valDia !== null) candidatos.push({ superm: 'Día %', precio: valDia });
+
+        candidatos.sort((a, b) => a.precio - b.precio);
+        const ganadorTotal = candidatos.length > 0 ? candidatos[0].superm : 'No determinado';
+
+        const tr = document.createElement('tr');
+        tr.className = 'tr-total';
+        tr.innerHTML = `
+            <td><strong>TOTAL ESTIMADO CANASTA</strong></td>
+            <td class="td-precio"><strong>${formatearMoneda(valCoto)}</strong></td>
+            <td class="td-precio"><strong>${formatearMoneda(valCarrefour)}</strong></td>
+            <td class="td-precio"><strong>${formatearMoneda(valDia)}</strong></td>
+            <td class="td-ganador">
+                <span class="badge-winner"><i class="fa-solid fa-trophy"></i> ${ganadorTotal}</span>
+            </td>
+        `;
+        compraMesTfoot.appendChild(tr);
+
+        if (compraMesWinnerBanner) {
+            if (ganadorTotal !== 'No determinado') {
+                compraMesWinnerBanner.innerHTML = `
+                    <div class="winner-alert-box">
+                        <div class="winner-icon"><i class="fa-solid fa-crown"></i></div>
+                        <div>
+                            <h4>CANASTA GANADORA: <span>${escapeHtml(ganadorTotal.toUpperCase())}</span></h4>
+                            <p>Es la opción más económica para la compra mensual completa.</p>
+                        </div>
+                    </div>
+                `;
+            }
         }
-        boxInfoProducto.style.display = 'block';
-        if (infoMarca) infoMarca.textContent = item.marca;
-        if (infoVariante) infoVariante.textContent = item.variante || 'N/A';
-        if (infoPresentacion) infoPresentacion.textContent = `${item.cantidad} ${item.unidad}`;
     }
 
-    if (selectCategoria) {
-        selectCategoria.addEventListener('change', (e) => {
-            poblarSelectProductos(e.target.value);
+    if (btnCompraMes) {
+        btnCompraMes.addEventListener('click', async () => {
+            if (isProcessRunning) {
+                alert('Ya hay un proceso en ejecución.');
+                return;
+            }
+
+            isProcessRunning = true;
+            btnCompraMes.disabled = true;
+            if (compraMesStatusBar) {
+                compraMesStatusBar.style.display = 'flex';
+                if (compraMesStatusMsg) compraMesStatusMsg.textContent = 'Procesando canasta mensual en los 3 supermercados...';
+            }
+            if (compraMesResultadosWrapper) compraMesResultadosWrapper.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/compra-mes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+
+                const data = await resp.json();
+                if (data.success && data.filas) {
+                    renderTablaResultados(data.filas, compraMesTbody, null);
+                    renderCanastaTotal(data.filas);
+                    if (compraMesResultadosWrapper) compraMesResultadosWrapper.style.display = 'block';
+                } else {
+                    alert(data.message || 'Error al procesar la canasta mensual.');
+                }
+            } catch (err) {
+                alert('Error al ejecutar compra del mes: ' + err.message);
+            } finally {
+                isProcessRunning = false;
+                btnCompraMes.disabled = false;
+                if (compraMesStatusBar) compraMesStatusBar.style.display = 'none';
+            }
         });
     }
 
-    if (selectProducto) {
-        selectProducto.addEventListener('change', (e) => {
-            const item = itemsCatalogoGlobal.find(it => it.id === e.target.value);
-            mostrarInfoProducto(item);
-        });
-    }
-
-    // Iniciar carga del catálogo
-    cargarCatalogoUI();
-
-    // Eventos de Botones Principales
-    btnCompraMes.addEventListener('click', () => {
-        executeAction('/api/compra-mes');
-    });
-
-    btnBuscarIndividual.addEventListener('click', () => {
-        const prodId = selectProducto ? selectProducto.value : '';
-        const item = itemsCatalogoGlobal.find(it => it.id === prodId);
-        const unidades = inputUnidadesCompra ? (parseInt(inputUnidadesCompra.value, 10) || 1) : 1;
-
-        if (!item) {
-            addLog("Por favor selecciona un producto del catálogo cerrado.", true);
-            return;
-        }
-
-        executeAction('/api/buscar-individual', {
-            producto: item.producto,
-            terminoBusqueda: item.termino_busqueda || item.nombre_completo,
-            cantidad: item.cantidad,
-            unidad: item.unidad,
-            unidades: unidades
-        });
-    });
-
-    btnAbrirExcel.addEventListener('click', () => {
-        executeAction('/api/abrir-excel');
-    });
-
-    // Manejo de Modal de Limpieza
-    btnLimpiar.addEventListener('click', () => modal.classList.add('active'));
-    btnCerrarModal.addEventListener('click', () => modal.classList.remove('active'));
-
-    btnsClean.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tipo = btn.getAttribute('data-tipo');
-            modal.classList.remove('active');
-            executeAction('/api/limpiar', { tipo });
-        });
-    });
-
-    // Manejo del Modal de Edición de Lista Interactiva
-    const btnEditarLista = document.getElementById('btn-editar-lista');
+    // ==========================================================================
+    // 5. MODAL DE EDICIÓN DE CANASTA (SIN MANEJO DE UNIDADES)
+    // ==========================================================================
     const editarModal = document.getElementById('editar-lista-modal');
     const btnCerrarEditarModal = document.getElementById('btn-cerrar-editar-modal');
     const btnCerrarXModal = document.getElementById('btn-cerrar-x-modal');
@@ -426,9 +423,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    function crearFilaCanasta(prodItem = null, unidades = 1) {
+    function crearFilaCanasta(prodItem = null) {
         const tr = document.createElement('tr');
-        
+
         let selectOptions = '<option value="">-- Selecciona producto del catálogo --</option>';
         itemsCatalogoGlobal.forEach(it => {
             const selected = (prodItem && (it.id === prodItem.id || it.producto.toLowerCase() === prodItem.producto.toLowerCase())) ? 'selected' : '';
@@ -443,9 +440,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </td>
             <td>
                 <span class="modal-pres-label" style="color: #34d399; font-weight: 600; font-size: 0.88rem;">-</span>
-            </td>
-            <td>
-                <input type="number" class="modal-input modal-input-unid-compra" min="1" step="1" value="${unidades > 0 ? unidades : 1}" />
             </td>
             <td style="text-align: center;">
                 <button type="button" class="btn-del-row" title="Eliminar este producto"><i class="fa-solid fa-trash"></i></button>
@@ -475,9 +469,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnEditarLista) {
         btnEditarLista.addEventListener('click', async () => {
-            editarModal.classList.add('active');
+            if (editarModal) editarModal.classList.add('active');
             if (modalTbodyCanasta) {
-                modalTbodyCanasta.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando lista...</td></tr>';
+                modalTbodyCanasta.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando lista...</td></tr>';
             }
             try {
                 const response = await fetch('/api/input');
@@ -493,30 +487,29 @@ document.addEventListener('DOMContentLoaded', () => {
                             const prodText = parts[0] ? parts[0].trim() : '';
                             const cant = parts[1] ? (parseFloat(parts[1].trim()) || 1) : 1;
                             const unid = parts[2] ? parts[2].trim() : '';
-                            const unidades = parts[3] ? (parseInt(parts[3].trim(), 10) || 1) : 1;
 
-                            const matched = itemsCatalogoGlobal.find(it => 
+                            const matched = itemsCatalogoGlobal.find(it =>
                                 it.producto.toLowerCase() === prodText.toLowerCase() ||
                                 it.nombre_completo.toLowerCase().includes(prodText.toLowerCase()) ||
                                 it.marca.toLowerCase() === prodText.toLowerCase()
                             );
 
                             if (prodText) {
-                                modalTbodyCanasta.appendChild(crearFilaCanasta(matched || { id: '', producto: prodText, cantidad: cant, unidad: unid }, unidades));
+                                modalTbodyCanasta.appendChild(crearFilaCanasta(matched || { id: '', producto: prodText, cantidad: cant, unidad: unid }));
                                 count++;
                             }
                         }
                     }
                     if (count === 0) {
-                        modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
+                        modalTbodyCanasta.appendChild(crearFilaCanasta(null));
                     }
                 } else if (modalTbodyCanasta) {
-                    modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
+                    modalTbodyCanasta.appendChild(crearFilaCanasta(null));
                 }
             } catch (e) {
                 if (modalTbodyCanasta) {
                     modalTbodyCanasta.innerHTML = '';
-                    modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
+                    modalTbodyCanasta.appendChild(crearFilaCanasta(null));
                 }
             }
         });
@@ -525,21 +518,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnAgregarFilaModal) {
         btnAgregarFilaModal.addEventListener('click', () => {
             if (modalTbodyCanasta) {
-                const tr = crearFilaCanasta(null, 1);
-                modalTbodyCanasta.appendChild(tr);
+                modalTbodyCanasta.appendChild(crearFilaCanasta(null));
             }
         });
     }
 
     if (btnCerrarEditarModal) {
         btnCerrarEditarModal.addEventListener('click', () => {
-            editarModal.classList.remove('active');
+            if (editarModal) editarModal.classList.remove('active');
         });
     }
 
     if (btnCerrarXModal) {
         btnCerrarXModal.addEventListener('click', () => {
-            editarModal.classList.remove('active');
+            if (editarModal) editarModal.classList.remove('active');
         });
     }
 
@@ -547,24 +539,22 @@ document.addEventListener('DOMContentLoaded', () => {
         btnGuardarLista.addEventListener('click', async () => {
             if (!modalTbodyCanasta) return;
             const rows = modalTbodyCanasta.querySelectorAll('tr');
-            let contenido = "producto,cantidad,unidad,unidades\n";
+            let contenido = "producto,cantidad,unidad\n";
             let validCount = 0;
 
             rows.forEach(r => {
                 const selProd = r.querySelector('.modal-select-prod');
-                const unidadesInput = r.querySelector('.modal-input-unid-compra');
                 if (selProd && selProd.value) {
                     const item = itemsCatalogoGlobal.find(it => it.id === selProd.value);
-                    const unidades = parseInt(unidadesInput ? unidadesInput.value : '1', 10) || 1;
                     if (item) {
-                        contenido += `${item.producto},${item.cantidad},${item.unidad},${unidades}\n`;
+                        contenido += `${item.producto},${item.cantidad},${item.unidad}\n`;
                         validCount++;
                     }
                 }
             });
 
             if (validCount === 0) {
-                alert("Debes agregar al menos un producto del catálogo a la lista.");
+                alert('Debes agregar al menos un producto del catálogo a la canasta.');
                 return;
             }
 
@@ -576,8 +566,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const data = await response.json();
                 if (data.success) {
-                    editarModal.classList.remove('active');
-                    addLog("✓ Lista mensual guardada exitosamente y validada con el catálogo cerrado.");
+                    if (editarModal) editarModal.classList.remove('active');
+                    alert('Canasta mensual guardada exitosamente.');
                 } else {
                     alert(`Error al guardar: ${data.message}`);
                 }
@@ -587,23 +577,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-    // Kill-switch: botón de aborto visible en la interfaz
-    if (btnAbort) {
-        btnAbort.addEventListener('click', async () => {
-            btnAbort.disabled = true;
-            addLog('⛔ Solicitando aborto del RPA...');
+    // ==========================================================================
+    // 6. REPORTES Y UTILIDADES (ABRIR EXCEL)
+    // ==========================================================================
+    if (btnAbrirExcel) {
+        btnAbrirExcel.addEventListener('click', async () => {
             try {
-                await fetch('/api/abort', { method: 'POST' });
-                addLog('✓ RPA detenido por el usuario.');
-            } catch (e) {
-                addLog('Error al abortar: ' + e.message, true);
-            }
-            setRunningState(false);
+                await fetch('/api/abrir-excel');
+            } catch (e) {}
         });
     }
 
-    // Control de Portada / Pantalla de Bienvenida
+    // ==========================================================================
+    // 7. PORTADA Y PRESENTACIÓN ACADÉMICA
+    // ==========================================================================
     const welcomeScreen = document.getElementById('welcome-screen');
     const btnEntrarDashboard = document.getElementById('btn-entrar-dashboard');
     const btnVolverPortada = document.getElementById('btn-volver-portada');
@@ -620,10 +607,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Kill-switch: Si el usuario cierra el frontend en el navegador, abortar la búsqueda inmediatamente
-    window.addEventListener('beforeunload', () => {
+    // Cargar datos comparativos previos si existen
+    async function cargarComparativasPrevias() {
         try {
-            navigator.sendBeacon('/api/abort');
+            const respIndiv = await fetch('/api/comparativa?modo=individual');
+            const dataIndiv = await respIndiv.json();
+            if (dataIndiv.success && dataIndiv.filas && dataIndiv.filas.length > 0) {
+                renderTablaResultados(dataIndiv.filas, busquedaTbody, busquedaWinnerBanner);
+                if (busquedaResultadosWrapper) busquedaResultadosWrapper.style.display = 'block';
+            }
+
+            const respMes = await fetch('/api/comparativa?modo=compra_mes');
+            const dataMes = await respMes.json();
+            if (dataMes.success && dataMes.filas && dataMes.filas.length > 0) {
+                renderTablaResultados(dataMes.filas, compraMesTbody, null);
+                renderCanastaTotal(dataMes.filas);
+                if (compraMesResultadosWrapper) compraMesResultadosWrapper.style.display = 'block';
+            }
         } catch (e) {}
+    }
+
+    // Iniciar UI
+    cargarCatalogoUI().then(() => {
+        cargarComparativasPrevias();
     });
 });
