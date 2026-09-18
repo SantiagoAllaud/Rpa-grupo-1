@@ -50,7 +50,7 @@ function cargarCatalogo() {
     itemsPlanosCache = items;
     return { catalogo: catalogoCache, items: itemsPlanosCache };
 }
-
+//aa
 // Normalización matemática dimensional exacta de volumen y peso
 function normalizarPresentacion(cantidad, unidad) {
     if (cantidad === undefined || cantidad === null) return null;
@@ -90,7 +90,7 @@ function esPresentacionEquivalente(cantA, unidA, cantB, unidB) {
 function parsearStringProducto(str) {
     if (!str || typeof str !== 'string') return { texto: '', cantidad: null, unidad: '' };
     const raw = str.trim();
-    
+
     // Detectar volumen
     const mVol = raw.match(/(\d+(?:[.,]\d+)?)\s*(litros?|lts?|lt|l|mililitros?|mls?|ml|cc)\b/i);
     if (mVol) {
