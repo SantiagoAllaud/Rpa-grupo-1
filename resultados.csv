@@ -1,6 +1,3 @@
 modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad,unidad
 compra_mes,galletitas,Galletitas clásicas Traviata x5 108 g,"$ 3.160,00",Carrefour,https://www.carrefour.com.ar/galletitas-clasicas-traviata-x5-108-g-737518/p,2026-09-11,DISPONIBLE,1,
 compra_mes,galletitas,Galletitas Dulces Tía Maruca Pepas 250g,"$1.430,00",COTO,https://www.coto.com.ar/productos/galletitas-dulces-tia-maruca-pepas-250g-/_/R-00163523-00163523-200,2026-09-11,DISPONIBLE,1,
-"individual","coca cola","Gaseosa cola Coca Cola sabor original 220 ml","$ 1.100,00","Carrefour","https://www.carrefour.com.ar/gaseosa-cola-coca-cola-sabor-original-220-ml-625279/p","2026-09-11","DISPONIBLE","1","2L"
-"individual","coca cola","No encontrado","N/D","COTO","https://www.coto.com.ar","2026-09-11","NO ENCONTRADO","1","2L"
-"individual","coca cola","Gaseosa Coca-Cola Sabor Original 220 Ml.","$ 1.100","Día %","https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-sabor-original-220-ml-243985/p","2026-09-11","DISPONIBLE","1","2L"

@@ -3,7 +3,14 @@
 // rpa_runner.js - Motor de Automatización RPA 100% Visible Paso a Paso
 // ==============================================================================
 
-const puppeteer = require('puppeteer-core');
+let puppeteerInstance = null;
+async function getPuppeteer() {
+    if (!puppeteerInstance) {
+        const mod = await import('puppeteer-core');
+        puppeteerInstance = mod.default || mod;
+    }
+    return puppeteerInstance;
+}
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
@@ -976,6 +983,7 @@ async function runRPA({
     const resultadosSesion = [];
 
     try {
+        const puppeteer = await getPuppeteer();
         browser = await puppeteer.launch({
             executablePath: chromePath,
             headless: false, // 100% VISIBLE en el escritorio del usuario
