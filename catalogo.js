@@ -50,7 +50,7 @@ function cargarCatalogo() {
     itemsPlanosCache = items;
     return { catalogo: catalogoCache, items: itemsPlanosCache };
 }
-//aa
+
 // Normalización matemática dimensional exacta de volumen y peso
 function normalizarPresentacion(cantidad, unidad) {
     if (cantidad === undefined || cantidad === null) return null;
