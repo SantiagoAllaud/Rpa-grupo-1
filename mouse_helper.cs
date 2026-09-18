@@ -85,7 +85,27 @@ public class MouseHelper {
     [DllImport("user32.dll")]
     public static extern bool BringWindowToTop(IntPtr hWnd);
 
+    public static int GetStoredChromePid() {
+        try {
+            string envPid = Environment.GetEnvironmentVariable("CHROME_PID");
+            if (!string.IsNullOrEmpty(envPid)) {
+                int p;
+                if (int.TryParse(envPid, out p) && p > 0) return p;
+            }
+        } catch {}
+        try {
+            string pidFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "chrome.pid");
+            if (System.IO.File.Exists(pidFile)) {
+                string txt = System.IO.File.ReadAllText(pidFile).Trim();
+                int p;
+                if (int.TryParse(txt, out p) && p > 0) return p;
+            }
+        } catch {}
+        return 0;
+    }
+
     public static IntPtr GetChromeHwnd(int targetPid = 0) {
+        if (targetPid <= 0) targetPid = GetStoredChromePid();
         IntPtr found = IntPtr.Zero;
         try {
             EnumWindows(delegate(IntPtr hWnd, IntPtr lParam) {
@@ -159,6 +179,11 @@ public class MouseHelper {
             AttachToDefaultDesktop();
             IntPtr hwnd = FindChromeHwndWithRetry(targetPid, 2000);
             if (hwnd != IntPtr.Zero) {
+                IntPtr foreWnd = GetForegroundWindow();
+                if (foreWnd == hwnd) {
+                    return true;
+                }
+
                 // 1. Des-minimizar ÚNICAMENTE si la ventana se encuentra minimizada (evita achicar ventanas maximizadas)
                 if (IsIconic(hwnd)) {
                     ShowWindow(hwnd, SW_RESTORE);
@@ -172,7 +197,7 @@ public class MouseHelper {
                 }
 
                 // 3. Traer al frente saltando la restricción ForegroundLockTimeout de Windows
-                IntPtr foreWnd = GetForegroundWindow();
+                foreWnd = GetForegroundWindow();
                 uint dummyPid;
                 uint foreThread = GetWindowThreadProcessId(foreWnd, out dummyPid);
                 uint curThread = GetCurrentThreadId();
@@ -410,12 +435,12 @@ public class MouseHelper {
     }
 
     public static void ClickViewport(int x, int y, int outerWidth, int outerHeight, int innerWidth, int innerHeight, int durationMs) {
+        POINT screenPoint = ViewportToScreen(x, y, outerWidth, outerHeight, innerWidth, innerHeight);
         if (durationMs > 0) {
-            MoveViewport(x, y, outerWidth, outerHeight, innerWidth, innerHeight, durationMs);
+            MoveSmooth(screenPoint.X, screenPoint.Y, durationMs);
         } else {
-            FocusChrome();
-            POINT cur = GetPosition();
-            SetFailsafeState(false, cur.X, cur.Y);
+            SetCursorPos(screenPoint.X, screenPoint.Y);
+            SetFailsafeState(false, screenPoint.X, screenPoint.Y);
         }
         Click(null, null, 0);
     }
@@ -474,24 +499,25 @@ public class MouseHelper {
     }
 
     // Navegación 100% VISIBLE por la barra de direcciones de Chrome:
-    // 1. Foco en Chrome -> 2. Mover mouse a Omnibox -> 3. Click real -> 4. Ctrl+L para seleccionar todo -> 5. Pausa -> 6. Tipeo carácter por carácter -> 7. Enter
+    // 1. Foco en Chrome -> 2. Mover mouse a Omnibox -> 3. Click real -> 4. Alt+D / Ctrl+L para seleccionar todo -> 5. Pausa -> 6. Tipeo carácter por carácter -> 7. Enter
     public static void NavigateOmnibox(string url, int typingDelayMs) {
         // 1. Llevar Chrome al frente
-        FocusChrome();
+        int pid = GetStoredChromePid();
+        FocusChrome(pid);
         Thread.Sleep(150);
         POINT preNav = GetPosition();
         SetFailsafeState(false, preNav.X, preNav.Y);
 
-        IntPtr hwnd = GetChromeHwnd();
+        IntPtr hwnd = GetChromeHwnd(pid);
         int targetX = 500;
-        int targetY = 55;
+        int targetY = 82;
 
         if (hwnd != IntPtr.Zero) {
             RECT rect;
             GetWindowRect(hwnd, out rect);
             int winWidth = Math.Max(100, rect.Right - rect.Left);
             targetX = rect.Left + Math.Min(600, Math.Max(winWidth / 4, winWidth / 2));
-            targetY = Math.Max(50, rect.Top + 55);
+            targetY = Math.Max(65, rect.Top + 82);
         }
 
         // 2. Mover físicamente el mouse hacia la barra de direcciones
@@ -502,23 +528,25 @@ public class MouseHelper {
         Click(targetX, targetY, 150);
         Thread.Sleep(150);
 
-        // 4. Utilizar Ctrl+L o Alt+D para seleccionar TODA la URL actual
+        // 4. Utilizar Alt+D o Ctrl+L para seleccionar TODA la URL actual
         try {
-            SendKeys.SendWait("^l");
+            SendKeys.SendWait("%d");
         } catch {
             try {
-                SendKeys.SendWait("%d");
+                SendKeys.SendWait("^l");
             } catch {}
         }
+        Thread.Sleep(150);
+        try {
+            SendKeys.SendWait("{BACKSPACE}");
+        } catch {}
+        Thread.Sleep(120);
 
-        // 5. Esperar unos milisegundos para asegurar la selección (NO hacer un segundo click después de esto)
-        Thread.Sleep(180);
-
-        // 6. Escribir la nueva URL carácter por carácter (reemplaza visualmente la selección anterior)
+        // 5. Escribir la nueva URL carácter por carácter (reemplaza visualmente la selección anterior)
         TypeText(url, typingDelayMs);
         Thread.Sleep(150);
 
-        // 7. Presionar Enter para iniciar la navegación
+        // 6. Presionar Enter para iniciar la navegación
         try {
             SendKeys.SendWait("{ENTER}");
         } catch {}

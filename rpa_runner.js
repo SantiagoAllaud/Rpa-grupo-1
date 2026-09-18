@@ -101,6 +101,10 @@ function abortCurrentRun(reason = 'RPA_ABORTED_BY_USER') {
     try {
         require('child_process').execSync('taskkill /F /IM mouse_helper.exe', { windowsHide: true, stdio: 'ignore' });
     } catch (e) {}
+    try {
+        const pidFile = path.join(__dirname, 'chrome.pid');
+        if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
+    } catch (e) {}
     if (activeBrowser) {
         try {
             activeBrowser.close().catch(() => {});
@@ -466,6 +470,9 @@ async function visibleType(page, selector, text, delayMs = CONFIG.TYPING_DELAY, 
     await visibleMove(page, pos, durationMs);
     await sleep(CONFIG.PAUSE_BEFORE_CLICK);
     runMouseHelper(viewportArgs('clickviewport', pos, 0));
+    try {
+        await page.focus(selector);
+    } catch (e) {}
     // La escritura ocurre en el campo que acaba de recibir el click físico.
     runMouseHelper(['key', '^a']);
     runMouseHelper(['key', '{BACKSPACE}']);
@@ -576,7 +583,7 @@ async function searchCarrefour(page, prodClean, options = {}) {
 
     // 3. Localizar buscador
     if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Localizando buscador para: "${textoATipear}"...` });
-    const searchSel = 'input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input';
+    const searchSel = 'input[placeholder*="busc" i], input[type="search"], input[id*="downshift"], [class*="search-bar"] input, [class*="searchBar"] input, input.vtex-styleguide-9-x-input';
     await page.waitForSelector(searchSel, { timeout: 10000 }).catch(() => {});
 
     // 4. Escribir carácter por carácter de forma visible el término específico
@@ -591,7 +598,7 @@ async function searchCarrefour(page, prodClean, options = {}) {
     }
 
     // 4. Ejecutar búsqueda con Enter
-    await sleep(300);
+    await sleep(400);
     await visibleKey('{ENTER}');
 
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Esperando resultados de búsqueda...' });
@@ -601,9 +608,9 @@ async function searchCarrefour(page, prodClean, options = {}) {
         if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=') || curU.includes('almacen')) {
             break;
         }
-        if (w === 3) {
+        if (w === 2 || w === 5) {
             await visibleKey('{ENTER}');
-            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
+            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button, [class*="searchBar"] button', mouseDuration);
         }
     }
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
@@ -951,24 +958,104 @@ async function searchDia(page, prodClean, options = {}) {
     const textoATipear = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
 
     if (onStatus) {
-        onStatus({ type: 'log', message: '[SUPERMERCADO 3] Navegando visualmente a https://diaonline.supermercadosdia.com.ar...' });
+        onStatus({ type: 'log', message: '[SUPERMERCADO 3] Abriendo Google para acceder a Supermercados Día...' });
     }
 
-    // 1. Navegar por barra de direcciones
-    await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
+    // 1. Abrir Google mediante navegación visible en la barra de direcciones
+    await visibleNavigate(page, 'https://www.google.com', typingDelay);
+    await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
 
-    // 2. Localizar buscador de Día %
+    // Descartar posibles modales de cookies de Google
+    try {
+        await page.evaluate(() => {
+            const btns = Array.from(document.querySelectorAll('button, div[role="button"]'));
+            for (const b of btns) {
+                const txt = (b.innerText || '').toLowerCase().trim();
+                if (txt === 'aceptar todo' || txt === 'acepto' || txt === 'rechazar todo' || txt === 'i agree') {
+                    b.click();
+                    break;
+                }
+            }
+            const gBtn = document.querySelector('#L2AGLb');
+            if (gBtn) gBtn.click();
+        });
+    } catch (e) {}
+    await sleep(400);
+
+    // 2. Localizar buscador de Google y tipear "super dia"
+    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Buscando "super dia" en Google...' });
+    const googleInputSel = 'textarea[name="q"], input[name="q"]';
+    await page.waitForSelector(googleInputSel, { timeout: 10000 }).catch(() => {});
+    const typedGoogle = await visibleType(page, googleInputSel, 'super dia', typingDelay, mouseDuration);
+    if (!typedGoogle) {
+        throw new Error('No se pudo escribir en el buscador de Google.');
+    }
+
+    // 3. Presionar Enter para buscar en Google
+    await sleep(300);
+    await visibleKey('{ENTER}');
+
+    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Esperando resultados de Google para Supermercados Día...' });
+    const googleResultSel = 'a[href*="diaonline.supermercadosdia.com.ar"], a[href*="supermercadosdia.com.ar"]';
+    await page.waitForSelector(googleResultSel, { timeout: 15000 }).catch(() => {});
+
+    // Asegurar que el enlace se abra en la misma pestaña eliminando target="_blank"
+    try {
+        await page.evaluate((sel) => {
+            const links = document.querySelectorAll(sel);
+            links.forEach(l => l.removeAttribute('target'));
+        }, googleResultSel);
+    } catch (e) {}
+
+    // 4. Click visible en el enlace de la página oficial de Día %
+    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Haciendo click en el resultado oficial de Supermercados Día...' });
+    const clickedDiaLink = await visibleClick(page, googleResultSel, mouseDuration);
+    if (!clickedDiaLink) {
+        await page.evaluate((sel) => {
+            const el = document.querySelector(sel);
+            if (el) el.click();
+        }, googleResultSel);
+    }
+
+    // Esperar a que cargue la tienda oficial de Día %
+    let diaArrived = false;
+    for (let t = 0; t < 40; t++) {
+        await sleep(500);
+        checkAborted();
+        const curU = page.url();
+        if (curU.includes('diaonline') || curU.includes('supermercadosdia.com.ar')) {
+            diaArrived = true;
+            break;
+        }
+    }
+    if (!diaArrived) {
+        console.warn('[RPA] Navegando directamente a Día % como respaldo visual tras click en Google...');
+        await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
+    }
+
+    await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+    await asegurarCursorEnPagina(page);
+    await eliminarCookies(page);
+    await sleep(400);
+
+    // 5. Localizar buscador de Día %
     if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Localizando buscador para: "${textoATipear}"...` });
-    const diaSearchSel = 'input[placeholder*="busc" i], input.vtex-styleguide-9-x-input';
+    const diaSearchSel = 'input[placeholder*="busc" i], input[type="search"], input[id*="downshift"], [class*="search-bar"] input, [class*="searchBar"] input, input.vtex-styleguide-9-x-input';
     await page.waitForSelector(diaSearchSel, { timeout: 10000 }).catch(() => {});
 
-    // 3. Tipear carácter por carácter de forma visible
-    if (!await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration)) {
+    // 6. Tipear carácter por carácter de forma visible
+    let typedDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
+    if (!typedDia) {
+        await eliminarCookies(page);
+        await sleep(500);
+        typedDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
+    }
+    if (!typedDia) {
         throw new Error('No se encontró un buscador visible de Día %.');
     }
 
-    // 4. Ejecutar búsqueda con Enter
-    await sleep(300);
+    // 7. Ejecutar búsqueda con Enter
+    await sleep(400);
     await visibleKey('{ENTER}');
 
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Esperando resultados de búsqueda...' });
@@ -978,19 +1065,19 @@ async function searchDia(page, prodClean, options = {}) {
         if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=')) {
             break;
         }
-        if (w === 3) {
+        if (w === 2 || w === 5) {
             await visibleKey('{ENTER}');
-            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
+            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button, [class*="searchBar"] button', mouseDuration);
         }
     }
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
     await eliminarCookies(page);
 
-    // 5. Scroll visible por los resultados
+    // 8. Scroll visible por los resultados
     await visibleScroll(page, 450, 3);
     await sleep(600);
 
-    // 6. Localizar y aplicar filtro de orden "menor a mayor"
+    // 9. Localizar y aplicar filtro de orden "menor a mayor"
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Aplicando ordenamiento: Menor precio...' });
     const diaSortBtnSel = 'button.diaio-search-result-0-x-orderByButton, button[class*="orderByButton"]';
     if (await visibleClick(page, diaSortBtnSel, mouseDuration)) {
@@ -1201,13 +1288,21 @@ async function runRPA({
 
         try {
             const context = browser.defaultBrowserContext();
+            await context.overridePermissions('https://www.google.com', []);
             await context.overridePermissions('https://www.carrefour.com.ar', []);
             await context.overridePermissions('https://www.coto.com.ar', []);
             await context.overridePermissions('https://diaonline.supermercadosdia.com.ar', []);
+            await context.overridePermissions('https://www.supermercadosdia.com.ar', []);
         } catch (ePerm) {}
 
         activeBrowser = browser;
         const chromePid = browser.process() ? browser.process().pid : 0;
+        if (chromePid) {
+            process.env.CHROME_PID = chromePid.toString();
+            try {
+                fs.writeFileSync(path.join(__dirname, 'chrome.pid'), chromePid.toString(), 'utf8');
+            } catch (e) {}
+        }
 
         // Kill-switch: abortar inmediatamente si el usuario cierra la ventana de Chrome
         browser.on('disconnected', () => {
@@ -1421,6 +1516,10 @@ async function runRPA({
     } finally {
         stopMouseWatchdog();
         activeBrowser = null;
+        try {
+            const pidFile = path.join(__dirname, 'chrome.pid');
+            if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
+        } catch (e) {}
         if (browser && !isAborted) {
             try {
                 await sleep(2000);
