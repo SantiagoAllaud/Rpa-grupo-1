@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // GESTIÓN DEL CATÁLOGO CERRADO EN EL FRONTEND
+    // GESTIÓN DEL CATÁLOGO CERRADO EN EL FRONTEND (INMUTABLE)
     // ==========================================================================
     let catalogoGlobal = null;
     let itemsCatalogoGlobal = [];
@@ -291,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoMarca = document.getElementById('info-marca');
     const infoVariante = document.getElementById('info-variante');
     const infoPresentacion = document.getElementById('info-presentacion');
+    const btnUsarProductoCatalogo = document.getElementById('btn-usar-producto-catalogo');
 
     async function cargarCatalogoUI() {
         try {
@@ -369,48 +370,222 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Botón para usar producto seleccionado del catálogo en la búsqueda rápida
+    if (btnUsarProductoCatalogo) {
+        btnUsarProductoCatalogo.addEventListener('click', () => {
+            const prodId = selectProducto ? selectProducto.value : '';
+            const item = itemsCatalogoGlobal.find(it => it.id === prodId);
+            const inputBusquedaRapida = document.getElementById('input-busqueda-rapida');
+            if (item && inputBusquedaRapida) {
+                inputBusquedaRapida.value = item.nombre_completo;
+                const seccionBusqueda = document.getElementById('seccion-busqueda');
+                if (seccionBusqueda) {
+                    seccionBusqueda.scrollIntoView({ behavior: 'smooth' });
+                }
+                inputBusquedaRapida.focus();
+                addLog(`Producto del catálogo seleccionado: ${item.nombre_completo}`);
+            }
+        });
+    }
+
     // Iniciar carga del catálogo
     cargarCatalogoUI();
 
-    // Eventos de Botones Principales
-    btnCompraMes.addEventListener('click', () => {
-        executeAction('/api/compra-mes');
+    // ==========================================================================
+    // TABLAS COMPARATIVAS Y CÁLCULO DE GANADOR
+    // ==========================================================================
+    const tbodyBusquedaRapida = document.getElementById('tbody-busqueda-rapida');
+    const tbodyCompraMes = document.getElementById('tbody-compra-mes');
+
+    function formatearPrecio(valor) {
+        if (valor === null || valor === undefined || isNaN(valor) || valor <= 0) {
+            return '<span class="precio-no-disponible">-</span>';
+        }
+        return `$${Number(valor).toLocaleString('es-AR')}`;
+    }
+
+    function renderTablaComparativa(tbody, listaProductos, esCanastaMes = false) {
+        if (!tbody) return;
+        if (!listaProductos || listaProductos.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                        No hay registros disponibles aún. Ejecuta una búsqueda para comparar.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        listaProductos.forEach(item => {
+            const tr = document.createElement('tr');
+            
+            // Determinar precios numéricos válidos
+            const pCoto = typeof item.coto === 'number' && item.coto > 0 ? item.coto : null;
+            const pCarrefour = typeof item.carrefour === 'number' && item.carrefour > 0 ? item.carrefour : null;
+            const pDia = typeof item.dia === 'number' && item.dia > 0 ? item.dia : null;
+
+            // Determinar menor precio
+            const validos = [];
+            if (pCoto) validos.push({ super: 'Coto', precio: pCoto });
+            if (pCarrefour) validos.push({ super: 'Carrefour', precio: pCarrefour });
+            if (pDia) validos.push({ super: 'Día', precio: pDia });
+
+            let superGanador = null;
+            let badgeGanadorHtml = '<span class="badge-sin-stock">Sin stock / No disponible</span>';
+
+            if (validos.length > 0) {
+                validos.sort((a, b) => a.precio - b.precio);
+                const ganador = validos[0];
+                superGanador = ganador.super;
+                badgeGanadorHtml = `<span class="badge-ganador"><i class="fa-solid fa-trophy"></i> ${ganador.super} (${formatearPrecio(ganador.precio)})</span>`;
+            }
+
+            // Clases para celdas ganadoras
+            const cotoClass = superGanador === 'Coto' ? 'super-winner' : '';
+            const carrefourClass = superGanador === 'Carrefour' ? 'super-winner' : '';
+            const diaClass = superGanador === 'Día' ? 'super-winner' : '';
+
+            tr.innerHTML = `
+                <td style="font-weight: 600;">${escapeHtml(item.producto)}</td>
+                <td class="${cotoClass}">${formatearPrecio(pCoto)}</td>
+                <td class="${carrefourClass}">${formatearPrecio(pCarrefour)}</td>
+                <td class="${diaClass}">${formatearPrecio(pDia)}</td>
+                <td>${badgeGanadorHtml}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function cargarResultadosRecientes() {
+        try {
+            const res = await fetch('/api/resultados-recientes');
+            const data = await res.json();
+            if (data.success) {
+                if (tbodyBusquedaRapida && data.individuales) {
+                    renderTablaComparativa(tbodyBusquedaRapida, data.individuales, false);
+                }
+                if (tbodyCompraMes && data.canastaMes) {
+                    renderTablaComparativa(tbodyCompraMes, data.canastaMes, true);
+                }
+            }
+        } catch (e) {
+            console.error("Error al cargar resultados recientes:", e);
+        }
+    }
+
+    // Cargar datos existentes al inicio
+    cargarResultadosRecientes();
+
+    // Actualizar resultados al completar el RPA
+    const originalOnMessage = ws ? ws.onmessage : null;
+    function suscribirFinDeRPA() {
+        if (!ws) return;
+        const currentHandler = ws.onmessage;
+        ws.onmessage = (event) => {
+            if (currentHandler) currentHandler(event);
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'status' && msg.state === 'finished') {
+                    setTimeout(cargarResultadosRecientes, 1200);
+                }
+            } catch (err) {}
+        };
+    }
+    suscribirFinDeRPA();
+
+    // ==========================================================================
+    // NAVEGACIÓN ENTRE SECCIONES (PILLS)
+    // ==========================================================================
+    const navPills = document.querySelectorAll('.nav-pill');
+    navPills.forEach(pill => {
+        pill.addEventListener('click', (e) => {
+            navPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const targetId = pill.getAttribute('href');
+            if (targetId && targetId.startsWith('#')) {
+                const targetSec = document.querySelector(targetId);
+                if (targetSec) {
+                    targetSec.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        });
     });
 
-    btnBuscarIndividual.addEventListener('click', () => {
-        const prodId = selectProducto ? selectProducto.value : '';
-        const item = itemsCatalogoGlobal.find(it => it.id === prodId);
-        const unidades = inputUnidadesCompra ? (parseInt(inputUnidadesCompra.value, 10) || 1) : 1;
+    // ==========================================================================
+    // BÚSQUEDA RÁPIDA (BARRA ÚNICA)
+    // ==========================================================================
+    const inputBusquedaRapida = document.getElementById('input-busqueda-rapida');
+    const btnBuscarRapido = document.getElementById('btn-buscar-rapido');
 
-        if (!item) {
-            addLog("Por favor selecciona un producto del catálogo cerrado.", true);
+    function ejecutarBusquedaRapida() {
+        const query = inputBusquedaRapida ? inputBusquedaRapida.value.trim() : '';
+        if (!query) {
+            alert("Por favor ingresa un producto a buscar (ej: Yerba Playadito, Arroz Gallo, Leche La Serenísima).");
+            if (inputBusquedaRapida) inputBusquedaRapida.focus();
             return;
         }
 
         executeAction('/api/buscar-individual', {
-            producto: item.producto,
-            terminoBusqueda: item.termino_busqueda || item.nombre_completo,
-            cantidad: item.cantidad,
-            unidad: item.unidad,
-            unidades: unidades
+            producto: query
         });
-    });
+    }
 
-    btnAbrirExcel.addEventListener('click', () => {
-        executeAction('/api/abrir-excel');
-    });
+    if (btnBuscarRapido) {
+        btnBuscarRapido.addEventListener('click', ejecutarBusquedaRapida);
+    }
 
-    // Manejo de Modal de Limpieza
-    btnLimpiar.addEventListener('click', () => modal.classList.add('active'));
-    btnCerrarModal.addEventListener('click', () => modal.classList.remove('active'));
-
-    btnsClean.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tipo = btn.getAttribute('data-tipo');
-            modal.classList.remove('active');
-            executeAction('/api/limpiar', { tipo });
+    if (inputBusquedaRapida) {
+        inputBusquedaRapida.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                ejecutarBusquedaRapida();
+            }
         });
-    });
+    }
+
+    // ==========================================================================
+    // COMPRA DEL MES
+    // ==========================================================================
+    if (btnCompraMes) {
+        btnCompraMes.addEventListener('click', () => {
+            executeAction('/api/compra-mes');
+        });
+    }
+
+    const btnExportarMesExcel = document.getElementById('btn-exportar-mes-excel');
+    if (btnExportarMesExcel) {
+        btnExportarMesExcel.addEventListener('click', () => {
+            executeAction('/api/abrir-excel');
+        });
+    }
+
+    // ==========================================================================
+    // REPORTES Y UTILIDADES
+    // ==========================================================================
+    if (btnAbrirExcel) {
+        btnAbrirExcel.addEventListener('click', () => {
+            executeAction('/api/abrir-excel');
+        });
+    }
+
+    // Modal de Limpieza (si existe en DOM)
+    if (btnLimpiar && modal) {
+        btnLimpiar.addEventListener('click', () => modal.classList.add('active'));
+    }
+    if (btnCerrarModal && modal) {
+        btnCerrarModal.addEventListener('click', () => modal.classList.remove('active'));
+    }
+
+    if (btnsClean && btnsClean.length > 0) {
+        btnsClean.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tipo = btn.getAttribute('data-tipo');
+                if (modal) modal.classList.remove('active');
+                executeAction('/api/limpiar', { tipo });
+            });
+        });
+    }
 
     // Manejo del Modal de Edición de Lista Interactiva
     const btnEditarLista = document.getElementById('btn-editar-lista');
@@ -473,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return tr;
     }
 
-    if (btnEditarLista) {
+    if (btnEditarLista && editarModal) {
         btnEditarLista.addEventListener('click', async () => {
             editarModal.classList.add('active');
             if (modalTbodyCanasta) {
@@ -531,19 +706,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnCerrarEditarModal) {
+    if (btnCerrarEditarModal && editarModal) {
         btnCerrarEditarModal.addEventListener('click', () => {
             editarModal.classList.remove('active');
         });
     }
 
-    if (btnCerrarXModal) {
+    if (btnCerrarXModal && editarModal) {
         btnCerrarXModal.addEventListener('click', () => {
             editarModal.classList.remove('active');
         });
     }
 
-    if (btnGuardarLista) {
+    if (btnGuardarLista && editarModal) {
         btnGuardarLista.addEventListener('click', async () => {
             if (!modalTbodyCanasta) return;
             const rows = modalTbodyCanasta.querySelectorAll('tr');
@@ -586,7 +761,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
 
     // Kill-switch: botón de aborto visible en la interfaz
     if (btnAbort) {
