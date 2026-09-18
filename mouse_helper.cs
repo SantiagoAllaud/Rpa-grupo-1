@@ -204,12 +204,18 @@ public class MouseHelper {
     public static string FlagFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "failsafe.flag");
 
     public static void SetFailsafeState(bool isMoving, int x, int y) {
-        try {
-            using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite))
-            using (var sw = new System.IO.StreamWriter(fs)) {
-                sw.Write((isMoving ? "1" : "0") + "," + x + "," + y);
+        for (int retry = 0; retry < 5; retry++) {
+            try {
+                using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite))
+                using (var sw = new System.IO.StreamWriter(fs)) {
+                    sw.Write((isMoving ? "1" : "0") + "," + x + "," + y);
+                    sw.Flush();
+                    return;
+                }
+            } catch {
+                Thread.Sleep(2);
             }
-        } catch {}
+        }
     }
 
     public static void TriggerFailsafe(int x, int y) {
@@ -217,6 +223,7 @@ public class MouseHelper {
             using (var fs = new System.IO.FileStream(FlagFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite))
             using (var sw = new System.IO.StreamWriter(fs)) {
                 sw.Write("USER_MOUSE_INTERVENTION," + x + "," + y);
+                sw.Flush();
             }
         } catch {}
         Console.WriteLine("USER_MOUSE_INTERVENTION");
@@ -232,41 +239,66 @@ public class MouseHelper {
         POINT initPos = GetPosition();
         SetFailsafeState(false, initPos.X, initPos.Y);
 
+        int consecutiveViolations = 0;
+
         while (true) {
             Thread.Sleep(30);
             POINT cur = GetPosition();
 
             bool isMoving = false;
             int expX = cur.X, expY = cur.Y;
+            bool stateReadOk = false;
 
             if (System.IO.File.Exists(StateFilePath)) {
-                try {
-                    using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
-                    using (var sr = new System.IO.StreamReader(fs)) {
-                        string content = sr.ReadToEnd().Trim();
-                        string[] parts = content.Split(',');
-                        if (parts.Length >= 3) {
-                            isMoving = parts[0] == "1";
-                            expX = int.Parse(parts[1]);
-                            expY = int.Parse(parts[2]);
+                for (int r = 0; r < 3; r++) {
+                    try {
+                        using (var fs = new System.IO.FileStream(StateFilePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
+                        using (var sr = new System.IO.StreamReader(fs)) {
+                            string content = sr.ReadToEnd().Trim();
+                            string[] parts = content.Split(',');
+                            if (parts.Length >= 3) {
+                                isMoving = parts[0] == "1";
+                                expX = int.Parse(parts[1]);
+                                expY = int.Parse(parts[2]);
+                                stateReadOk = true;
+                                break;
+                            }
                         }
+                    } catch {
+                        Thread.Sleep(2);
                     }
-                } catch {}
+                }
             }
 
+            if (!stateReadOk) {
+                continue;
+            }
+
+            double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
+
             if (isMoving) {
-                // Durante movimiento activo del robot: tolerancia de trayectoria
-                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
-                if (dist > 50.0) {
-                    TriggerFailsafe(cur.X, cur.Y);
-                    return;
+                // Durante movimiento activo del robot: tolerancia de trayectoria (60px)
+                if (dist > 60.0) {
+                    consecutiveViolations++;
+                    if (dist > 100.0 || consecutiveViolations >= 2) {
+                        TriggerFailsafe(cur.X, cur.Y);
+                        return;
+                    }
+                } else {
+                    consecutiveViolations = 0;
                 }
             } else {
-                // Durante reposo / espera del robot: cualquier movimiento de más de 14px aborta de inmediato
-                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
-                if (dist > 14.0) {
-                    TriggerFailsafe(cur.X, cur.Y);
-                    return;
+                // Durante reposo / espera del robot:
+                // Si la distancia supera 28px (movimiento deliberado del usuario),
+                // confirmamos en 2 ticks consecutivos (~60ms) para filtrar micro-jitter y saltos por scaling
+                if (dist > 28.0) {
+                    consecutiveViolations++;
+                    if (dist > 60.0 || consecutiveViolations >= 2) {
+                        TriggerFailsafe(cur.X, cur.Y);
+                        return;
+                    }
+                } else {
+                    consecutiveViolations = 0;
                 }
             }
         }
@@ -378,7 +410,13 @@ public class MouseHelper {
     }
 
     public static void ClickViewport(int x, int y, int outerWidth, int outerHeight, int innerWidth, int innerHeight, int durationMs) {
-        MoveViewport(x, y, outerWidth, outerHeight, innerWidth, innerHeight, durationMs);
+        if (durationMs > 0) {
+            MoveViewport(x, y, outerWidth, outerHeight, innerWidth, innerHeight, durationMs);
+        } else {
+            FocusChrome();
+            POINT cur = GetPosition();
+            SetFailsafeState(false, cur.X, cur.Y);
+        }
         Click(null, null, 0);
     }
 
@@ -440,7 +478,9 @@ public class MouseHelper {
     public static void NavigateOmnibox(string url, int typingDelayMs) {
         // 1. Llevar Chrome al frente
         FocusChrome();
-        Thread.Sleep(200);
+        Thread.Sleep(150);
+        POINT preNav = GetPosition();
+        SetFailsafeState(false, preNav.X, preNav.Y);
 
         IntPtr hwnd = GetChromeHwnd();
         int targetX = 500;
@@ -607,6 +647,8 @@ public class MouseHelper {
                     int targetPid = 0;
                     if (args.Length > 1) int.TryParse(args[1], out targetPid);
                     bool ok = FocusChrome(targetPid);
+                    POINT pFoc = GetPosition();
+                    SetFailsafeState(false, pFoc.X, pFoc.Y);
                     Console.WriteLine(ok ? "OK" : "NOT_FOUND");
                     break;
                 }
