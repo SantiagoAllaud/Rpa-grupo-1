@@ -133,6 +133,54 @@ app.get('/api/datos-completos', (req, res) => {
     }
 });
 
+// Endpoint para obtener resultados estructurados para tablas comparativas
+app.get('/api/resultados-recientes', (req, res) => {
+    try {
+        const csvPath = path.join(__dirname, 'resultados.csv');
+        if (!fs.existsSync(csvPath)) {
+            return res.json({ success: true, individual: [], compra_mes: [], individuales: [], canastaMes: [] });
+        }
+        const vEngine = getValidador();
+        const items = vEngine.leerResultadosCSV(csvPath);
+        items.forEach(it => {
+            const v = vEngine.validarCoincidencia(it.producto, it);
+            it.estado = v.estado;
+            it.valido = v.valido;
+            it.motivo = v.motivo;
+        });
+        const individual = items.filter(x => x.modo === 'individual');
+        const compra_mes = items.filter(x => x.modo === 'compra_mes');
+
+        function agruparPorProducto(lista) {
+            const mapa = new Map();
+            lista.forEach(it => {
+                const prod = (it.producto || '').trim();
+                if (!prod) return;
+                if (!mapa.has(prod)) {
+                    mapa.set(prod, { producto: prod, coto: null, carrefour: null, dia: null });
+                }
+                const entry = mapa.get(prod);
+                const precio = parseFloat(it.precio);
+                const sLower = (it.supermercado || '').toLowerCase();
+                const esValido = it.valido !== false && !isNaN(precio) && precio > 0;
+                if (esValido) {
+                    if (sLower.includes('coto')) entry.coto = precio;
+                    else if (sLower.includes('carrefour')) entry.carrefour = precio;
+                    else if (sLower.includes('dia') || sLower.includes('día')) entry.dia = precio;
+                }
+            });
+            return Array.from(mapa.values());
+        }
+
+        const individuales = agruparPorProducto(individual).reverse();
+        const canastaMes = agruparPorProducto(compra_mes);
+
+        res.json({ success: true, individual, compra_mes, individuales, canastaMes });
+    } catch(e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // Endpoint para obtener el catálogo cerrado estructurado
 app.get('/api/catalogo', (req, res) => {
     try {
@@ -332,22 +380,24 @@ app.post('/api/buscar-individual', async (req, res) => {
 
     const cantNum = parseFloat(cantidad) > 0 ? parseFloat(cantidad) : 1;
 
-    // Validación estricta previa contra el catálogo cerrado
+    // Verificar si coincide con el catálogo cerrado para enriquecer variante y presentación
     const catEngine = getCatalogo();
-    const valCat = catEngine.validarEntrada({ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() });
-    if (!valCat.valido) {
-        return res.status(400).json({
-            success: false,
-            message: `El producto "${producto}" no pertenece al catálogo cerrado.`,
-            opciones: valCat.opciones ? valCat.opciones.slice(0, 10) : []
-        });
-    }
+    let prodOficial = producto.trim();
+    let cantOficial = cantNum;
+    let unidOficial = (unidad || '').trim();
+    let termOficial = terminoBusqueda || producto.trim();
 
-    // Usar término oficial del catálogo
-    const prodOficial = valCat.item ? valCat.item.producto : producto.trim();
-    const cantOficial = valCat.item ? valCat.item.cantidad : cantNum;
-    const unidOficial = valCat.item ? valCat.item.unidad : unidad.trim();
-    const termOficial = (terminoBusqueda || (valCat.item ? valCat.item.termino_busqueda : ''));
+    try {
+        const valCat = catEngine.validarEntrada({ producto: producto.trim(), cantidad: cantNum, unidad: unidOficial });
+        if (valCat && valCat.valido && valCat.item) {
+            prodOficial = valCat.item.producto;
+            cantOficial = valCat.item.cantidad;
+            unidOficial = valCat.item.unidad;
+            termOficial = terminoBusqueda || valCat.item.termino_busqueda || producto.trim();
+        }
+    } catch (eCat) {
+        // En caso de cualquier error en validación de catálogo, se continúa con búsqueda libre
+    }
 
     isRpaRunning = true;
     broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
@@ -397,7 +447,7 @@ app.post('/api/buscar-individual', async (req, res) => {
         ultimoProcesoData = {
             producto: producto.trim(),
             cantidad: cantNum,
-            unidad: unidad.trim(),
+            unidad: (unidad || '').trim(),
             items: resultados
         };
 
@@ -416,7 +466,8 @@ app.post('/api/buscar-individual', async (req, res) => {
             res.json({
                 success: true,
                 message: `Búsqueda de "${producto}" completada. Reporte Excel abierto.`,
-                data: ultimoProcesoData
+                data: ultimoProcesoData,
+                resultados: resultados || (ultimoProcesoData ? ultimoProcesoData.items : [])
             });
         }
     } catch (e) {
