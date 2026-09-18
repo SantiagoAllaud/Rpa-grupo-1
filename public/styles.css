@@ -2073,3 +2073,20 @@ input[type="range"]::-webkit-slider-thumb:hover {
     gap: 0.75rem;
     font-size: 0.88rem;
 }
+
+.precio-no-disponible {
+    color: var(--text-muted, #94a3b8);
+    font-style: italic;
+    font-size: 0.88rem;
+}
+
+.badge-no-ganador {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-style: italic;
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}

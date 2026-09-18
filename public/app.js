@@ -1,21 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     const btnCompraMes = document.getElementById('btn-compra-mes');
-    const btnBuscarIndividual = document.getElementById('btn-buscar-individual');
-    const inputProducto = document.getElementById('input-producto');
-    const inputCantidad = document.getElementById('input-cantidad');
-    const inputUnidad = document.getElementById('input-unidad');
-    const btnAbrirExcel = document.getElementById('btn-abrir-excel');
-    const btnLimpiar = document.getElementById('btn-limpiar');
-    
     const logContainer = document.getElementById('log-container');
     const statusIndicator = document.getElementById('status-indicator');
     const btnAbort = document.getElementById('btn-abort');
     const abortBar = document.getElementById('abort-bar');
-    
-    const modal = document.getElementById('limpiar-modal');
-    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
-    const btnsClean = document.querySelectorAll('.btn-clean');
-
 
     // Monitor y Pasos de Supermercados
     const monitorStatusText = document.getElementById('monitor-status-text');
@@ -342,6 +330,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (prods.length > 0) {
             selectProducto.value = prods[0].id;
             mostrarInfoProducto(prods[0]);
+            const inputBusquedaRapida = document.getElementById('input-busqueda-rapida');
+            if (inputBusquedaRapida && !inputBusquedaRapida.value) {
+                inputBusquedaRapida.value = prods[0].nombre_completo;
+            }
         }
     }
 
@@ -367,6 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
         selectProducto.addEventListener('change', (e) => {
             const item = itemsCatalogoGlobal.find(it => it.id === e.target.value);
             mostrarInfoProducto(item);
+            const inputBusquedaRapida = document.getElementById('input-busqueda-rapida');
+            if (item && inputBusquedaRapida) {
+                inputBusquedaRapida.value = item.nombre_completo;
+            }
         });
     }
 
@@ -399,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatearPrecio(valor) {
         if (valor === null || valor === undefined || isNaN(valor) || valor <= 0) {
-            return '<span class="precio-no-disponible">-</span>';
+            return '<span class="precio-no-disponible">No encontrado</span>';
         }
         return `$${Number(valor).toLocaleString('es-AR')}`;
     }
@@ -410,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
-                        No hay registros disponibles aún. Ejecuta una búsqueda para comparar.
+                        No hay registros disponibles aún.
                     </td>
                 </tr>
             `;
@@ -428,18 +424,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Determinar menor precio
             const validos = [];
-            if (pCoto) validos.push({ super: 'Coto', precio: pCoto });
-            if (pCarrefour) validos.push({ super: 'Carrefour', precio: pCarrefour });
-            if (pDia) validos.push({ super: 'Día', precio: pDia });
+            if (pCoto !== null) validos.push({ super: 'Coto', precio: pCoto });
+            if (pCarrefour !== null) validos.push({ super: 'Carrefour', precio: pCarrefour });
+            if (pDia !== null) validos.push({ super: 'Día', precio: pDia });
 
             let superGanador = null;
-            let badgeGanadorHtml = '<span class="badge-sin-stock">Sin stock / No disponible</span>';
+            let badgeGanadorHtml = '';
 
             if (validos.length > 0) {
                 validos.sort((a, b) => a.precio - b.precio);
                 const ganador = validos[0];
                 superGanador = ganador.super;
-                badgeGanadorHtml = `<span class="badge-ganador"><i class="fa-solid fa-trophy"></i> ${ganador.super} (${formatearPrecio(ganador.precio)})</span>`;
+                badgeGanadorHtml = `<span class="badge-ganador"><i class="fa-solid fa-trophy"></i> ${ganador.super}</span>`;
+            } else {
+                badgeGanadorHtml = '<span class="badge-no-ganador">No se pudo determinar un ganador</span>';
             }
 
             // Clases para celdas ganadoras
@@ -449,10 +447,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tr.innerHTML = `
                 <td style="font-weight: 600;">${escapeHtml(item.producto)}</td>
-                <td class="${cotoClass}">${formatearPrecio(pCoto)}</td>
-                <td class="${carrefourClass}">${formatearPrecio(pCarrefour)}</td>
-                <td class="${diaClass}">${formatearPrecio(pDia)}</td>
-                <td>${badgeGanadorHtml}</td>
+                <td class="${cotoClass}" style="text-align: right;">${formatearPrecio(pCoto)}</td>
+                <td class="${carrefourClass}" style="text-align: right;">${formatearPrecio(pCarrefour)}</td>
+                <td class="${diaClass}" style="text-align: right;">${formatearPrecio(pDia)}</td>
+                <td style="text-align: center;">${badgeGanadorHtml}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -550,40 +548,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCompraMes) {
         btnCompraMes.addEventListener('click', () => {
             executeAction('/api/compra-mes');
-        });
-    }
-
-    const btnExportarMesExcel = document.getElementById('btn-exportar-mes-excel');
-    if (btnExportarMesExcel) {
-        btnExportarMesExcel.addEventListener('click', () => {
-            executeAction('/api/abrir-excel');
-        });
-    }
-
-    // ==========================================================================
-    // REPORTES Y UTILIDADES
-    // ==========================================================================
-    if (btnAbrirExcel) {
-        btnAbrirExcel.addEventListener('click', () => {
-            executeAction('/api/abrir-excel');
-        });
-    }
-
-    // Modal de Limpieza (si existe en DOM)
-    if (btnLimpiar && modal) {
-        btnLimpiar.addEventListener('click', () => modal.classList.add('active'));
-    }
-    if (btnCerrarModal && modal) {
-        btnCerrarModal.addEventListener('click', () => modal.classList.remove('active'));
-    }
-
-    if (btnsClean && btnsClean.length > 0) {
-        btnsClean.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tipo = btn.getAttribute('data-tipo');
-                if (modal) modal.classList.remove('active');
-                executeAction('/api/limpiar', { tipo });
-            });
         });
     }
 
@@ -774,23 +738,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog('Error al abortar: ' + e.message, true);
             }
             setRunningState(false);
-        });
-    }
-
-    // Control de Portada / Pantalla de Bienvenida
-    const welcomeScreen = document.getElementById('welcome-screen');
-    const btnEntrarDashboard = document.getElementById('btn-entrar-dashboard');
-    const btnVolverPortada = document.getElementById('btn-volver-portada');
-
-    if (btnEntrarDashboard && welcomeScreen) {
-        btnEntrarDashboard.addEventListener('click', () => {
-            welcomeScreen.classList.add('hidden');
-        });
-    }
-
-    if (btnVolverPortada && welcomeScreen) {
-        btnVolverPortada.addEventListener('click', () => {
-            welcomeScreen.classList.remove('hidden');
         });
     }
 

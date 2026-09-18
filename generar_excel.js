@@ -51,9 +51,9 @@ function parsearPrecio(precio) {
 // Determina el supermercado con el menor precio válido
 function calcularGanador(precioCoto, precioCarrefour, precioDia) {
     const candidatos = [];
-    if (precioCoto !== null && precioCoto > 0) candidatos.push({ superm: 'COTO', precio: precioCoto });
+    if (precioCoto !== null && precioCoto > 0) candidatos.push({ superm: 'Coto', precio: precioCoto });
     if (precioCarrefour !== null && precioCarrefour > 0) candidatos.push({ superm: 'Carrefour', precio: precioCarrefour });
-    if (precioDia !== null && precioDia > 0) candidatos.push({ superm: 'Día %', precio: precioDia });
+    if (precioDia !== null && precioDia > 0) candidatos.push({ superm: 'Día', precio: precioDia });
 
     if (candidatos.length === 0) {
         return 'No se pudo determinar un ganador';
@@ -112,7 +112,7 @@ function procesarFilasComparativas(items) {
 }
 
 // Construye una hoja formateada con las 5 columnas requeridas
-function construirHojaComparativa(workbook, nombreHoja, tituloBanner, filas) {
+function construirHojaComparativa(workbook, nombreHoja, filas) {
     const ws = workbook.addWorksheet(nombreHoja, {
         views: [{ showGridLines: true }]
     });
@@ -120,41 +120,32 @@ function construirHojaComparativa(workbook, nombreHoja, tituloBanner, filas) {
     // Columnas exactas requeridas
     ws.columns = [
         { key: 'producto', width: 38 },
-        { key: 'coto', width: 20 },
-        { key: 'carrefour', width: 20 },
-        { key: 'dia', width: 20 },
+        { key: 'coto', width: 18 },
+        { key: 'carrefour', width: 18 },
+        { key: 'dia', width: 18 },
         { key: 'ganador', width: 28 }
     ];
 
-    // Fila 1: Título del Reporte
-    ws.mergeCells('A1:E1');
-    const titleCell = ws.getCell('A1');
-    titleCell.value = tituloBanner;
-    titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFF' } };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_BG } };
-    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-    ws.getRow(1).height = 36;
-
-    // Fila 2: Cabeceras exactas
+    // Fila 1: Cabeceras exactas
     const headers = ['Producto', 'Coto', 'Carrefour', 'Día', 'El ganador es este'];
-    const rowHeader = ws.getRow(2);
+    const rowHeader = ws.addRow(headers);
+    rowHeader.height = 30;
     headers.forEach((h, idx) => {
         const cell = rowHeader.getCell(idx + 1);
         cell.value = h;
         cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: COLOR_HEADER_FG } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2F5597' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_BG } };
         cell.alignment = { vertical: 'middle', horizontal: idx === 0 ? 'left' : 'center' };
         cell.border = {
-            top: { style: 'thin', color: { argb: COLOR_BORDE } },
+            top: { style: 'medium', color: { argb: COLOR_HEADER_BG } },
             bottom: { style: 'medium', color: { argb: COLOR_HEADER_BG } },
             left: { style: 'thin', color: { argb: COLOR_BORDE } },
             right: { style: 'thin', color: { argb: COLOR_BORDE } }
         };
     });
-    rowHeader.height = 28;
 
     if (filas.length === 0) {
-        const rEmpty = ws.addRow(['No hay datos registrados aún.', '-', '-', '-', '-']);
+        const rEmpty = ws.addRow(['No hay datos registrados aún.', 'No encontrado', 'No encontrado', 'No encontrado', 'No se pudo determinar un ganador']);
         rEmpty.getCell(1).font = { italic: true, color: { argb: COLOR_NODISP_FG } };
         return ws;
     }
@@ -237,20 +228,18 @@ async function main() {
     workbook.creator = 'RPA Bot - UTN FRCU 2026';
     workbook.created = new Date();
 
-    // 1. Hoja Búsqueda individual (como solicita el requerimiento)
-    construirHojaComparativa(
-        workbook,
-        'Búsqueda individual',
-        'COMPARACIÓN DE PRECIOS • BÚSQUEDA INDIVIDUAL',
-        filasIndividual
-    );
-
-    // 2. Hoja Compra del Mes
+    // 1. Hoja Compra del Mes
     construirHojaComparativa(
         workbook,
         'Compra del Mes',
-        'COMPARACIÓN DE PRECIOS • CANASTA COMPRA DEL MES',
         filasMensual
+    );
+
+    // 2. Hoja Búsqueda Rápida
+    construirHojaComparativa(
+        workbook,
+        'Búsqueda Rápida',
+        filasIndividual
     );
 
     await workbook.xlsx.writeFile(XLSX_PATH);

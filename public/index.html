@@ -18,44 +18,6 @@
     <div class="ambient-glow glow-2"></div>
     <div class="ambient-glow glow-3"></div>
 
-    <!-- ============================================================== -->
-    <!-- PORTADA DE BIENVENIDA / PRESENTACIÓN (MODALIDAD EXPOSICIÓN)   -->
-    <!-- ============================================================== -->
-    <div id="welcome-screen" class="welcome-screen">
-        <div class="welcome-card glass-card">
-            <div class="welcome-badge">
-                <i class="fa-solid fa-graduation-cap"></i> UTN FRCU • Tecnologías para la Automatización 2026
-            </div>
-            
-            <div class="welcome-hero">
-                <div class="welcome-icon">
-                    <i class="fa-solid fa-robot"></i>
-                </div>
-                <h2>Bot RPA Comparador</h2>
-                <p class="welcome-desc">
-                    ¿Querés saber dónde te conviene hacer tus compras este mes? Compará precios y optimizá tu ahorro en tiempo real entre <strong>Carrefour</strong>, <strong>COTO Digital</strong> y <strong>Día %</strong>.
-                </p>
-            </div>
-
-            <div class="welcome-team-box">
-                <span class="team-title"><i class="fa-solid fa-users"></i> Grupo 1 — Integrantes</span>
-                <div class="team-members-grid">
-                    <div class="member-tag"><i class="fa-solid fa-user"></i> Allaud</div>
-                    <div class="member-tag"><i class="fa-solid fa-user"></i> Alvarez</div>
-                    <div class="member-tag"><i class="fa-solid fa-user"></i> Carballo</div>
-                    <div class="member-tag"><i class="fa-solid fa-user"></i> Cruz</div>
-                    <div class="member-tag"><i class="fa-solid fa-user"></i> Ramos</div>
-                </div>
-            </div>
-
-            <div class="welcome-actions">
-                <button id="btn-entrar-dashboard" class="btn btn-hero">
-                    <i class="fa-solid fa-play"></i> Iniciar Demostración en Vivo
-                </button>
-            </div>
-        </div>
-    </div>
-
     <div class="dashboard-wrapper">
         <!-- Barra de Navegación Superior (Top Navbar) -->
         <header class="topbar">
@@ -73,9 +35,6 @@
             </div>
 
             <div class="topbar-actions">
-                <button id="btn-volver-portada" class="btn-topbar-link" title="Ver portada de presentación">
-                    <i class="fa-solid fa-graduation-cap"></i> Presentación
-                </button>
                 <div class="status-badge-container">
                     <span class="status-pulse-dot" id="system-pulse"></span>
                     <span id="status-indicator" class="indicator idle">Listo</span>
@@ -90,10 +49,9 @@
 
         <!-- Barra de accesos rápidos a secciones -->
         <nav class="dashboard-nav-bar glass-card">
-            <a href="#seccion-busqueda" class="nav-pill active"><i class="fa-solid fa-magnifying-glass"></i> Búsqueda rápida</a>
-            <a href="#seccion-compra-mes" class="nav-pill"><i class="fa-solid fa-basket-shopping"></i> Compra del Mes</a>
-            <a href="#seccion-reportes" class="nav-pill"><i class="fa-solid fa-chart-pie"></i> Reporte y utilidades</a>
-            <a href="#seccion-catalogo" class="nav-pill"><i class="fa-solid fa-box-archive"></i> Catálogo</a>
+            <a href="#seccion-compra-mes" class="nav-pill active"><i class="fa-solid fa-basket-shopping"></i> Compra del Mes</a>
+            <a href="#seccion-busqueda" class="nav-pill"><i class="fa-solid fa-magnifying-glass"></i> Búsqueda Rápida + Catálogo</a>
+            <a href="#seccion-reportes" class="nav-pill"><i class="fa-solid fa-chart-pie"></i> Reportes y Utilidades</a>
         </nav>
 
         <!-- Banner de Progreso Activo (visible mientras el bot ejecuta) -->
@@ -115,11 +73,59 @@
             </div>
         </div>
 
-        <!-- CONTENIDO PRINCIPAL: 4 SECCIONES ESTRUCTURADAS -->
+        <!-- CONTENIDO PRINCIPAL: 3 SECCIONES DIRECTAS -->
         <main class="dashboard-sections">
 
             <!-- ============================================================== -->
-            <!-- 1. BÚSQUEDA RÁPIDA                                             -->
+            <!-- 1. COMPRA DEL MES                                              -->
+            <!-- ============================================================== -->
+            <section id="seccion-compra-mes" class="glass-card section-card">
+                <div class="card-header">
+                    <div class="card-header-icon icon-primary">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                    </div>
+                    <div>
+                        <h3>Compra del Mes</h3>
+                        <p class="card-desc">Procesa y compara la canasta mensual completa de productos en Coto, Carrefour y Día %.</p>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="actions-toolbar">
+                        <button id="btn-compra-mes" class="btn btn-primary">
+                            <i class="fa-solid fa-play"></i> Iniciar Proceso Completo
+                        </button>
+                        <button id="btn-editar-lista" class="btn btn-secondary">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar Canasta
+                        </button>
+                    </div>
+
+                    <!-- Tabla de Resultados de Compra del Mes -->
+                    <div class="table-responsive" style="margin-top: 1.25rem;">
+                        <table class="table-comparativa" id="tabla-compra-mes">
+                            <thead>
+                                <tr>
+                                    <th style="width: 32%;">Producto</th>
+                                    <th style="width: 17%; text-align: right;">Coto</th>
+                                    <th style="width: 17%; text-align: right;">Carrefour</th>
+                                    <th style="width: 17%; text-align: right;">Día</th>
+                                    <th style="width: 17%; text-align: center;">El ganador es este</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-compra-mes">
+                                <tr>
+                                    <td colspan="5" class="empty-state-cell">
+                                        <i class="fa-solid fa-spinner fa-spin"></i> Cargando datos de canasta mensual...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- 2. BÚSQUEDA RÁPIDA + CATÁLOGO                                  -->
             <!-- ============================================================== -->
             <section id="seccion-busqueda" class="glass-card section-card">
                 <div class="card-header">
@@ -127,20 +133,50 @@
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </div>
                     <div>
-                        <h3>Búsqueda rápida</h3>
-                        <p class="card-desc">Ingresá el nombre de cualquier producto para comparar su precio en tiempo real entre COTO, Carrefour y Día %.</p>
+                        <h3>Búsqueda Rápida + Catálogo</h3>
+                        <p class="card-desc">Seleccioná un producto del catálogo para comparar su precio en tiempo real entre Coto, Carrefour y Día %.</p>
                     </div>
                 </div>
 
                 <div class="card-body">
-                    <!-- Barra de búsqueda única -->
+                    <!-- Selección del Catálogo Existente -->
+                    <div class="catalogo-selector-grid">
+                        <div class="form-group">
+                            <label for="select-categoria">
+                                <i class="fa-solid fa-layer-group"></i> 1. Categoría de Producto
+                            </label>
+                            <select id="select-categoria" class="form-control-select">
+                                <option value="">Cargando categorías...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="select-producto">
+                                <i class="fa-solid fa-tag"></i> 2. Producto del Catálogo (Marca + Variante)
+                            </label>
+                            <select id="select-producto" class="form-control-select">
+                                <option value="">Selecciona una categoría primero...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Ficha Técnica del Producto Seleccionado -->
+                    <div id="box-info-producto" class="info-card-catalogo" style="display: none; margin-bottom: 1.25rem;">
+                        <div class="info-catalogo-row">
+                            <span><strong>Marca:</strong> <span id="info-marca" style="color: #38bdf8;">-</span></span>
+                            <span><strong>Variante:</strong> <span id="info-variante" style="color: #a78bfa;">-</span></span>
+                            <span><strong>Presentación:</strong> <span id="info-presentacion" style="color: #34d399; font-weight: bold;">-</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Barra de búsqueda / Selección unificada -->
                     <div class="unified-search-box">
                         <div class="unified-input-wrapper">
                             <i class="fa-solid fa-tag unified-icon"></i>
-                            <input type="text" id="input-busqueda-rapida" placeholder="Coca Cola 2.25L, Arroz Gallo 1kg, Leche La Serenísima..." autocomplete="off">
+                            <input type="text" id="input-busqueda-rapida" placeholder="Seleccioná del catálogo o ingresá un producto..." autocomplete="off">
                         </div>
                         <button id="btn-buscar-rapido" class="btn btn-primary btn-search-unified">
-                            <i class="fa-solid fa-bolt"></i> BUSCAR
+                            <i class="fa-solid fa-bolt"></i> Comparar en 3 Super
                         </button>
                     </div>
 
@@ -171,7 +207,7 @@
                                 <tbody id="tbody-busqueda-rapida">
                                     <tr>
                                         <td colspan="5" class="empty-state-cell">
-                                            Ingresá un producto arriba y presioná <strong>BUSCAR</strong> para ver la comparación.
+                                            Seleccioná un producto del catálogo y presioná <strong>Comparar en 3 Super</strong> para ver la comparación.
                                         </td>
                                     </tr>
                                 </tbody>
@@ -182,58 +218,7 @@
             </section>
 
             <!-- ============================================================== -->
-            <!-- 2. COMPRA DEL MES                                              -->
-            <!-- ============================================================== -->
-            <section id="seccion-compra-mes" class="glass-card section-card">
-                <div class="card-header">
-                    <div class="card-header-icon icon-primary">
-                        <i class="fa-solid fa-basket-shopping"></i>
-                    </div>
-                    <div>
-                        <h3>Compra del Mes</h3>
-                        <p class="card-desc">Procesa y compara la canasta mensual completa de productos en Coto, Carrefour y Día %.</p>
-                    </div>
-                </div>
-
-                <div class="card-body">
-                    <div class="actions-toolbar">
-                        <button id="btn-compra-mes" class="btn btn-primary">
-                            <i class="fa-solid fa-play"></i> Iniciar Proceso Completo
-                        </button>
-                        <button id="btn-editar-lista" class="btn btn-secondary">
-                            <i class="fa-solid fa-pen-to-square"></i> Editar Canasta
-                        </button>
-                        <button id="btn-exportar-mes-excel" class="btn btn-tool-action">
-                            <i class="fa-solid fa-file-excel icon-excel"></i> Exportar a Excel
-                        </button>
-                    </div>
-
-                    <!-- Tabla de Resultados de Compra del Mes -->
-                    <div class="table-responsive" style="margin-top: 1.25rem;">
-                        <table class="table-comparativa" id="tabla-compra-mes">
-                            <thead>
-                                <tr>
-                                    <th style="width: 32%;">Producto</th>
-                                    <th style="width: 17%; text-align: right;">Coto</th>
-                                    <th style="width: 17%; text-align: right;">Carrefour</th>
-                                    <th style="width: 17%; text-align: right;">Día</th>
-                                    <th style="width: 17%; text-align: center;">El ganador es este</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-compra-mes">
-                                <tr>
-                                    <td colspan="5" class="empty-state-cell">
-                                        <i class="fa-solid fa-spinner fa-spin"></i> Cargando datos de canasta mensual...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ============================================================== -->
-            <!-- 3. REPORTE Y UTILIDADES                                        -->
+            <!-- 3. REPORTES Y UTILIDADES                                       -->
             <!-- ============================================================== -->
             <section id="seccion-reportes" class="glass-card section-card">
                 <div class="card-header">
@@ -241,20 +226,13 @@
                         <i class="fa-solid fa-chart-pie"></i>
                     </div>
                     <div>
-                        <h3>Reporte y utilidades</h3>
+                        <h3>Reportes y utilidades</h3>
                         <p class="card-desc">Accedé al reporte consolidado en Microsoft Excel o visualizá el visor web interactivo.</p>
                     </div>
                 </div>
 
                 <div class="card-body">
                     <div class="tools-grid-clean">
-                        <button id="btn-abrir-excel" class="btn btn-tool">
-                            <i class="fa-solid fa-file-excel icon-excel"></i>
-                            <div>
-                                <strong>Abrir Excel</strong>
-                                <small>Ver reporte_supermercados.xlsx</small>
-                            </div>
-                        </button>
                         <a href="visor-proceso.html" target="_blank" class="btn btn-tool">
                             <i class="fa-solid fa-table-cells icon-viewer"></i>
                             <div>
@@ -269,62 +247,6 @@
                                 <small>Descarga directa de la planilla</small>
                             </div>
                         </a>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ============================================================== -->
-            <!-- 4. CATÁLOGO OFICIAL                                            -->
-            <!-- ============================================================== -->
-            <section id="seccion-catalogo" class="glass-card section-card">
-                <div class="card-header">
-                    <div class="card-header-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">
-                        <i class="fa-solid fa-box-archive"></i>
-                    </div>
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                            <h3>Catálogo</h3>
-                            <span class="super-tag" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.72rem; padding: 0.2rem 0.5rem;">
-                                <i class="fa-solid fa-shield-halved" style="margin-right: 4px;"></i> Catálogo Oficial
-                            </span>
-                        </div>
-                        <p class="card-desc">Explorá los productos estandarizados del catálogo oficial por categoría y especificaciones.</p>
-                    </div>
-                </div>
-
-                <div class="card-body">
-                    <div class="catalogo-selector-grid">
-                        <div class="form-group">
-                            <label for="select-categoria">
-                                <i class="fa-solid fa-layer-group"></i> 1. Categoría de Producto
-                            </label>
-                            <select id="select-categoria" class="form-control-select">
-                                <option value="">Cargando categorías...</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="select-producto">
-                                <i class="fa-solid fa-tag"></i> 2. Producto del Catálogo (Marca + Variante)
-                            </label>
-                            <select id="select-producto" class="form-control-select">
-                                <option value="">Selecciona una categoría primero...</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Ficha Técnica del Producto Seleccionado -->
-                    <div id="box-info-producto" class="info-card-catalogo" style="display: none;">
-                        <div class="info-catalogo-row">
-                            <span><strong>Marca:</strong> <span id="info-marca" style="color: #38bdf8;">-</span></span>
-                            <span><strong>Variante:</strong> <span id="info-variante" style="color: #a78bfa;">-</span></span>
-                            <span><strong>Presentación:</strong> <span id="info-presentacion" style="color: #34d399; font-weight: bold;">-</span></span>
-                        </div>
-                        <div style="margin-top: 0.75rem; display: flex; justify-content: flex-end;">
-                            <button id="btn-usar-producto-catalogo" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">
-                                <i class="fa-solid fa-magnifying-glass"></i> Buscar este producto en Búsqueda Rápida
-                            </button>
-                        </div>
                     </div>
                 </div>
             </section>
