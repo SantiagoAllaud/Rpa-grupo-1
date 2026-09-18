@@ -25,14 +25,14 @@ const MOUSE_HELPER_PATH = path.join(__dirname, 'mouse_helper.exe');
 // ==============================================================================
 const CONFIG = {
     DEMO_MODE: true,
-    TYPING_DELAY: 50,          // 50ms por carácter (tipeo humano visible)
-    MOUSE_MOVE_DURATION: 600,  // 600ms de movimiento fluido del cursor
-    PAUSE_BEFORE_CLICK: 450,   // Pausa de posicionamiento antes del click
-    PAUSE_AFTER_CLICK: 650,    // Pausa posterior al click para asimilar la acción
-    PAUSE_AFTER_PAGE_LOAD: 2500, // Pausa tras cargar la página principal
-    PAUSE_AFTER_SEARCH: 2500,  // Pausa tras ejecutar la búsqueda
-    PAUSE_AFTER_FILTER: 2200,  // Pausa tras aplicar el ordenamiento
-    SCROLL_STEP_DELAY: 350     // Pausa entre pasos de scroll progresivo
+    TYPING_DELAY: 25,          // 25ms por carácter (tipeo humano ágil y visible)
+    MOUSE_MOVE_DURATION: 300,  // 300ms de movimiento fluido del cursor
+    PAUSE_BEFORE_CLICK: 150,   // Pausa breve antes del click
+    PAUSE_AFTER_CLICK: 200,    // Pausa breve posterior al click
+    PAUSE_AFTER_PAGE_LOAD: 800, // Pausa tras cargar la página
+    PAUSE_AFTER_SEARCH: 800,   // Pausa tras ejecutar la búsqueda
+    PAUSE_AFTER_FILTER: 600,   // Pausa tras aplicar el ordenamiento
+    SCROLL_STEP_DELAY: 150     // Pausa entre pasos de scroll progresivo
 };
 
 // Control de aborto global e instantáneo (Kill-Switch y FailSafe de Movimiento de Mouse)
@@ -524,13 +524,13 @@ async function searchCarrefour(page, prodClean, options = {}) {
         await sleep(800);
         const optionClicked = await visibleClickText(page, 'button, [role="menuitem"], [role="option"], a', 'más bajo', mouseDuration);
         if (optionClicked) {
-            await sleep(2500);
+            await sleep(800);
         }
     }
 
     // Scroll de inspección sobre los productos ordenados
     await visibleScroll(page, 350, 2);
-    await sleep(1500);
+    await sleep(400);
 
     // 7. Extracción interna con validador estricto de marca
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Extrayendo datos del producto seleccionado...' });
@@ -715,7 +715,7 @@ async function searchCoto(page, prodClean, options = {}) {
 
     // Scroll de inspección
     await visibleScroll(page, 350, 2);
-    await sleep(800);
+    await sleep(400);
 
     // 7. Extracción interna con validador estricto de marca
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Extrayendo datos del producto seleccionado...' });
@@ -995,13 +995,13 @@ async function searchDia(page, prodClean, options = {}) {
             }).catch(() => false);
         }
         if (optionClickedD) {
-            await sleep(2500);
+            await sleep(800);
         }
     }
 
     // Scroll de inspección
     await visibleScroll(page, 350, 2);
-    await sleep(1500);
+    await sleep(400);
 
     // 7. Extracción interna con validador estricto de marca
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Extrayendo datos del producto seleccionado...' });
@@ -1163,14 +1163,18 @@ async function runRPA({
 
     let browser = null;
     const resultadosSesion = [];
+    const os = require('os');
+    const profileDir = path.join(os.tmpdir(), 'rpa_chrome_profile_' + Date.now());
 
     try {
         const puppeteer = await getPuppeteer();
         browser = await puppeteer.launch({
             executablePath: chromePath,
             headless: false, // 100% VISIBLE en el escritorio del usuario
+            userDataDir: profileDir, // Perfil aislado: FORZA NUEVA VENTANA INDEPENDIENTE sin tocar pestañas del usuario
             defaultViewport: null, // Ventana completa
             args: [
+                '--new-window',
                 '--start-maximized',
                 '--window-position=0,0',
                 '--window-size=1920,1080',
@@ -1240,12 +1244,12 @@ async function runRPA({
         if (onStatus) {
             onStatus({
                 type: 'connected',
-                message: 'Chrome abierto y en pantalla completa. El robot tomará el control visible en 2 segundos...'
+                message: 'Nueva ventana de Chrome abierta. El robot comenzará la búsqueda en 1 segundo...'
             });
         }
 
-        // Gracia de 2 segundos para que el usuario suelte el mouse cómodamente viendo la pantalla completa
-        await sleep(2000);
+        // Gracia breve de 600ms para soltar el mouse viendo la nueva ventana independiente
+        await sleep(600);
         checkAborted();
 
         // 3. Activar la regla estricta de vigilancia de mouse una vez que Chrome ya está en pantalla
@@ -1419,10 +1423,15 @@ async function runRPA({
         } catch (e) {}
         if (browser && !isAborted) {
             try {
-                await sleep(2000);
+                await sleep(1000);
                 await browser.close();
             } catch (e) {}
         }
+        try {
+            if (profileDir && fs.existsSync(profileDir)) {
+                fs.rmSync(profileDir, { recursive: true, force: true });
+            }
+        } catch (e) {}
     }
 }
 

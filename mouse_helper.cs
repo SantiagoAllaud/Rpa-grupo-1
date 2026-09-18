@@ -123,8 +123,8 @@ public class MouseHelper {
                     if (GetWindowRect(hWnd, out r)) {
                         int w = r.Right - r.Left;
                         int h = r.Bottom - r.Top;
-                        // Si buscamos por PID o si es una ventana visible estándar
-                        if (targetPid > 0 || (w >= 400 && h >= 300)) {
+                        // Exigir siempre una ventana visible principal (w >= 400 y h >= 300)
+                        if (w >= 400 && h >= 300) {
                             found = hWnd;
                             return false; // Encontrada
                         }
