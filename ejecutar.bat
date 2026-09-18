@@ -111,14 +111,15 @@ echo   [1] Procesar compra del mes (desde input.csv)
 echo   [2] Buscar producto individual (consulta interactiva)
 echo   [3] Abrir reporte Excel (reporte_supermercados.xlsx)
 echo   [4] Editar lista de compra del mes (input.csv)
-echo   [5] Limpiar resultados / historial (sin alterar input.csv)
-echo   [6] Diagnóstico del sistema y pruebas unitarias
-echo   [7] Salir
+echo   [5] Ver catálogo cerrado de productos disponibles
+echo   [6] Limpiar resultados / historial (sin alterar input.csv)
+echo   [7] Diagnóstico del sistema y pruebas unitarias
+echo   [8] Salir
 echo.
 echo (Tip: También podés escribir directamente el nombre del producto aquí)
 echo.
 set "OPCION=1"
-set /p "OPCION=Elige opción [1-7] o escribe el producto [1]: "
+set /p "OPCION=Elige opción [1-8] o escribe el producto [1]: "
 
 set "OPCION_FIRST="
 for /f "tokens=1" %%a in ("!OPCION!") do set "OPCION_FIRST=%%a"
@@ -127,9 +128,12 @@ if "!OPCION_FIRST!"=="1" goto :ejecutar_mes
 if "!OPCION_FIRST!"=="2" goto :pedir_individual
 if "!OPCION_FIRST!"=="3" goto :abrir_excel
 if "!OPCION_FIRST!"=="4" goto :editar_input
-if "!OPCION_FIRST!"=="5" goto :menu_limpieza
-if "!OPCION_FIRST!"=="6" goto :ejecutar_diagnostico
-if "!OPCION_FIRST!"=="7" goto :salir
+if "!OPCION_FIRST!"=="5" goto :ver_catalogo
+if "!OPCION_FIRST!"=="6" goto :menu_limpieza
+if "!OPCION_FIRST!"=="7" goto :ejecutar_diagnostico
+if "!OPCION_FIRST!"=="8" goto :salir
+if /i "!OPCION_FIRST!"=="catalogo" goto :ver_catalogo
+if /i "!OPCION_FIRST!"=="cat" goto :ver_catalogo
 if /i "!OPCION_FIRST!"=="editar" goto :editar_input
 if /i "!OPCION_FIRST!"=="edit" goto :editar_input
 if /i "!OPCION_FIRST!"=="input" goto :editar_input
@@ -174,7 +178,30 @@ if "%PROD_MANUAL%"=="" (
 )
 goto :ejecutar_individual
 
+:ver_catalogo
+cls
+call node catalogo.js --listar
+echo.
+pause
+goto :menu
+
 :ejecutar_individual
+echo.
+echo ==============================================================================
+echo [INFO] Validando consulta contra el CATÁLOGO CERRADO...
+echo ==============================================================================
+call node catalogo.js --validar "!PROD_MANUAL!"
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ==============================================================================
+    echo [RECHAZADO] La búsqueda no puede ejecutarse porque el producto no está
+    echo             en el catálogo cerrado definido para este proyecto.
+    echo ==============================================================================
+    echo.
+    pause
+    goto :menu
+)
+
 echo.
 echo ==============================================================================
 echo [INFO] Iniciando BÚSQUEDA INDIVIDUAL para: "!PROD_MANUAL!"
@@ -220,6 +247,22 @@ if not exist "input.csv" (
 
 echo.
 echo ==============================================================================
+echo [INFO] Validando canasta mensual contra el CATÁLOGO CERRADO...
+echo ==============================================================================
+call node catalogo.js --validar-csv input.csv
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ==============================================================================
+    echo [ERROR] input.csv contiene productos que no pertenecen al catálogo cerrado.
+    echo         Edita el archivo con la opción [4] para incluir sólo ítems válidos.
+    echo ==============================================================================
+    echo.
+    pause
+    goto :menu
+)
+
+echo.
+echo ==============================================================================
 echo [INFO] Iniciando MODO COMPRA DEL MES
 echo [INFO] Leyendo canasta mensual predefinida desde input.csv...
 echo ==============================================================================
@@ -231,7 +274,7 @@ taskkill /F /IM EXCEL.EXE >nul 2>&1
 :: Limpiar registros anteriores de compra del mes para iniciar búsqueda limpia
 call node validador.js --limpiar 1 >nul 2>&1
 
-call node -e "const fs = require('fs'); const lines = fs.readFileSync('input.csv','utf8').split('\n').slice(1).map(l => l.trim()).filter(l => l).map(l => { const p = l.split(','); return { producto: p[0], cantidad: parseInt(p[1])||1, unidad: p[2]||'' }; }); require('./rpa_runner.js').runRPA({ modo: 'compra_mes', items: lines, demoMode: true, onStatus: (s) => console.log(s.message || s) })"
+call node -e "const fs = require('fs'); const lines = fs.readFileSync('input.csv','utf8').split('\n').slice(1).map(l => l.trim()).filter(l => l).map(l => { const p = l.split(','); return { producto: p[0], cantidad: parseFloat(p[1])||1, unidad: p[2]||'', unidades: parseInt(p[3],10)||1 }; }); require('./rpa_runner.js').runRPA({ modo: 'compra_mes', items: lines, demoMode: true, onStatus: (s) => console.log(s.message || s) })"
 
 echo.
 echo [INFO] Procesando datos y generando reporte Excel con 5 hojas...

@@ -279,37 +279,122 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ==========================================================================
+    // GESTIÓN DEL CATÁLOGO CERRADO EN EL FRONTEND
+    // ==========================================================================
+    let catalogoGlobal = null;
+    let itemsCatalogoGlobal = [];
+    const selectCategoria = document.getElementById('select-categoria');
+    const selectProducto = document.getElementById('select-producto');
+    const inputUnidadesCompra = document.getElementById('input-unidades-compra');
+    const boxInfoProducto = document.getElementById('box-info-producto');
+    const infoMarca = document.getElementById('info-marca');
+    const infoVariante = document.getElementById('info-variante');
+    const infoPresentacion = document.getElementById('info-presentacion');
+
+    async function cargarCatalogoUI() {
+        try {
+            const resp = await fetch('/api/catalogo');
+            const data = await resp.json();
+            if (data.success && data.catalogo) {
+                catalogoGlobal = data.catalogo;
+                itemsCatalogoGlobal = data.items || [];
+                poblarSelectCategorias();
+            }
+        } catch (e) {
+            console.error('Error cargando catálogo:', e);
+        }
+    }
+
+    function poblarSelectCategorias() {
+        if (!selectCategoria || !catalogoGlobal) return;
+        selectCategoria.innerHTML = '<option value="">-- Selecciona una categoría --</option>';
+        const categorias = Object.keys(catalogoGlobal);
+        categorias.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+            selectCategoria.appendChild(opt);
+        });
+        if (categorias.length > 0) {
+            selectCategoria.value = categorias[0];
+            poblarSelectProductos(categorias[0]);
+        }
+    }
+
+    function poblarSelectProductos(categoria) {
+        if (!selectProducto || !catalogoGlobal) return;
+        selectProducto.innerHTML = '<option value="">-- Selecciona un producto --</option>';
+        if (!categoria || !catalogoGlobal[categoria]) {
+            if (boxInfoProducto) boxInfoProducto.style.display = 'none';
+            return;
+        }
+
+        const prods = catalogoGlobal[categoria];
+        prods.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `${p.nombre_completo}`;
+            selectProducto.appendChild(opt);
+        });
+
+        if (prods.length > 0) {
+            selectProducto.value = prods[0].id;
+            mostrarInfoProducto(prods[0]);
+        }
+    }
+
+    function mostrarInfoProducto(item) {
+        if (!boxInfoProducto) return;
+        if (!item) {
+            boxInfoProducto.style.display = 'none';
+            return;
+        }
+        boxInfoProducto.style.display = 'block';
+        if (infoMarca) infoMarca.textContent = item.marca;
+        if (infoVariante) infoVariante.textContent = item.variante || 'N/A';
+        if (infoPresentacion) infoPresentacion.textContent = `${item.cantidad} ${item.unidad}`;
+    }
+
+    if (selectCategoria) {
+        selectCategoria.addEventListener('change', (e) => {
+            poblarSelectProductos(e.target.value);
+        });
+    }
+
+    if (selectProducto) {
+        selectProducto.addEventListener('change', (e) => {
+            const item = itemsCatalogoGlobal.find(it => it.id === e.target.value);
+            mostrarInfoProducto(item);
+        });
+    }
+
+    // Iniciar carga del catálogo
+    cargarCatalogoUI();
+
     // Eventos de Botones Principales
     btnCompraMes.addEventListener('click', () => {
         executeAction('/api/compra-mes');
     });
 
     btnBuscarIndividual.addEventListener('click', () => {
-        const producto = inputProducto.value.trim();
-        const cantidad = inputCantidad ? (parseInt(inputCantidad.value, 10) || 1) : 1;
-        const unidad = inputUnidad ? inputUnidad.value.trim() : '';
+        const prodId = selectProducto ? selectProducto.value : '';
+        const item = itemsCatalogoGlobal.find(it => it.id === prodId);
+        const unidades = inputUnidadesCompra ? (parseInt(inputUnidadesCompra.value, 10) || 1) : 1;
 
-        if (!producto) {
-            addLog("Por favor ingresa un producto antes de buscar.", true);
+        if (!item) {
+            addLog("Por favor selecciona un producto del catálogo cerrado.", true);
             return;
         }
-        executeAction('/api/buscar-individual', { producto, cantidad, unidad });
-    });
 
-    // Permitir buscar con ENTER desde cualquiera de los inputs
-    inputProducto.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') btnBuscarIndividual.click();
+        executeAction('/api/buscar-individual', {
+            producto: item.producto,
+            terminoBusqueda: item.termino_busqueda || item.nombre_completo,
+            cantidad: item.cantidad,
+            unidad: item.unidad,
+            unidades: unidades
+        });
     });
-    if (inputCantidad) {
-        inputCantidad.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') btnBuscarIndividual.click();
-        });
-    }
-    if (inputUnidad) {
-        inputUnidad.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') btnBuscarIndividual.click();
-        });
-    }
 
     btnAbrirExcel.addEventListener('click', () => {
         executeAction('/api/abrir-excel');
@@ -341,22 +426,47 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    function crearFilaCanasta(producto = '', cantidad = 1, unidad = '') {
+    function crearFilaCanasta(prodItem = null, unidades = 1) {
         const tr = document.createElement('tr');
+        
+        let selectOptions = '<option value="">-- Selecciona producto del catálogo --</option>';
+        itemsCatalogoGlobal.forEach(it => {
+            const selected = (prodItem && (it.id === prodItem.id || it.producto.toLowerCase() === prodItem.producto.toLowerCase())) ? 'selected' : '';
+            selectOptions += `<option value="${it.id}" ${selected}>${escapeHtml(it.nombre_completo)}</option>`;
+        });
+
         tr.innerHTML = `
             <td>
-                <input type="text" class="modal-input modal-input-prod" placeholder="Ej: Arroz Gallo Oro, Leche La Serenisima..." value="${escapeHtml(producto)}" />
+                <select class="modal-input modal-select-prod">
+                    ${selectOptions}
+                </select>
             </td>
             <td>
-                <input type="number" class="modal-input modal-input-cant" min="1" step="1" value="${cantidad > 0 ? cantidad : 1}" />
+                <span class="modal-pres-label" style="color: #34d399; font-weight: 600; font-size: 0.88rem;">-</span>
             </td>
             <td>
-                <input type="text" class="modal-input modal-input-unid" placeholder="Ej: 2L, 1kg, 500g (Opcional)" value="${escapeHtml(unidad)}" />
+                <input type="number" class="modal-input modal-input-unid-compra" min="1" step="1" value="${unidades > 0 ? unidades : 1}" />
             </td>
             <td style="text-align: center;">
                 <button type="button" class="btn-del-row" title="Eliminar este producto"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
+
+        const sel = tr.querySelector('.modal-select-prod');
+        const presLabel = tr.querySelector('.modal-pres-label');
+
+        function actualizarPres() {
+            const found = itemsCatalogoGlobal.find(it => it.id === sel.value);
+            if (found) {
+                presLabel.textContent = `${found.cantidad} ${found.unidad}`;
+            } else {
+                presLabel.textContent = '-';
+            }
+        }
+
+        sel.addEventListener('change', actualizarPres);
+        actualizarPres();
+
         tr.querySelector('.btn-del-row').addEventListener('click', () => {
             tr.remove();
         });
@@ -380,34 +490,33 @@ document.addEventListener('DOMContentLoaded', () => {
                         const line = lines[i].trim();
                         if (line) {
                             const parts = line.split(',');
-                            const prod = parts[0] ? parts[0].trim() : '';
-                            let cant = 1;
-                            let unid = '';
-                            if (parts[1]) {
-                                const parsed = parseInt(parts[1].trim(), 10);
-                                if (!isNaN(parsed) && parsed > 0) {
-                                    cant = parsed;
-                                }
-                            }
-                            if (parts[2]) {
-                                unid = parts[2].trim();
-                            }
-                            if (prod) {
-                                modalTbodyCanasta.appendChild(crearFilaCanasta(prod, cant, unid));
+                            const prodText = parts[0] ? parts[0].trim() : '';
+                            const cant = parts[1] ? (parseFloat(parts[1].trim()) || 1) : 1;
+                            const unid = parts[2] ? parts[2].trim() : '';
+                            const unidades = parts[3] ? (parseInt(parts[3].trim(), 10) || 1) : 1;
+
+                            const matched = itemsCatalogoGlobal.find(it => 
+                                it.producto.toLowerCase() === prodText.toLowerCase() ||
+                                it.nombre_completo.toLowerCase().includes(prodText.toLowerCase()) ||
+                                it.marca.toLowerCase() === prodText.toLowerCase()
+                            );
+
+                            if (prodText) {
+                                modalTbodyCanasta.appendChild(crearFilaCanasta(matched || { id: '', producto: prodText, cantidad: cant, unidad: unid }, unidades));
                                 count++;
                             }
                         }
                     }
                     if (count === 0) {
-                        modalTbodyCanasta.appendChild(crearFilaCanasta('', 1, ''));
+                        modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
                     }
                 } else if (modalTbodyCanasta) {
-                    modalTbodyCanasta.appendChild(crearFilaCanasta('', 1, ''));
+                    modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
                 }
             } catch (e) {
                 if (modalTbodyCanasta) {
                     modalTbodyCanasta.innerHTML = '';
-                    modalTbodyCanasta.appendChild(crearFilaCanasta('', 1, ''));
+                    modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
                 }
             }
         });
@@ -416,10 +525,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnAgregarFilaModal) {
         btnAgregarFilaModal.addEventListener('click', () => {
             if (modalTbodyCanasta) {
-                const tr = crearFilaCanasta('', 1, '');
+                const tr = crearFilaCanasta(null, 1);
                 modalTbodyCanasta.appendChild(tr);
-                const inputProd = tr.querySelector('.modal-input-prod');
-                if (inputProd) inputProd.focus();
             }
         });
     }
@@ -440,26 +547,24 @@ document.addEventListener('DOMContentLoaded', () => {
         btnGuardarLista.addEventListener('click', async () => {
             if (!modalTbodyCanasta) return;
             const rows = modalTbodyCanasta.querySelectorAll('tr');
-            let contenido = "producto,cantidad,unidad\n";
+            let contenido = "producto,cantidad,unidad,unidades\n";
             let validCount = 0;
 
             rows.forEach(r => {
-                const prodInput = r.querySelector('.modal-input-prod');
-                const cantInput = r.querySelector('.modal-input-cant');
-                const unidInput = r.querySelector('.modal-input-unid');
-                if (prodInput) {
-                    const prod = prodInput.value.replace(/,/g, ' ').trim();
-                    const cant = parseInt(cantInput ? cantInput.value : '1', 10) || 1;
-                    const unid = unidInput ? unidInput.value.replace(/,/g, ' ').trim() : '';
-                    if (prod) {
-                        contenido += `${prod},${cant},${unid}\n`;
+                const selProd = r.querySelector('.modal-select-prod');
+                const unidadesInput = r.querySelector('.modal-input-unid-compra');
+                if (selProd && selProd.value) {
+                    const item = itemsCatalogoGlobal.find(it => it.id === selProd.value);
+                    const unidades = parseInt(unidadesInput ? unidadesInput.value : '1', 10) || 1;
+                    if (item) {
+                        contenido += `${item.producto},${item.cantidad},${item.unidad},${unidades}\n`;
                         validCount++;
                     }
                 }
             });
 
             if (validCount === 0) {
-                alert("Debes agregar al menos un producto a la lista.");
+                alert("Debes agregar al menos un producto del catálogo a la lista.");
                 return;
             }
 
@@ -472,15 +577,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 if (data.success) {
                     editarModal.classList.remove('active');
-                    addLog(`✓ Canasta mensual actualizada (${validCount} productos guardados con cantidad y unidad).`);
+                    addLog("✓ Lista mensual guardada exitosamente y validada con el catálogo cerrado.");
                 } else {
-                    alert("Error al guardar: " + data.message);
+                    alert(`Error al guardar: ${data.message}`);
                 }
-            } catch (e) {
-                alert("Error de conexión al guardar.");
+            } catch (error) {
+                alert(`Error al guardar: ${error.message}`);
             }
         });
     }
+
 
     // Kill-switch: botón de aborto visible en la interfaz
     if (btnAbort) {

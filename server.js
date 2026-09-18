@@ -11,6 +11,13 @@ function getValidador() {
     return require('./validador.js');
 }
 
+function getCatalogo() {
+    try {
+        delete require.cache[require.resolve('./catalogo.js')];
+    } catch(e) {}
+    return require('./catalogo.js');
+}
+
 function getRpaRunner() {
     try {
         delete require.cache[require.resolve('./rpa_runner.js')];
@@ -126,6 +133,18 @@ app.get('/api/datos-completos', (req, res) => {
     }
 });
 
+// Endpoint para obtener el catálogo cerrado estructurado
+app.get('/api/catalogo', (req, res) => {
+    try {
+        const catEngine = getCatalogo();
+        const { catalogo: catData, items } = catEngine.cargarCatalogo();
+        const categorias = catEngine.listarCategorias();
+        res.json({ success: true, catalogo: catData, items, categorias });
+    } catch(e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // Endpoint para descargar reporte_supermercados.xlsx
 app.get('/api/descargar-excel', (req, res) => {
     const file = path.join(__dirname, 'reporte_supermercados.xlsx');
@@ -167,6 +186,17 @@ app.post('/api/compra-mes', async (req, res) => {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
+    // Validación estricta previa contra el catálogo cerrado
+    const catEngine = getCatalogo();
+    const valCsv = catEngine.validarArchivoCSV('input.csv');
+    if (!valCsv.valido) {
+        return res.status(400).json({
+            success: false,
+            message: 'El archivo input.csv contiene productos que no pertenecen al catálogo cerrado.',
+            filasInvalidas: valCsv.filasInvalidas
+        });
+    }
+
     isRpaRunning = true;
     broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
 
@@ -181,7 +211,7 @@ app.post('/api/compra-mes', async (req, res) => {
 
         console.log("Iniciando compra del mes...");
         
-        // Leer input.csv
+        // Leer input.csv validado
         let itemsCanasta = [];
         if (fs.existsSync('input.csv')) {
             const lines = fs.readFileSync('input.csv', 'utf8').split('\n');
@@ -190,9 +220,10 @@ app.post('/api/compra-mes', async (req, res) => {
                 if (line) {
                     const parts = line.split(',');
                     const prod = parts[0] ? parts[0].trim() : '';
-                    const cant = parts[1] ? (parseInt(parts[1], 10) || 1) : 1;
+                    const cant = parts[1] ? (parseFloat(parts[1]) || 1) : 1;
                     const unid = parts[2] ? parts[2].trim() : '';
-                    if (prod) itemsCanasta.push({ producto: prod, cantidad: cant, unidad: unid });
+                    const unidades = parts[3] ? (parseInt(parts[3], 10) || 1) : 1;
+                    if (prod) itemsCanasta.push({ producto: prod, cantidad: cant, unidad: unid, unidades });
                 }
             }
         }
@@ -294,12 +325,29 @@ app.post('/api/buscar-individual', async (req, res) => {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
-    const { producto, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+    const { producto, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
     if (!producto || !producto.trim()) {
         return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
     }
 
-    const cantNum = parseInt(cantidad, 10) > 0 ? parseInt(cantidad, 10) : 1;
+    const cantNum = parseFloat(cantidad) > 0 ? parseFloat(cantidad) : 1;
+
+    // Validación estricta previa contra el catálogo cerrado
+    const catEngine = getCatalogo();
+    const valCat = catEngine.validarEntrada({ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() });
+    if (!valCat.valido) {
+        return res.status(400).json({
+            success: false,
+            message: `El producto "${producto}" no pertenece al catálogo cerrado.`,
+            opciones: valCat.opciones ? valCat.opciones.slice(0, 10) : []
+        });
+    }
+
+    // Usar término oficial del catálogo
+    const prodOficial = valCat.item ? valCat.item.producto : producto.trim();
+    const cantOficial = valCat.item ? valCat.item.cantidad : cantNum;
+    const unidOficial = valCat.item ? valCat.item.unidad : unidad.trim();
+    const termOficial = (terminoBusqueda || (valCat.item ? valCat.item.termino_busqueda : ''));
 
     isRpaRunning = true;
     broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
@@ -310,15 +358,20 @@ app.post('/api/buscar-individual', async (req, res) => {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
         } catch (eKill) {}
 
-        console.log(`Iniciando búsqueda para: ${producto} (x${cantNum} ${unidad}) [Demo: ${demoMode}]`);
-        broadcast({ type: 'log', message: `Búsqueda individual: "${producto}" (Cantidad: ${cantNum}, Unidad: ${unidad || 'Automática'})` });
+        console.log(`Iniciando búsqueda para: ${prodOficial} (x${cantOficial} ${unidOficial}) [Demo: ${demoMode}]`);
+        broadcast({ type: 'log', message: `Búsqueda individual: "${prodOficial}" (Cantidad: ${cantOficial}, Unidad: ${unidOficial || 'Automática'})` });
 
         // Limpieza de consulta previa
         getValidador().limpiarResultados('2');
 
         const resultados = await getRpaRunner().runRPA({
             modo: 'individual',
-            items: [{ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() }],
+            items: [{
+                producto: prodOficial,
+                terminoBusqueda: termOficial,
+                cantidad: cantOficial,
+                unidad: unidOficial
+            }],
             demoMode,
             typingDelay,
             mouseDuration,
@@ -448,8 +501,28 @@ app.post('/api/input', (req, res) => {
     try {
         const { contenido } = req.body;
         if (typeof contenido !== 'string') throw new Error("Contenido inválido.");
+
+        // Validar cada línea propuesta contra el catálogo
+        const catEngine = getCatalogo();
+        const lines = contenido.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        const invalidas = [];
+        for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',').map(p => p.trim());
+            const val = catEngine.validarEntrada({ producto: parts[0], cantidad: parts[1], unidad: parts[2] });
+            if (!val.valido) {
+                invalidas.push({ fila: i + 1, texto: lines[i], motivo: val.motivo });
+            }
+        }
+        if (invalidas.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No se puede guardar: contiene productos fuera del catálogo cerrado.",
+                filasInvalidas: invalidas
+            });
+        }
+
         fs.writeFileSync('input.csv', contenido, 'utf8');
-        res.json({ success: true, message: "Lista mensual actualizada correctamente." });
+        res.json({ success: true, message: "Lista mensual actualizada correctamente y validada con el catálogo." });
     } catch (e) {
         res.status(500).json({ success: false, message: e.toString() });
     }

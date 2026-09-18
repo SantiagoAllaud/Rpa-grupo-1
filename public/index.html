@@ -123,40 +123,57 @@
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </div>
                         <div>
-                            <h3>Búsqueda Rápida</h3>
-                            <p class="card-desc">Cotizá un producto específico en tiempo real entre Carrefour, COTO y Día %.</p>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                <h3>Búsqueda Rápida</h3>
+                                <span class="super-tag" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); font-size: 0.72rem; padding: 0.2rem 0.5rem;">
+                                    <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> Catálogo Cerrado
+                                </span>
+                            </div>
+                            <p class="card-desc">Selecciona un producto representativo del catálogo oficial para comparar entre Carrefour, COTO y Día %.</p>
                         </div>
                     </div>
                     <div class="card-body">
                         <div class="search-form">
                             <div class="form-group">
-                                <label for="input-producto">
-                                    <i class="fa-solid fa-tag"></i> Nombre del Producto
+                                <label for="select-categoria">
+                                    <i class="fa-solid fa-layer-group"></i> 1. Categoría de Producto
                                 </label>
-                                <div class="input-with-icon">
-                                    <i class="fa-solid fa-font input-icon"></i>
-                                    <input type="text" id="input-producto" placeholder="Ej: Gaseosa Secco Pomelo, Leche La Serenísima, Arroz...">
+                                <select id="select-categoria" class="form-control-select">
+                                    <option value="">Cargando categorías...</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="select-producto">
+                                    <i class="fa-solid fa-tag"></i> 2. Producto del Catálogo (Marca + Variante)
+                                </label>
+                                <select id="select-producto" class="form-control-select">
+                                    <option value="">Selecciona una categoría primero...</option>
+                                </select>
+                            </div>
+
+                            <!-- Ficha Técnica del Producto Seleccionado -->
+                            <div id="box-info-producto" style="display: none; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-subtle); border-radius: 12px; font-size: 0.82rem;">
+                                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
+                                    <span><strong>Marca:</strong> <span id="info-marca" style="color: #38bdf8;">-</span></span>
+                                    <span><strong>Variante:</strong> <span id="info-variante" style="color: #a78bfa;">-</span></span>
+                                    <span><strong>Presentación:</strong> <span id="info-presentacion" style="color: #34d399; font-weight: bold;">-</span></span>
                                 </div>
                             </div>
 
                             <div class="form-row-dual">
                                 <div class="form-group" style="flex: 1;">
-                                    <label for="input-cantidad">
-                                        <i class="fa-solid fa-hashtag"></i> Cantidad
+                                    <label for="input-unidades-compra">
+                                        <i class="fa-solid fa-hashtag"></i> Unidades
                                     </label>
-                                    <input type="number" id="input-cantidad" value="1" min="1" step="1">
+                                    <input type="number" id="input-unidades-compra" value="1" min="1" step="1">
                                 </div>
-                                <div class="form-group" style="flex: 1.4;">
-                                    <label for="input-unidad">
-                                        <i class="fa-solid fa-scale-balanced"></i> Unidad (Opcional)
-                                    </label>
-                                    <input type="text" id="input-unidad" placeholder="Ej: 2L, 1kg, 500g">
+                                <div class="form-group" style="flex: 1.4; display: flex; align-items: flex-end;">
+                                    <button id="btn-buscar-individual" class="btn btn-action-search" style="width: 100%;">
+                                        <i class="fa-solid fa-bolt"></i> Comparar en 3 Súper
+                                    </button>
                                 </div>
                             </div>
-
-                            <button id="btn-buscar-individual" class="btn btn-action-search">
-                                <i class="fa-solid fa-bolt"></i> Buscar Producto Ahora
-                            </button>
                         </div>
                     </div>
                 </div>

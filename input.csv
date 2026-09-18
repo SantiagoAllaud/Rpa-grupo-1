@@ -1,11 +1,11 @@
-producto,cantidad,unidad
-leche,2,litro
-arroz,1,1kg
-fideos,1,500g
-aceite,1,1.5lt
-yerba,1,1kg
-azucar,1,1kg
-galletitas,1,300g
-papel higienico,1,4 un.
-cafe,1,250g
-gaseosa,1,2.25lt
+producto,cantidad,unidad,unidades
+Coca Cola,2.25,L,2
+Arroz Gallo,1,kg,1
+Fideos Matarazzo,500,g,2
+Aceite Cocinero,1.5,L,1
+Yerba Playadito,1,kg,1
+Leche La Serenísima,1,L,4
+Secco Pomelo,2.25,L,2
+Galletitas Oreo,118,g,2
+Detergente Magistral,500,ml,1
+Papel Higiénico Higienol,4,un,2

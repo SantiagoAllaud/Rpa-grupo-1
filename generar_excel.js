@@ -112,6 +112,9 @@ async function main() {
         var preciosPorSuper = {};
         var itemsPorSuper = {};
 
+        // Validar si el producto cumple la regla de existir válidamente en los 3 supermercados
+        var check3 = validador.validarComparacion3Supermercados(itemsDelProd);
+
         supersList.forEach(function (s) {
             var found = itemsDelProd.filter(function (x) { return x.supermercado === s; }).pop();
             itemsPorSuper[s] = found || null;
@@ -119,25 +122,29 @@ async function main() {
                 var cant = found.cantidad || 1;
                 var precioTotal = found.precio * cant;
                 preciosPorSuper[s] = precioTotal;
-                totalesCanasta[s] += precioTotal;
-                conteoDisponibles[s]++;
+                if (check3.comparable) {
+                    totalesCanasta[s] += precioTotal;
+                    conteoDisponibles[s]++;
+                }
             } else {
                 preciosPorSuper[s] = null;
                 conteoProblemas[s]++;
             }
         });
 
-        // Encontrar opción más barata para este producto (ordenada menor a mayor)
+        // Encontrar opción más barata para este producto SOLO si existe válidamente en los 3
         var validos = [];
-        supersList.forEach(function (s) {
-            if (preciosPorSuper[s] !== null) {
-                validos.push({ superm: s, precio: preciosPorSuper[s], item: itemsPorSuper[s] });
-            }
-        });
-        validos.sort(function (a, b) { return a.precio - b.precio; });
+        if (check3.comparable) {
+            supersList.forEach(function (s) {
+                if (preciosPorSuper[s] !== null) {
+                    validos.push({ superm: s, precio: preciosPorSuper[s], item: itemsPorSuper[s] });
+                }
+            });
+            validos.sort(function (a, b) { return a.precio - b.precio; });
+        }
 
-        var ganadorProd = validos.length > 0 ? validos[0] : null;
-        var masCaroProd = validos.length > 1 ? validos[validos.length - 1] : null;
+        var ganadorProd = (check3.comparable && validos.length > 0) ? validos[0] : null;
+        var masCaroProd = (check3.comparable && validos.length > 1) ? validos[validos.length - 1] : null;
         var ahorroProd = (ganadorProd && masCaroProd) ? (masCaroProd.precio - ganadorProd.precio) : 0;
 
         if (ganadorProd) {
@@ -150,6 +157,8 @@ async function main() {
             carrefour: itemsPorSuper['Carrefour'],
             coto: itemsPorSuper['COTO'],
             dia: itemsPorSuper['Día %'],
+            esComparable: check3.comparable,
+            motivoIncomparable: check3.motivo,
             ganador: ganadorProd,
             masCaro: masCaroProd,
             ahorro: ahorroProd
@@ -357,12 +366,19 @@ async function main() {
         ws1.getCell('B' + rT2).alignment = { vertical: 'middle', horizontal: 'left' };
 
         var cSupG = ws1.getCell('C' + rT2);
-        cSupG.value = f.ganador ? ('🏆 ' + f.ganador.superm) : 'Sin opción válida';
-        cSupG.font = { bold: true, color: { argb: f.ganador ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO }, size: 9 };
-        cSupG.alignment = { vertical: 'middle', horizontal: 'center' };
-        if (f.ganador) cSupG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        if (f.esComparable) {
+            cSupG.value = f.ganador ? ('🏆 ' + f.ganador.superm) : 'Sin opción válida';
+            cSupG.font = { bold: true, color: { argb: f.ganador ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO }, size: 9 };
+            cSupG.alignment = { vertical: 'middle', horizontal: 'center' };
+            if (f.ganador) cSupG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        } else {
+            cSupG.value = '⚠️ No comparable (incompleto en 3 súper)';
+            cSupG.font = { bold: true, color: { argb: COLOR_AMARILLO_TEXTO }, size: 8.5 };
+            cSupG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AMARILLO_PASTEL } };
+            cSupG.alignment = { vertical: 'middle', horizontal: 'center' };
+        }
 
-        ws1.getCell('D' + rT2).value = f.ganador && f.ganador.item ? f.ganador.item.nombre : 'No encontrado';
+        ws1.getCell('D' + rT2).value = f.ganador && f.ganador.item ? f.ganador.item.nombre : (f.esComparable ? 'No encontrado' : f.motivoIncomparable);
         ws1.getCell('D' + rT2).alignment = { vertical: 'middle', horizontal: 'left' };
         ws1.getCell('D' + rT2).font = { size: 9 };
 
@@ -563,26 +579,42 @@ async function main() {
 
         // Ganador
         var gCell = ws2.getCell('F' + rWs2);
-        gCell.value = f.ganador ? ('🏆 ' + f.ganador.superm) : 'Ninguno';
-        gCell.font = { bold: true, color: { argb: f.ganador ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO } };
-        gCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        if (f.ganador) gCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        if (f.esComparable) {
+            gCell.value = f.ganador ? ('🏆 ' + f.ganador.superm) : 'Ninguno';
+            gCell.font = { bold: true, color: { argb: f.ganador ? COLOR_VERDE_TEXTO : COLOR_ROJO_TEXTO } };
+            gCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            if (f.ganador) gCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
+        } else {
+            gCell.value = '⚠️ No comparable (incompleto en 3 súper)';
+            gCell.font = { size: 9, bold: true, color: { argb: COLOR_AMARILLO_TEXTO } };
+            gCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AMARILLO_PASTEL } };
+            gCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        }
 
         // Precio mínimo
         var pMinCell = ws2.getCell('G' + rWs2);
-        if (f.ganador) {
+        if (f.esComparable && f.ganador) {
             pMinCell.value = f.ganador.precio;
             pMinCell.numFmt = '"$"#,##0.00';
             pMinCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
         } else {
-            pMinCell.value = 'N/D';
+            pMinCell.value = '-';
+            pMinCell.font = { color: { argb: 'FF888888' } };
         }
-        pMinCell.alignment = { vertical: 'middle', horizontal: 'right' };
+        pMinCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
         // Ahorro
         var ahCell = ws2.getCell('H' + rWs2);
-        ahCell.value = f.ahorro > 0 ? ('-$' + f.ahorro.toLocaleString('es-AR', { minimumFractionDigits: 2 })) : 'Mismo precio';
-        ahCell.font = { bold: f.ahorro > 0, color: { argb: f.ahorro > 0 ? COLOR_VERDE_TEXTO : 'FF666666' } };
+        if (f.esComparable && f.ahorro > 0) {
+            ahCell.value = '-$' + f.ahorro.toLocaleString('es-AR', { minimumFractionDigits: 2 });
+            ahCell.font = { bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+        } else if (f.esComparable) {
+            ahCell.value = 'Mismo precio';
+            ahCell.font = { color: { argb: 'FF666666' } };
+        } else {
+            ahCell.value = '-';
+            ahCell.font = { color: { argb: 'FF888888' } };
+        }
         ahCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
         rWs2++;
@@ -704,22 +736,27 @@ async function main() {
         // 2. Banner de Veredicto Destacado (Ganador y Ahorro)
         ws4.mergeCells('B7:G8');
         var bannerCell = ws4.getCell('B7');
-        if (ganadorUltima) {
+        var check3Ultima = validador.validarComparacion3Supermercados(itemsUltimaConsulta);
+
+        if (check3Ultima.comparable && ganadorUltima) {
             bannerCell.value = '🏆 TE CONVIENE COMPRAR EN: ' + ganadorUltima.supermercado + ' (' + validador.formatoMoneda(ganadorUltima.precio) + ')\n' +
                 (ahorroUltima > 0
                     ? '💰 AHORRO POTENCIAL: ' + validador.formatoMoneda(ahorroUltima) + ' (' + ahorroUltimaPct.toFixed(0) + '% menos que en ' + masCaroUltima.supermercado + ')'
-                    : 'ℹ️ Solo ' + ganadorUltima.supermercado + ' tuvo el producto con coincidencia válida disponible.'
-                );
+                    : 'ℹ️ Mismo precio en las opciones disponibles.');
             bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_VERDE_PASTEL } };
             bannerCell.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
+        } else if (!check3Ultima.comparable && validosUltima.length > 0) {
+            bannerCell.value = '⚠️ COMPARACIÓN NO VÁLIDA: ' + check3Ultima.motivo + '\nRegla estricta de cátedra: El producto debe existir en Carrefour, COTO y Día % con la misma marca y presentación para comparar precios.';
+            bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AMARILLO_PASTEL } };
+            bannerCell.font = { name: 'Segoe UI', size: 10.5, bold: true, color: { argb: COLOR_AMARILLO_TEXTO } };
         } else {
             bannerCell.value = '⚠️ NINGÚN SUPERMERCADO ARROJÓ UNA COINCIDENCIA VÁLIDA DISPONIBLE\nEl motor evitó sustituir con productos erróneos (marcas ajenas, frutas o artículos de limpieza).';
             bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROJO_PASTEL } };
             bannerCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: COLOR_ROJO_TEXTO } };
         }
         bannerCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        ws4.getRow(7).height = 26;
-        ws4.getRow(8).height = 26;
+        ws4.getRow(7).height = 28;
+        ws4.getRow(8).height = 28;
         aplicarBordes(ws4, 'B', 7, 'G', 8);
 
         // 3. Cabecera de la tabla comparativa activa

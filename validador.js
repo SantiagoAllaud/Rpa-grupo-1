@@ -3,6 +3,8 @@
 // validador.js - Motor de Validación Estricta y Detección de Intención
 // ==============================================================================
 
+const catalogo = require('./catalogo.js');
+
 // Normaliza texto: minúsculas, sin diacríticos, espacios limpios
 function normalizar(texto) {
     if (!texto || typeof texto !== 'string') return '';
@@ -688,6 +690,137 @@ function validarCoincidencia(queryOriginal, resultado) {
         }
     }
 
+    // 2.8. VALIDACIÓN ESTRICTA CONTRA CATÁLOGO CERRADO
+    var itemCat = catalogo.buscarEnCatalogo(queryOriginal);
+    if (!itemCat && (resultado.cantidad || resultado.unidad)) {
+        itemCat = catalogo.buscarEnCatalogo({
+            producto: queryOriginal,
+            cantidad: resultado.cantidad,
+            unidad: resultado.unidad
+        });
+    }
+
+    if (itemCat) {
+        // A) Validación estricta de MARCA requerida
+        var marcaCatNorm = normalizar(itemCat.marca);
+        var marcaCatSinGuion = marcaCatNorm.replace(/-/g, ' ').trim();
+        var palabrasMarcaCat = marcaCatNorm.split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
+        var tieneMarcaCat = palabrasMarcaCat.every(function(m) {
+            var rxM = new RegExp('(?:^|\\s)' + m.replace('-', '[-\\s]') + '(?:$|\\s)', 'i');
+            return rxM.test(nombreNorm);
+        });
+
+        if (!tieneMarcaCat) {
+            return {
+                estado: 'COINCIDENCIA NO VÁLIDA',
+                valido: false,
+                motivo: 'Marca requerida "' + itemCat.marca.toUpperCase() + '" no coincide con el producto devuelto ("' + nombreEncontrado + '").',
+                intencion: 'ESPECIFICA',
+                marca: itemCat.marca
+            };
+        }
+
+        // Rechazar si contiene otra marca conocida de la categoría (evitando falsos positivos por variantes con guion)
+        for (var mIdx = 0; mIdx < MARCAS_CONOCIDAS.length; mIdx++) {
+            var mOtra = MARCAS_CONOCIDAS[mIdx];
+            var mOtraSinGuion = mOtra.replace(/-/g, ' ').trim();
+            if (mOtraSinGuion !== marcaCatSinGuion && !marcaCatSinGuion.includes(mOtraSinGuion) && !mOtraSinGuion.includes(marcaCatSinGuion)) {
+                var rxOtra = new RegExp('(?:^|\\s)' + mOtra.replace('-', '[-\\s]') + '(?:$|\\s)', 'i');
+                if (rxOtra.test(nombreNorm)) {
+                    return {
+                        estado: 'COINCIDENCIA NO VÁLIDA',
+                        valido: false,
+                        motivo: 'Se detectó marca competidora "' + mOtra.toUpperCase() + '" cuando se requería "' + itemCat.marca.toUpperCase() + '".',
+                        intencion: 'ESPECIFICA',
+                        marca: itemCat.marca
+                    };
+                }
+            }
+        }
+
+        // B) Validación estricta de VARIANTE / SABOR requerida
+        if (itemCat.variante) {
+            var varCatNorm = normalizar(itemCat.variante);
+            var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
+                return varCatNorm.includes(b);
+            });
+
+            var palabrasVar = varCatNorm.split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
+            var queryMencionaVariante = palabrasVar.some(function(v) { return intencion.queryNormalizada.includes(v); });
+            var presQuery = extraerPresentacion(queryOriginal);
+            var esBusquedaEstricta = queryMencionaVariante || (presQuery !== null);
+
+            if (esBusquedaEstricta) {
+                if (queryMencionaVariante || !esBase) {
+                    var tieneVariante = palabrasVar.every(function(v) { return nombreNorm.includes(v); });
+                    if (!tieneVariante && varCatNorm.includes('lima') && varCatNorm.includes('limon')) {
+                        tieneVariante = nombreNorm.includes('lima') || nombreNorm.includes('limon') || nombreNorm.includes('sprite') || nombreNorm.includes('7up');
+                    }
+                    if (!tieneVariante) {
+                        return {
+                            estado: 'COINCIDENCIA NO VÁLIDA',
+                            valido: false,
+                            motivo: 'Variante/sabor "' + itemCat.variante + '" no presente en el resultado encontrado ("' + nombreEncontrado + '").',
+                            intencion: 'ESPECIFICA',
+                            marca: itemCat.marca
+                        };
+                    }
+                }
+
+                // Rechazar si contiene otra variante/sabor excluyente que contradiga la variante esperada
+                var saboresArr = Array.from(SABORES_Y_VARIANTES);
+                for (var sIdx = 0; sIdx < saboresArr.length; sIdx++) {
+                    var sabOtra = saboresArr[sIdx];
+                    if (!varCatNorm.includes(sabOtra)) {
+                        // Si el término es parte de la marca o nombre base del producto (ej: 'cola' en 'coca cola'), no es excluyente
+                        if (itemCat._normMarca.includes(sabOtra) || itemCat._normProducto.includes(sabOtra)) {
+                            continue;
+                        }
+                        // Excepciones conocidas: 'limon' o 'lima' para Sprite o 7UP no es incompatible
+                        if ((itemCat._normMarca.includes('sprite') || itemCat._normMarca.includes('7up')) && (sabOtra === 'limon' || sabOtra === 'lima')) {
+                            continue;
+                        }
+                        var rxSabOtra = new RegExp('(?:^|\\s)' + sabOtra + '(?:$|\\s)', 'i');
+                        if (rxSabOtra.test(nombreNorm)) {
+                            return {
+                                estado: 'COINCIDENCIA NO VÁLIDA',
+                                valido: false,
+                                motivo: 'Se detectó variante ajena "' + sabOtra.toUpperCase() + '" cuando se requería "' + itemCat.variante.toUpperCase() + '".',
+                                intencion: 'ESPECIFICA',
+                                marca: itemCat.marca
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // C) Validación estricta de PRESENTACIÓN (cantidad y unidad)
+        var presEncontradaCat = extraerPresentacion(nombreEncontrado);
+        if (presEncontradaCat) {
+            var unidEnc = presEncontradaCat.tipo === 'l' ? 'L' : (presEncontradaCat.tipo === 'kg' ? 'kg' : 'un');
+            if (!catalogo.esPresentacionEquivalente(presEncontradaCat.valor, unidEnc, itemCat.cantidad, itemCat.unidad)) {
+                return {
+                    estado: 'COINCIDENCIA NO VÁLIDA',
+                    valido: false,
+                    motivo: 'Presentación incompatible: solicitada ' + itemCat.cantidad + ' ' + itemCat.unidad + ' vs encontrada ' + presEncontradaCat.raw + '.',
+                    intencion: 'ESPECIFICA',
+                    marca: itemCat.marca
+                };
+            }
+        }
+
+        return {
+            estado: 'VALIDADA',
+            valido: true,
+            motivo: 'Coincidencia estricta con catálogo validada (' + itemCat.nombre_completo + ').',
+            intencion: 'ESPECIFICA',
+            marca: itemCat.marca,
+            itemCatalogo: itemCat,
+            precioNormalizado: calcularPrecioNormalizado({ nombre: nombreEncontrado, precio: resultado.precio, precioStr: resultado.precioStr })
+        };
+    }
+
     // 3. Validación de CATEGORÍA E INCOMPATIBILIDADES (Aplica a TODAS las categorías)
     if (intencion.categoria && DEFINICION_CATEGORIAS[intencion.categoria]) {
         var defCat = DEFINICION_CATEGORIAS[intencion.categoria];
@@ -816,27 +949,17 @@ function validarCoincidencia(queryOriginal, resultado) {
         }
     }
 
-    // Validación de Presentación / Tamaño si se especificó
+    // Validación de Presentación / Tamaño si se especificó (Tolerancia CERO a presentaciones distintas)
     if (intencion.presentacion) {
         var presEncontrada = extraerPresentacion(nombreEncontrado);
-        if (presEncontrada && presEncontrada.tipo === intencion.presentacion.tipo) {
-            var ratio = presEncontrada.valor / intencion.presentacion.valor;
-            if (ratio > 2.5 || ratio < 0.4) {
+        if (presEncontrada) {
+            if (presEncontrada.tipo !== intencion.presentacion.tipo || Math.abs(presEncontrada.valor - intencion.presentacion.valor) > 0.001) {
                 return {
                     estado: 'COINCIDENCIA NO VÁLIDA',
                     valido: false,
                     motivo: 'Presentación incompatible: solicitada ' + intencion.presentacion.raw + ' vs encontrada ' + presEncontrada.raw + '.',
                     intencion: intencion.tipo,
                     marca: intencion.marca
-                };
-            } else if (ratio > 1.3 || ratio < 0.75) {
-                return {
-                    estado: 'VALIDADA',
-                    valido: true,
-                    motivo: 'Presentación alternativa más cercana: ' + presEncontrada.raw + ' (solicitada: ' + intencion.presentacion.raw + ').',
-                    intencion: intencion.tipo,
-                    marca: intencion.marca,
-                    precioNormalizado: calcularPrecioNormalizado({ nombre: nombreEncontrado, precio: resultado.precio, precioStr: resultado.precioStr })
                 };
             }
         }
@@ -849,6 +972,84 @@ function validarCoincidencia(queryOriginal, resultado) {
         intencion: intencion.tipo,
         marca: intencion.marca,
         precioNormalizado: calcularPrecioNormalizado({ nombre: nombreEncontrado, precio: resultado.precio, precioStr: resultado.precioStr })
+    };
+}
+
+// ==============================================================================
+// REGLA DE LOS 3 SUPERMERCADOS:
+// Compara y valida que la misma marca, variante y presentación existan en los 3
+// ==============================================================================
+function validarComparacion3Supermercados(itemsDelProd) {
+    var supers = ['Carrefour', 'COTO', 'Día %'];
+    var presentes = [];
+    var faltantes = [];
+
+    if (!Array.isArray(itemsDelProd) || itemsDelProd.length === 0) {
+        return {
+            comparable: false,
+            motivo: 'No hay datos registrados para este producto.',
+            supermercadosPresentes: [],
+            supermercadosFaltantes: supers
+        };
+    }
+
+    supers.forEach(function(s) {
+        var found = itemsDelProd.filter(function(x) { return x.supermercado === s; }).pop();
+        if (found && found.valido && found.precio !== null && found.precio > 0 && (found.stock_status === 'DISPONIBLE' || found.stockRaw === 'DISPONIBLE')) {
+            presentes.push(s);
+        } else {
+            faltantes.push(s);
+        }
+    });
+
+    if (faltantes.length > 0) {
+        return {
+            comparable: false,
+            disponibles: presentes.length,
+            motivo: 'Incompleto: no disponible en los 3 supermercados (falta o no válido en ' + faltantes.join(', ') + ').',
+            supermercadosPresentes: presentes,
+            supermercadosFaltantes: faltantes
+        };
+    }
+
+    // Comprobar que las presentaciones entre los tres supermercados sean idénticas
+    var validos = supers.map(function(s) {
+        return itemsDelProd.filter(function(x) { return x.supermercado === s; }).pop();
+    });
+    var pres0 = extraerPresentacion(validos[0].nombre || validos[0].nombre_encontrado || '');
+    for (var i = 1; i < validos.length; i++) {
+        var presI = extraerPresentacion(validos[i].nombre || validos[i].nombre_encontrado || '');
+        if (pres0 && presI) {
+            if (pres0.tipo !== presI.tipo || Math.abs(pres0.valor - presI.valor) > 0.001) {
+                return {
+                    comparable: false,
+                    disponibles: presentes.length,
+                    motivo: 'Presentación discrepante entre supermercados (' + pres0.raw + ' vs ' + presI.raw + ').',
+                    supermercadosPresentes: presentes,
+                    supermercadosFaltantes: []
+                };
+            }
+        }
+    }
+
+    // Calcular precio mínimo y ganador entre los 3
+    var minP = Infinity;
+    var gan = null;
+    validos.forEach(function(v) {
+        if (v && v.precio !== null && v.precio < minP) {
+            minP = v.precio;
+            gan = v.supermercado;
+        }
+    });
+
+    return {
+        comparable: true,
+        disponibles: presentes.length,
+        precioMinimo: minP !== Infinity ? minP : null,
+        supermercadoGanador: gan,
+        motivo: 'Producto válido y disponible en los 3 supermercados con la misma presentación.',
+        supermercadosPresentes: presentes,
+        supermercadosFaltantes: []
     };
 }
 
@@ -1159,9 +1360,9 @@ if (require.main === module) {
         var r8 = validarCoincidencia('Coca Cola 2.25L', { nombre: 'Coca Cola 500ml', precio: 800 });
         assertEq('Incompatibilidad 2.25L vs 500ml', r8.estado, 'COINCIDENCIA NO VÁLIDA');
 
-        // Test 9: Presentación alternativa más cercana (1kg vs 500g, ratio dentro de tolerancia 0.4-2.5)
+        // Test 9: Rechazo estricto de presentación incompatible (1kg vs 500g)
         var r9 = validarCoincidencia('Arroz Ala 1kg', { nombre: 'Arroz Ala 500g', precio: 800 });
-        assertEq('Presentación alternativa más cercana 1kg vs 500g', r9.estado, 'VALIDADA');
+        assertEq('Rechazo estricto de presentación 1kg vs 500g', r9.estado, 'COINCIDENCIA NO VÁLIDA');
 
         // Test 10: Producto sin stock
         var r10 = validarCoincidencia('leche', { nombre: 'Leche Serenisima 1L', precioStr: 'Sin stock', stockRaw: 'SIN STOCK' });
@@ -1226,6 +1427,63 @@ if (require.main === module) {
         assertEq('Equivalencia General: Atributo Línea', attrTest.linea, 'zero');
         assertEq('Equivalencia General: Atributo Presentación Litros', attrTest.presentacion.valor, 2.25);
 
+        // ====================================================================
+        // TESTS DEL CATÁLOGO CERRADO Y REGLAS ESTRICTAS DE CÁTEDRA
+        // ====================================================================
+        // Test 25: Aceptación Coca Cola 2.25 L
+        var t25 = validarCoincidencia('Coca Cola 2.25L', { nombre: 'Gaseosa Coca Cola Sabor Original 2.25 L', precio: 3800 });
+        assertEq('Catálogo: Aceptación Coca Cola 2.25 L', t25.estado, 'VALIDADA');
+
+        // Test 26: Aceptación Sprite 2.25 L
+        var t26 = validarCoincidencia('Sprite 2.25L', { nombre: 'Gaseosa Sprite Lima Limon 2.25 L', precio: 3600 });
+        assertEq('Catálogo: Aceptación Sprite 2.25 L', t26.estado, 'VALIDADA');
+
+        // Test 27: Aceptación Secco Pomelo 2.25 L
+        var t27 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Secco Pomelo 2.25 L', precio: 1500 });
+        assertEq('Catálogo: Aceptación Secco Pomelo 2.25 L', t27.estado, 'VALIDADA');
+
+        // Test 28: Aceptación Arroz Gallo 1 kg
+        var t28 = validarCoincidencia('Arroz Gallo 1kg', { nombre: 'Arroz Gallo Largo Fino 1 kg', precio: 2200 });
+        assertEq('Catálogo: Aceptación Arroz Gallo 1 kg', t28.estado, 'VALIDADA');
+
+        // Test 29: Aceptación Leche La Serenisima 1 L
+        var t29 = validarCoincidencia('Leche La Serenisima 1L', { nombre: 'Leche La Serenísima Entera Clásica 1 L', precio: 1450 });
+        assertEq('Catálogo: Aceptación Leche La Serenísima 1 L', t29.estado, 'VALIDADA');
+
+        // Test 30: RECHAZO Secco Pomelo vs Manaos Pomelo 2.25 L
+        var t30 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Manaos Pomelo 2.25 L', precio: 1200 });
+        assertEq('Catálogo: Rechazo Secco Pomelo vs Manaos Pomelo', t30.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 31: RECHAZO Secco Pomelo vs Secco Cola 2.25 L
+        var t31 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Secco Cola 2.25 L', precio: 1500 });
+        assertEq('Catálogo: Rechazo Secco Pomelo vs Secco Cola', t31.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 32: RECHAZO Secco Pomelo 2.25 L vs Secco Pomelo 1.5 L
+        var t32 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Secco Pomelo 1.5 L', precio: 1100 });
+        assertEq('Catálogo: Rechazo Secco Pomelo 2.25 L vs 1.5 L', t32.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33: RECHAZO Arroz Gallo 1 kg vs Arroz Gallo 500 g
+        var t33 = validarCoincidencia('Arroz Gallo 1kg', { nombre: 'Arroz Gallo 500 g', precio: 1200 });
+        assertEq('Catálogo: Rechazo Arroz Gallo 1 kg vs 500 g', t33.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 34: Comparación de 3 Supermercados (Incompleto en Día %)
+        var itemsTestIncompleto = [
+            { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
+            { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
+            { supermercado: 'Día %', valido: false, precio: null, stock_status: 'NO ENCONTRADO', nombre: 'No encontrado' }
+        ];
+        var comp3Incompleto = validarComparacion3Supermercados(itemsTestIncompleto);
+        assertEq('3 Supermercados: Incompleto en Día % -> No comparable', comp3Incompleto.comparable, false);
+
+        // Test 35: Comparación de 3 Supermercados (Presente en los 3 con misma presentación)
+        var itemsTestCompleto = [
+            { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
+            { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
+            { supermercado: 'Día %', valido: true, precio: 1480, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' }
+        ];
+        var comp3Completo = validarComparacion3Supermercados(itemsTestCompleto);
+        assertEq('3 Supermercados: Válido en los 3 -> Comparable', comp3Completo.comparable, true);
+
         console.log('----------------------------------------------------------------------');
         if (errores === 0) {
             console.log(' 🎉 DIAGNÓSTICO FINAL: TODAS LAS PRUEBAS DEL VALIDADOR PASARON CON ÉXITO\n');
@@ -1248,6 +1506,8 @@ module.exports = {
     detectarIntencion: detectarIntencion,
     obtenerConfiguracionBusqueda: obtenerConfiguracionBusqueda,
     validarCoincidencia: validarCoincidencia,
+    validarComparacion3Supermercados: validarComparacion3Supermercados,
+    catalogo: catalogo,
     parsePrecio: parsePrecio,
     formatoMoneda: formatoMoneda,
     leerResultadosCSV: leerResultadosCSV,

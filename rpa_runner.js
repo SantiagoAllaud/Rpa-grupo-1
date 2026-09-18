@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const validador = require('./validador.js');
+const catalogo = require('./catalogo.js');
 
 const CSV_PATH = path.join(__dirname, 'resultados.csv');
 const MOUSE_HELPER_PATH = path.join(__dirname, 'mouse_helper.exe');
@@ -555,8 +556,11 @@ function determinarUnidadDefault(producto, unidadIngresada) {
 // 1. CARREFOUR ARGENTINA
 // ------------------------------------------------------------------------------
 async function searchCarrefour(page, prodClean, options = {}) {
-    const { onStatus, typingDelay, mouseDuration } = options;
+    const { onStatus, typingDelay, mouseDuration, itemObj, cantidad, unidad } = options;
     checkAborted();
+
+    const itemCat = catalogo.buscarEnCatalogo(itemObj) || catalogo.buscarEnCatalogo(prodClean);
+    const textoATipear = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
 
     if (onStatus) {
         onStatus({ type: 'log', message: '[SUPERMERCADO 1] Navegando visualmente a https://www.carrefour.com.ar...' });
@@ -571,16 +575,16 @@ async function searchCarrefour(page, prodClean, options = {}) {
     await sleep(400);
 
     // 3. Localizar buscador
-    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Localizando buscador para: "${prodClean}"...` });
+    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Localizando buscador para: "${textoATipear}"...` });
     const searchSel = 'input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input';
     await page.waitForSelector(searchSel, { timeout: 10000 }).catch(() => {});
 
-    // 4. Escribir carácter por carácter de forma visible
-    let typedCarrefour = await visibleType(page, searchSel, prodClean, typingDelay, mouseDuration);
+    // 4. Escribir carácter por carácter de forma visible el término específico
+    let typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
     if (!typedCarrefour) {
         await eliminarCookies(page);
         await sleep(500);
-        typedCarrefour = await visibleType(page, searchSel, prodClean, typingDelay, mouseDuration);
+        typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
     }
     if (!typedCarrefour) {
         throw new Error('No se encontró un buscador visible de Carrefour.');
@@ -594,7 +598,7 @@ async function searchCarrefour(page, prodClean, options = {}) {
     for (let w = 0; w < 20; w++) {
         await sleep(500);
         const curU = page.url();
-        if (curU.includes(encodeURIComponent(prodClean)) || curU.includes('_q=') || curU.includes('almacen')) {
+        if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=') || curU.includes('almacen')) {
             break;
         }
         if (w === 3) {
@@ -624,9 +628,18 @@ async function searchCarrefour(page, prodClean, options = {}) {
     await visibleScroll(page, 350, 2);
     await sleep(1500);
 
-    // 7. Extracción interna con validador
+    // 7. Extracción interna con validador estricto de marca
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Extrayendo datos del producto seleccionado...' });
-    const queryConfig = validador.obtenerConfiguracionBusqueda(prodClean);
+    const baseConfig = validador.obtenerConfiguracionBusqueda(prodClean);
+    const queryConfig = {
+        ...baseConfig,
+        marca: itemCat ? itemCat.marca : baseConfig.marca,
+        variante: itemCat ? itemCat.variante : (baseConfig.variantesRequeridas[0] || null),
+        cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
+        unidad: itemCat ? itemCat.unidad : (unidad || null),
+        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2),
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+    };
 
     const cData = await page.evaluate((config) => {
         function cleanText(s) {
@@ -642,50 +655,105 @@ async function searchCarrefour(page, prodClean, options = {}) {
             return texto.indexOf(palabra) > -1;
         }
 
-        const cards = Array.from(document.querySelectorAll('article, [class*="product-summary"], [class*="vtex-search-result-3-x-galleryItem"]'));
-        for (const c of cards) {
-            const nEl = c.querySelector('h3, h2, [class*="productBrand"], [class*="nameContainer"], [data-testid="product-summary-name"]');
-            const pEl = c.querySelector('[class*="sellingPrice"], [class*="currencyContainer"], [class*="price_sellingPrice"]');
-            const lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
+        const cards = Array.from(document.querySelectorAll('article, [class*="product-summary"], [class*="vtex-search-result-3-x-galleryItem"], [class*="galleryItem"]'));
+        var bestCandidate = null;
+        var bestScore = -1;
+
+        for (var i = 0; i < cards.length; i++) {
+            var c = cards[i];
+            var nEl = c.querySelector('h3, h2, [class*="productBrand"], [class*="nameContainer"], [data-testid="product-summary-name"], [class*="productName"]');
+            var pEl = c.querySelector('[class*="sellingPrice"], [class*="currencyContainer"], [class*="price_sellingPrice"]');
+            var lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
             if (!nEl) continue;
 
-            const nameVal = nEl.innerText.trim();
+            var nameVal = nEl.innerText.trim();
             if (!nameVal) continue;
 
-            let priceVal = 'N/D';
+            var priceVal = 'N/D';
             if (pEl && pEl.innerText && pEl.innerText.includes('$')) {
                 priceVal = pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
             } else {
-                const m = (c.innerText || '').match(/\$\s*[\d.,]+/g);
+                var m = (c.innerText || '').match(/\$\s*[\d.,]+/g);
                 if (m && m.length > 0) priceVal = m[0].trim();
             }
-            const urlVal = lEl ? lEl.href : window.location.href;
-            const cardText = (c.innerText || '').toLowerCase();
-            const unavail = (c.querySelector('[class*="unavailable"], [class*="outOfStock"]') !== null) || cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1;
+            var urlVal = lEl ? lEl.href : window.location.href;
+            var cardText = (c.innerText || '').toLowerCase();
+            var unavail = (c.querySelector('[class*="unavailable"], [class*="outOfStock"]') !== null) || cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1;
+            if (priceVal === 'N/D' || priceVal === '' || priceVal === '$0' || priceVal === '$0,00') unavail = true;
 
-            const nClean = cleanText(nameVal);
+            var nClean = cleanText(nameVal);
+
+            // A) Filtro de términos incompatibles (accesorios u otras categorías)
             if (config.terminosIncompatibles && config.terminosIncompatibles.length > 0) {
-                let inc = false;
-                for (let k = 0; k < config.terminosIncompatibles.length; k++) {
+                var inc = false;
+                for (var k = 0; k < config.terminosIncompatibles.length; k++) {
                     if (contienePalabra(nClean, config.terminosIncompatibles[k])) { inc = true; break; }
                 }
                 if (inc) continue;
             }
 
-            let coincideCat = false;
-            if (config.terminosValidos && config.terminosValidos.length > 0) {
-                coincideCat = config.terminosValidos.some(t => contienePalabra(nClean, t));
-            }
-            if (!coincideCat && !nClean.includes(config.queryNormalizada)) continue;
+            // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
+            if (config.palabrasMarca && config.palabrasMarca.length > 0) {
+                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
+                if (!tieneMarcaReq) continue; // Descarte de marcas ajenas
 
-            return {
-                name: nameVal,
-                price: priceVal,
-                url: urlVal,
-                stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
-            };
+                // Descartar si menciona otra marca competidora
+                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var tieneMarcaComp = false;
+                if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
+                    for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
+                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
+                        if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
+                            if (contienePalabra(nClean, mOtra)) {
+                                tieneMarcaComp = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (tieneMarcaComp) continue;
+            }
+
+            // C) REQUISITO DE VARIANTE (si aplica, ej: Pomelo vs Cola)
+            if (config.variante) {
+                var varNorm = config.variante.toLowerCase();
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
+                    return varNorm.includes(b);
+                });
+                if (!esBase) {
+                    if (!nClean.includes(varNorm)) continue;
+                }
+            }
+
+            // D) SCORING POR PRESENTACIÓN
+            var score = 50;
+            if (config.cantidad && config.unidad) {
+                var cantStr = String(config.cantidad).replace('.', ',');
+                var cantDot = String(config.cantidad);
+                if (nClean.includes(cantStr) || nClean.includes(cantDot)) {
+                    score += 50;
+                }
+                if (config.unidad === 'L' && (nClean.includes('2.25') || nClean.includes('2,25') || nClean.includes('2250'))) {
+                    score += 50;
+                }
+                if (config.unidad === 'kg' && (nClean.includes('1kg') || nClean.includes('1 kg') || nClean.includes('1000g') || nClean.includes('1000 g'))) {
+                    score += 50;
+                }
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestCandidate = {
+                    name: nameVal,
+                    price: priceVal,
+                    url: urlVal,
+                    stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
+                };
+                if (score >= 100) break;
+            }
         }
-        return null;
+
+        return bestCandidate;
     }, queryConfig);
 
     return cData;
@@ -695,8 +763,11 @@ async function searchCarrefour(page, prodClean, options = {}) {
 // 2. COTO DIGITAL
 // ------------------------------------------------------------------------------
 async function searchCoto(page, prodClean, options = {}) {
-    const { onStatus, typingDelay, mouseDuration } = options;
+    const { onStatus, typingDelay, mouseDuration, itemObj, cantidad, unidad } = options;
     checkAborted();
+
+    const itemCat = catalogo.buscarEnCatalogo(itemObj) || catalogo.buscarEnCatalogo(prodClean);
+    const textoATipear = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
 
     if (onStatus) {
         onStatus({ type: 'log', message: '[SUPERMERCADO 2] Navegando visualmente a https://www.coto.com.ar...' });
@@ -706,12 +777,12 @@ async function searchCoto(page, prodClean, options = {}) {
     await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
 
     // 2. Localizar buscador de COTO
-    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 2] Localizando buscador para: "${prodClean}"...` });
+    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 2] Localizando buscador para: "${textoATipear}"...` });
     const cotoSearchSel = 'input#cio-autocomplete-0-input, input.cio-input, input[placeholder*="comprar" i], input[type="search"]';
     await page.waitForSelector(cotoSearchSel, { visible: true, timeout: 10000 }).catch(() => {});
 
     // 3. Tipear carácter por carácter
-    const typedOkCt = await visibleType(page, cotoSearchSel, prodClean, typingDelay, mouseDuration);
+    const typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
     if (!typedOkCt) {
         throw new Error('No se encontró un buscador visible de COTO.');
     }
@@ -742,9 +813,18 @@ async function searchCoto(page, prodClean, options = {}) {
     await visibleScroll(page, 350, 2);
     await sleep(800);
 
-    // 7. Extracción interna con validador
+    // 7. Extracción interna con validador estricto de marca
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Extrayendo datos del producto seleccionado...' });
-    const queryConfig = validador.obtenerConfiguracionBusqueda(prodClean);
+    const baseConfig = validador.obtenerConfiguracionBusqueda(prodClean);
+    const queryConfig = {
+        ...baseConfig,
+        marca: itemCat ? itemCat.marca : baseConfig.marca,
+        variante: itemCat ? itemCat.variante : (baseConfig.variantesRequeridas[0] || null),
+        cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
+        unidad: itemCat ? itemCat.unidad : (unidad || null),
+        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2),
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+    };
 
     const ctData = await page.evaluate((config) => {
         function cleanText(s) {
@@ -760,10 +840,12 @@ async function searchCoto(page, prodClean, options = {}) {
             return texto.indexOf(palabra) > -1;
         }
 
-        var items = Array.from(document.querySelectorAll('constructor-result-item, .product-card, article')).slice(0, 15);
+        var items = Array.from(document.querySelectorAll('constructor-result-item, .product-card, article')).slice(0, 25);
         if (items.length === 0) return null;
 
-        var candidates = [];
+        var bestCandidate = null;
+        var bestScore = -1;
+
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
             var nEl = it.querySelector('.nombre-producto, h3, h2, [class*="title"]');
@@ -772,7 +854,9 @@ async function searchCoto(page, prodClean, options = {}) {
             if (!nEl) continue;
 
             var nameVal = nEl.innerText.trim();
-            var priceVal = pEl ? pEl.innerText.replace(/\\n/g, ' ').replace(/\\s+/g, ' ').trim() : 'N/D';
+            if (!nameVal) continue;
+
+            var priceVal = pEl ? pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'N/D';
             var urlVal = lEl ? lEl.href : window.location.href;
             var itText = (it.innerText || '').toLowerCase();
             var unavail = itText.indexOf('sin stock') > -1 || itText.indexOf('agotado') > -1 || itText.indexOf('no disponible') > -1;
@@ -780,38 +864,91 @@ async function searchCoto(page, prodClean, options = {}) {
 
             var nClean = cleanText(nameVal);
 
+            // A) Filtro de términos incompatibles (accesorios u otras categorías)
             if (config.terminosIncompatibles && config.terminosIncompatibles.length > 0) {
-                var tieneInc = false;
+                var inc = false;
                 for (var k = 0; k < config.terminosIncompatibles.length; k++) {
-                    if (contienePalabra(nClean, config.terminosIncompatibles[k])) { tieneInc = true; break; }
+                    if (contienePalabra(nClean, config.terminosIncompatibles[k])) { inc = true; break; }
                 }
-                if (tieneInc) continue;
+                if (inc) continue;
             }
 
-            if (config.terminosValidos && config.terminosValidos.length > 0) {
-                var coincideCat = config.terminosValidos.some(function(t) { return contienePalabra(nClean, t); });
-                if (!coincideCat) continue;
+            // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
+            if (config.palabrasMarca && config.palabrasMarca.length > 0) {
+                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
+                if (!tieneMarcaReq) continue;
+
+                // Descartar si menciona otra marca competidora
+                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var tieneMarcaComp = false;
+                if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
+                    for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
+                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
+                        if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
+                            if (contienePalabra(nClean, mOtra)) {
+                                tieneMarcaComp = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (tieneMarcaComp) continue;
             }
 
-            candidates.push({
-                name: nameVal,
-                price: priceVal,
-                url: urlVal,
-                stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
-            });
+            // C) REQUISITO DE VARIANTE
+            if (config.variante) {
+                var varNorm = config.variante.toLowerCase();
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
+                    return varNorm.includes(b);
+                });
+                if (!esBase) {
+                    if (!nClean.includes(varNorm)) continue;
+                }
+            }
+
+            // D) SCORING POR PRESENTACIÓN
+            var score = 50;
+            if (config.cantidad && config.unidad) {
+                var cantStr = String(config.cantidad).replace('.', ',');
+                var cantDot = String(config.cantidad);
+                if (nClean.includes(cantStr) || nClean.includes(cantDot)) {
+                    score += 50;
+                }
+                if (config.unidad === 'L' && (nClean.includes('2.25') || nClean.includes('2,25') || nClean.includes('2250'))) {
+                    score += 50;
+                }
+                if (config.unidad === 'kg' && (nClean.includes('1kg') || nClean.includes('1 kg') || nClean.includes('1000g') || nClean.includes('1000 g'))) {
+                    score += 50;
+                }
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestCandidate = {
+                    name: nameVal,
+                    price: priceVal,
+                    url: urlVal,
+                    stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
+                };
+                if (score >= 100) break;
+            }
         }
 
-        return candidates.length > 0 ? candidates[0] : null;
+        return bestCandidate;
     }, queryConfig);
 
     return ctData;
 }
 
+// ------------------------------------------------------------------------------
 // 3. DÍA %
 // ------------------------------------------------------------------------------
 async function searchDia(page, prodClean, options = {}) {
-    const { onStatus, typingDelay, mouseDuration } = options;
+    const { onStatus, typingDelay, mouseDuration, itemObj, cantidad, unidad } = options;
     checkAborted();
+
+    const itemCat = catalogo.buscarEnCatalogo(itemObj) || catalogo.buscarEnCatalogo(prodClean);
+    const textoATipear = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
 
     if (onStatus) {
         onStatus({ type: 'log', message: '[SUPERMERCADO 3] Navegando visualmente a https://diaonline.supermercadosdia.com.ar...' });
@@ -821,12 +958,12 @@ async function searchDia(page, prodClean, options = {}) {
     await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
 
     // 2. Localizar buscador de Día %
-    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Localizando buscador para: "${prodClean}"...` });
+    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Localizando buscador para: "${textoATipear}"...` });
     const diaSearchSel = 'input[placeholder*="busc" i], input.vtex-styleguide-9-x-input';
     await page.waitForSelector(diaSearchSel, { timeout: 10000 }).catch(() => {});
 
     // 3. Tipear carácter por carácter de forma visible
-    if (!await visibleType(page, diaSearchSel, prodClean, typingDelay, mouseDuration)) {
+    if (!await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration)) {
         throw new Error('No se encontró un buscador visible de Día %.');
     }
 
@@ -838,7 +975,7 @@ async function searchDia(page, prodClean, options = {}) {
     for (let w = 0; w < 20; w++) {
         await sleep(500);
         const curU = page.url();
-        if (curU.includes(encodeURIComponent(prodClean)) || curU.includes('_q=')) {
+        if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=')) {
             break;
         }
         if (w === 3) {
@@ -858,11 +995,8 @@ async function searchDia(page, prodClean, options = {}) {
     const diaSortBtnSel = 'button.diaio-search-result-0-x-orderByButton, button[class*="orderByButton"]';
     if (await visibleClick(page, diaSortBtnSel, mouseDuration)) {
         await sleep(800);
-        // Selector refinado: prioriza items interactivos del dropdown (menuitem/option),
-        // evitando contenedores padre genéricos (div, span amplios).
         const diaOptionSel = '[role="menuitem"], [role="option"], button[class*="orderBy"] span, li[class*="orderBy"]';
         let optionClickedD = await visibleClickText(page, diaOptionSel, 'más bajo', mouseDuration);
-        // Fallback: si el click por selector+texto falló, buscar el elemento exacto via evaluate
         if (!optionClickedD) {
             optionClickedD = await page.evaluate(() => {
                 const candidates = Array.from(document.querySelectorAll('[role="menuitem"], [role="option"], button, li'));
@@ -885,9 +1019,18 @@ async function searchDia(page, prodClean, options = {}) {
     await visibleScroll(page, 350, 2);
     await sleep(1500);
 
-    // 7. Extracción interna con validador
+    // 7. Extracción interna con validador estricto de marca
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Extrayendo datos del producto seleccionado...' });
-    const queryConfig = validador.obtenerConfiguracionBusqueda(prodClean);
+    const baseConfig = validador.obtenerConfiguracionBusqueda(prodClean);
+    const queryConfig = {
+        ...baseConfig,
+        marca: itemCat ? itemCat.marca : baseConfig.marca,
+        variante: itemCat ? itemCat.variante : (baseConfig.variantesRequeridas[0] || null),
+        cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
+        unidad: itemCat ? itemCat.unidad : (unidad || null),
+        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2),
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+    };
 
     const dData = await page.evaluate((config) => {
         function cleanText(s) {
@@ -904,49 +1047,104 @@ async function searchDia(page, prodClean, options = {}) {
         }
 
         const cards = Array.from(document.querySelectorAll('article, section[class*="product-summary"], [class*="galleryItem"]'));
-        for (const c of cards) {
-            const nEl = c.querySelector('h3, h2, [class*="productBrand"], [class*="nameContainer"], [class*="productName"]');
-            const pEl = c.querySelector('[class*="sellingPriceValue"], [class*="sellingPrice"], [class*="currencyContainer"], [class*="price"]');
-            const lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
+        var bestCandidate = null;
+        var bestScore = -1;
+
+        for (var i = 0; i < cards.length; i++) {
+            var c = cards[i];
+            var nEl = c.querySelector('h3, h2, [class*="productBrand"], [class*="nameContainer"], [class*="productName"]');
+            var pEl = c.querySelector('[class*="sellingPriceValue"], [class*="sellingPrice"], [class*="currencyContainer"], [class*="price"]');
+            var lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
             if (!nEl) continue;
 
-            const nameVal = nEl.innerText.trim();
+            var nameVal = nEl.innerText.trim();
             if (!nameVal) continue;
 
-            let priceVal = 'N/D';
+            var priceVal = 'N/D';
             if (pEl && pEl.innerText && pEl.innerText.includes('$')) {
                 priceVal = pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
             } else {
-                const m = (c.innerText || '').match(/\$\s*[\d.,]+/g);
+                var m = (c.innerText || '').match(/\$\s*[\d.,]+/g);
                 if (m && m.length > 0) priceVal = (m[1] || m[0]).trim();
             }
-            const urlVal = lEl ? lEl.href : window.location.href;
-            const cardText = (c.innerText || '').toLowerCase();
-            const unavail = (c.querySelector('[class*="unavailable"], [class*="outOfStock"]') !== null) || cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1;
+            var urlVal = lEl ? lEl.href : window.location.href;
+            var cardText = (c.innerText || '').toLowerCase();
+            var unavail = (c.querySelector('[class*="unavailable"], [class*="outOfStock"]') !== null) || cardText.indexOf('agotado') > -1 || cardText.indexOf('sin stock') > -1;
+            if (priceVal === 'N/D' || priceVal === '' || priceVal === '$0' || priceVal === '$0,00') unavail = true;
 
-            const nClean = cleanText(nameVal);
+            var nClean = cleanText(nameVal);
+
+            // A) Filtro de términos incompatibles (accesorios u otras categorías)
             if (config.terminosIncompatibles && config.terminosIncompatibles.length > 0) {
-                let inc = false;
-                for (let k = 0; k < config.terminosIncompatibles.length; k++) {
+                var inc = false;
+                for (var k = 0; k < config.terminosIncompatibles.length; k++) {
                     if (contienePalabra(nClean, config.terminosIncompatibles[k])) { inc = true; break; }
                 }
                 if (inc) continue;
             }
 
-            let coincideCat = false;
-            if (config.terminosValidos && config.terminosValidos.length > 0) {
-                coincideCat = config.terminosValidos.some(t => contienePalabra(nClean, t));
-            }
-            if (!coincideCat && !nClean.includes(config.queryNormalizada)) continue;
+            // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
+            if (config.palabrasMarca && config.palabrasMarca.length > 0) {
+                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
+                if (!tieneMarcaReq) continue;
 
-            return {
-                name: nameVal,
-                price: priceVal,
-                url: urlVal,
-                stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
-            };
+                // Descartar si menciona otra marca competidora
+                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var tieneMarcaComp = false;
+                if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
+                    for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
+                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
+                        if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
+                            if (contienePalabra(nClean, mOtra)) {
+                                tieneMarcaComp = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (tieneMarcaComp) continue;
+            }
+
+            // C) REQUISITO DE VARIANTE
+            if (config.variante) {
+                var varNorm = config.variante.toLowerCase();
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
+                    return varNorm.includes(b);
+                });
+                if (!esBase) {
+                    if (!nClean.includes(varNorm)) continue;
+                }
+            }
+
+            // D) SCORING POR PRESENTACIÓN
+            var score = 50;
+            if (config.cantidad && config.unidad) {
+                var cantStr = String(config.cantidad).replace('.', ',');
+                var cantDot = String(config.cantidad);
+                if (nClean.includes(cantStr) || nClean.includes(cantDot)) {
+                    score += 50;
+                }
+                if (config.unidad === 'L' && (nClean.includes('2.25') || nClean.includes('2,25') || nClean.includes('2250'))) {
+                    score += 50;
+                }
+                if (config.unidad === 'kg' && (nClean.includes('1kg') || nClean.includes('1 kg') || nClean.includes('1000g') || nClean.includes('1000 g'))) {
+                    score += 50;
+                }
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestCandidate = {
+                    name: nameVal,
+                    price: priceVal,
+                    url: urlVal,
+                    stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
+                };
+                if (score >= 100) break;
+            }
         }
-        return null;
+
+        return bestCandidate;
     }, queryConfig);
 
     return dData;
@@ -1075,7 +1273,7 @@ async function runRPA({
             checkAborted();
             const itemObj = items[i];
             const productoOriginal = (typeof itemObj === 'string') ? itemObj : itemObj.producto;
-            const cantidad = (itemObj.cantidad && parseInt(itemObj.cantidad, 10) > 0) ? parseInt(itemObj.cantidad, 10) : 1;
+            const cantidad = (itemObj.cantidad && parseFloat(itemObj.cantidad) > 0) ? parseFloat(itemObj.cantidad) : 1;
             const unidad = determinarUnidadDefault(productoOriginal, itemObj.unidad);
             const prodClean = productoOriginal.replace(/"/g, '').replace(/'/g, '').trim();
 
@@ -1090,7 +1288,10 @@ async function runRPA({
             const stepOptions = {
                 onStatus,
                 typingDelay: currentTypingDelay,
-                mouseDuration: currentMouseDuration
+                mouseDuration: currentMouseDuration,
+                itemObj,
+                cantidad,
+                unidad
             };
 
             // 1. CARREFOUR ARGENTINA

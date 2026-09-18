@@ -1,0 +1,227 @@
+{
+  "gaseosas": [
+    {
+      "id": "gaseosa_coca_cola_225l",
+      "categoria": "gaseosas",
+      "marca": "Coca Cola",
+      "producto": "Coca Cola",
+      "variante": "Original",
+      "cantidad": 2.25,
+      "unidad": "L",
+      "nombre_completo": "Coca Cola Original 2.25 L",
+      "termino_busqueda": "Coca Cola 2.25L"
+    },
+    {
+      "id": "gaseosa_sprite_225l",
+      "categoria": "gaseosas",
+      "marca": "Sprite",
+      "producto": "Sprite",
+      "variante": "Lima Limón",
+      "cantidad": 2.25,
+      "unidad": "L",
+      "nombre_completo": "Sprite Lima Limón 2.25 L",
+      "termino_busqueda": "Sprite 2.25L"
+    },
+    {
+      "id": "gaseosa_secco_pomelo_225l",
+      "categoria": "gaseosas",
+      "marca": "Secco",
+      "producto": "Secco",
+      "variante": "Pomelo",
+      "cantidad": 2.25,
+      "unidad": "L",
+      "nombre_completo": "Secco Pomelo 2.25 L",
+      "termino_busqueda": "Secco Pomelo 2.25L"
+    },
+    {
+      "id": "gaseosa_manaos_cola_225l",
+      "categoria": "gaseosas",
+      "marca": "Manaos",
+      "producto": "Manaos",
+      "variante": "Cola",
+      "cantidad": 2.25,
+      "unidad": "L",
+      "nombre_completo": "Manaos Cola 2.25 L",
+      "termino_busqueda": "Manaos Cola 2.25L"
+    }
+  ],
+  "arroz": [
+    {
+      "id": "arroz_gallo_largo_fino_1kg",
+      "categoria": "arroz",
+      "marca": "Gallo",
+      "producto": "Arroz Gallo",
+      "variante": "Largo Fino",
+      "cantidad": 1,
+      "unidad": "kg",
+      "nombre_completo": "Arroz Gallo Largo Fino 1 kg",
+      "termino_busqueda": "Arroz Gallo Largo Fino 1kg"
+    },
+    {
+      "id": "arroz_lucchetti_largo_fino_1kg",
+      "categoria": "arroz",
+      "marca": "Lucchetti",
+      "producto": "Arroz Lucchetti",
+      "variante": "Largo Fino",
+      "cantidad": 1,
+      "unidad": "kg",
+      "nombre_completo": "Arroz Lucchetti Largo Fino 1 kg",
+      "termino_busqueda": "Arroz Lucchetti 1kg"
+    }
+  ],
+  "fideos": [
+    {
+      "id": "fideos_matarazzo_tallarines_500g",
+      "categoria": "fideos",
+      "marca": "Matarazzo",
+      "producto": "Fideos Matarazzo",
+      "variante": "Tallarines",
+      "cantidad": 500,
+      "unidad": "g",
+      "nombre_completo": "Fideos Matarazzo Tallarines 500 g",
+      "termino_busqueda": "Fideos Matarazzo Tallarines 500g"
+    },
+    {
+      "id": "fideos_lucchetti_tallarines_500g",
+      "categoria": "fideos",
+      "marca": "Lucchetti",
+      "producto": "Fideos Lucchetti",
+      "variante": "Tallarines",
+      "cantidad": 500,
+      "unidad": "g",
+      "nombre_completo": "Fideos Lucchetti Tallarines 500 g",
+      "termino_busqueda": "Fideos Lucchetti Tallarines 500g"
+    }
+  ],
+  "galletitas": [
+    {
+      "id": "galletitas_oreo_original_118g",
+      "categoria": "galletitas",
+      "marca": "Oreo",
+      "producto": "Galletitas Oreo",
+      "variante": "Original",
+      "cantidad": 118,
+      "unidad": "g",
+      "nombre_completo": "Galletitas Oreo Original 118 g",
+      "termino_busqueda": "Galletitas Oreo 118g"
+    },
+    {
+      "id": "galletitas_criollitas_clasicas_300g",
+      "categoria": "galletitas",
+      "marca": "Criollitas",
+      "producto": "Galletitas Criollitas",
+      "variante": "Clásicas",
+      "cantidad": 300,
+      "unidad": "g",
+      "nombre_completo": "Galletitas Criollitas Clásicas 300 g",
+      "termino_busqueda": "Galletitas Criollitas 300g"
+    }
+  ],
+  "leche": [
+    {
+      "id": "leche_la_serenisima_entera_1l",
+      "categoria": "leche",
+      "marca": "La Serenísima",
+      "producto": "Leche La Serenísima",
+      "variante": "Entera",
+      "cantidad": 1,
+      "unidad": "L",
+      "nombre_completo": "Leche La Serenísima Entera 1 L",
+      "termino_busqueda": "Leche La Serenisima Entera 1L"
+    },
+    {
+      "id": "leche_tregar_entera_1l",
+      "categoria": "leche",
+      "marca": "Tregar",
+      "producto": "Leche Tregar",
+      "variante": "Entera",
+      "cantidad": 1,
+      "unidad": "L",
+      "nombre_completo": "Leche Tregar Entera 1 L",
+      "termino_busqueda": "Leche Tregar Entera 1L"
+    }
+  ],
+  "aceite": [
+    {
+      "id": "aceite_cocinero_girasol_15l",
+      "categoria": "aceite",
+      "marca": "Cocinero",
+      "producto": "Aceite Cocinero",
+      "variante": "Girasol",
+      "cantidad": 1.5,
+      "unidad": "L",
+      "nombre_completo": "Aceite Cocinero Girasol 1.5 L",
+      "termino_busqueda": "Aceite Cocinero Girasol 1.5L"
+    },
+    {
+      "id": "aceite_natura_girasol_15l",
+      "categoria": "aceite",
+      "marca": "Natura",
+      "producto": "Aceite Natura",
+      "variante": "Girasol",
+      "cantidad": 1.5,
+      "unidad": "L",
+      "nombre_completo": "Aceite Natura Girasol 1.5 L",
+      "termino_busqueda": "Aceite Natura Girasol 1.5L"
+    }
+  ],
+  "yerba": [
+    {
+      "id": "yerba_playadito_tradicional_1kg",
+      "categoria": "yerba",
+      "marca": "Playadito",
+      "producto": "Yerba Playadito",
+      "variante": "Tradicional",
+      "cantidad": 1,
+      "unidad": "kg",
+      "nombre_completo": "Yerba Playadito Tradicional 1 kg",
+      "termino_busqueda": "Yerba Playadito 1kg"
+    },
+    {
+      "id": "yerba_taragui_tradicional_1kg",
+      "categoria": "yerba",
+      "marca": "Taragüí",
+      "producto": "Yerba Taragüí",
+      "variante": "Tradicional",
+      "cantidad": 1,
+      "unidad": "kg",
+      "nombre_completo": "Yerba Taragüí Tradicional 1 kg",
+      "termino_busqueda": "Yerba Taragui 1kg"
+    }
+  ],
+  "limpieza": [
+    {
+      "id": "detergente_magistral_limon_500ml",
+      "categoria": "limpieza",
+      "marca": "Magistral",
+      "producto": "Detergente Magistral",
+      "variante": "Limón",
+      "cantidad": 500,
+      "unidad": "ml",
+      "nombre_completo": "Detergente Magistral Limón 500 ml",
+      "termino_busqueda": "Detergente Magistral Limon 500ml"
+    },
+    {
+      "id": "lavandina_ayudin_clasica_1l",
+      "categoria": "limpieza",
+      "marca": "Ayudín",
+      "producto": "Lavandina Ayudín",
+      "variante": "Clásica",
+      "cantidad": 1,
+      "unidad": "L",
+      "nombre_completo": "Lavandina Ayudín Clásica 1 L",
+      "termino_busqueda": "Lavandina Ayudin 1L"
+    },
+    {
+      "id": "papel_higienico_higienol_4un",
+      "categoria": "limpieza",
+      "marca": "Higienol",
+      "producto": "Papel Higiénico Higienol",
+      "variante": "Clásico",
+      "cantidad": 4,
+      "unidad": "un",
+      "nombre_completo": "Papel Higiénico Higienol 4 un",
+      "termino_busqueda": "Papel Higienico Higienol 4un"
+    }
+  ]
+}

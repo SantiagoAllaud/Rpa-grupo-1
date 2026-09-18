@@ -23,12 +23,15 @@ js var hoy = new Date(); var m = (hoy.getMonth() + 1).toString(); var d = hoy.ge
 
 // Detectar el modo de ejecución y cantidad solicitada
 js modo_actual = 'compra_mes'; try { if (typeof modo !== 'undefined' && modo && modo !== 'modo') { modo_actual = modo.trim(); } } catch(e) { modo_actual = 'compra_mes'; }
-js cant_actual = 1; try { if (typeof cantidad !== 'undefined' && cantidad && !isNaN(parseInt(cantidad))) { cant_actual = parseInt(cantidad); } } catch(e) { cant_actual = 1; }
+js cant_actual = 1; try { if (typeof cantidad !== 'undefined' && cantidad && !isNaN(parseFloat(cantidad))) { cant_actual = parseFloat(cantidad); } } catch(e) { cant_actual = 1; }
 js unid_actual = ''; try { if (typeof unidad !== 'undefined' && unidad) { unid_actual = unidad.trim(); } } catch(e) { unid_actual = ''; }
+js unidades_compra = 1; try { if (typeof unidades !== 'undefined' && unidades && !isNaN(parseInt(unidades))) { unidades_compra = parseInt(unidades); } } catch(e) { unidades_compra = 1; }
 
-// Codificamos el término para URL segura
+// Codificamos el término de búsqueda validado por el catálogo
 js prod_clean = producto.replace(/"/g, '').replace(/'/g, '').trim();
-js prod_url = encodeURIComponent(prod_clean.replace(/,/g, ' ').replace(/\s+/g, ' '));
+js query_term = prod_clean;
+js if (cant_actual && unid_actual && !prod_clean.toLowerCase().includes(unid_actual.toLowerCase())) { query_term = prod_clean + ' ' + cant_actual + unid_actual; }
+js prod_url = encodeURIComponent(query_term.replace(/,/g, ' ').replace(/\s+/g, ' '));
 
 
 // ==============================================================================
@@ -43,8 +46,8 @@ if present('Aceptar todo')
     click Aceptar todo
     wait 1
 
-echo [SUPERMERCADO 1] Localizando buscador y escribiendo producto: `producto`...
-type input.vtex-styleguide-9-x-input as `producto`[enter]
+echo [SUPERMERCADO 1] Localizando buscador y escribiendo producto: `query_term`...
+type input.vtex-styleguide-9-x-input as `query_term`[enter]
 wait 4
 
 echo [SUPERMERCADO 1] Aplicando orden: menor a mayor...
@@ -124,8 +127,8 @@ echo [SUPERMERCADO 2] Navegando a https://www.coto.com.ar...
 https://www.coto.com.ar
 wait 3
 
-echo [SUPERMERCADO 2] Localizando buscador y escribiendo producto: `producto`...
-type input#cio-autocomplete-0-input as `producto`[enter]
+echo [SUPERMERCADO 2] Localizando buscador y escribiendo producto: `query_term`...
+type input#cio-autocomplete-0-input as `query_term`[enter]
 wait 4
 
 echo [SUPERMERCADO 2] Aplicando orden: menor a mayor...
@@ -205,8 +208,8 @@ echo [SUPERMERCADO 3] Navegando a https://diaonline.supermercadosdia.com.ar...
 https://diaonline.supermercadosdia.com.ar
 wait 3
 
-echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `producto`...
-type input#downshift-0-input as `producto`[enter]
+echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_term`...
+type input#downshift-0-input as `query_term`[enter]
 wait 4
 
 echo [SUPERMERCADO 3] Aplicando orden: menor a mayor...
