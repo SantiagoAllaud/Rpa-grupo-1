@@ -302,10 +302,10 @@ public class MouseHelper {
             double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
 
             if (isMoving) {
-                // Durante movimiento activo del robot: tolerancia de trayectoria (60px)
-                if (dist > 60.0) {
+                // Durante movimiento activo del robot: tolerancia de trayectoria (120px)
+                if (dist > 120.0) {
                     consecutiveViolations++;
-                    if (dist > 100.0 || consecutiveViolations >= 2) {
+                    if (dist > 200.0 || consecutiveViolations >= 3) {
                         TriggerFailsafe(cur.X, cur.Y);
                         return;
                     }
@@ -314,11 +314,11 @@ public class MouseHelper {
                 }
             } else {
                 // Durante reposo / espera del robot:
-                // Si la distancia supera 28px (movimiento deliberado del usuario),
-                // confirmamos en 2 ticks consecutivos (~60ms) para filtrar micro-jitter y saltos por scaling
-                if (dist > 28.0) {
+                // Si el usuario toma el mouse físicamente, se desplaza (> 80px)
+                // y se confirma en 3 ticks consecutivos (~90ms) para descartar micro-jitter, vibraciones o DPI
+                if (dist > 80.0) {
                     consecutiveViolations++;
-                    if (dist > 60.0 || consecutiveViolations >= 2) {
+                    if (dist > 160.0 || consecutiveViolations >= 3) {
                         TriggerFailsafe(cur.X, cur.Y);
                         return;
                     }
@@ -361,14 +361,6 @@ public class MouseHelper {
         int lastSetY = start.Y;
 
         for (int i = 1; i <= steps; i++) {
-            // Regla estricta: Detección de intervención física del usuario durante el movimiento
-            POINT current = GetPosition();
-            double userDeviation = Math.Sqrt(Math.Pow(current.X - lastSetX, 2) + Math.Pow(current.Y - lastSetY, 2));
-            if (i > 1 && userDeviation > 35.0) {
-                TriggerFailsafe(current.X, current.Y);
-                return;
-            }
-
             double tLinear = (double)i / steps;
             double t = tLinear < 0.5 
                 ? 4.0 * tLinear * tLinear * tLinear 

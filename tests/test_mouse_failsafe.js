@@ -45,17 +45,11 @@ setTimeout(() => {
     const stateContent = fs.readFileSync(STATE_FILE, 'utf8').trim();
     console.log(`[TEST] Estado inicial en failsafe.state: "${stateContent}"`);
 
-    // 3. Simular intervención del usuario: mover el cursor 25 píxeles físicamente
-    console.log('[TEST] Simulando intervención física del usuario (movimiento manual > 14px)...');
+    // 3. Simular intervención física del usuario: mover el cursor manualmente (> 80px)
+    console.log('[TEST] Simulando intervención física del usuario (movimiento manual > 80px)...');
     
-    // Cambiar la posición del cursor directamente por Win32 SetCursorPos simulando que la mano lo movió
-    const targetX = initX + 25;
-    const targetY = initY + 25;
-    // Usamos mouse_helper pero SIN actualizar el state esperado (como haría la mano física)
-    // Para ello llamamos a SetCursorPos indirectamente o posicionado
-    // En mouse_helper pos solo lee; pero podemos llamar a un comando directo o verificar
-    // O podemos modificar failsafe.state con coordenadas anteriores para simular la desviación
-    fs.writeFileSync(STATE_FILE, `0,${initX - 30},${initY - 30}`);
+    // Modificar failsafe.state con coordenadas anteriores para simular la desviación manual
+    fs.writeFileSync(STATE_FILE, `0,${initX - 100},${initY - 100}`);
 
     setTimeout(() => {
         const flagExists = fs.existsSync(FLAG_FILE);

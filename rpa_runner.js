@@ -201,114 +201,11 @@ async function eliminarCookies(page) {
 }
 
 // ==============================================================================
-// MOTOR VISUAL DEL CURSOR EN PÁGINA (INDICADOR DINÁMICO DE ACCIONES REALES)
+// El cursor virtual del DOM ("BOT RPA") fue removido a pedido del usuario.
+// Toda interacción se realiza directamente con el cursor nativo y visible de Windows.
 // ==============================================================================
-const VIRTUAL_CURSOR_SCRIPT = `
-(function() {
-    if (window.__rpa_cursor_installed) return;
-    window.__rpa_cursor_installed = true;
-
-    function buildCursorUI() {
-        if (document.getElementById('rpa-virtual-cursor-root')) return;
-
-        const root = document.createElement('div');
-        root.id = 'rpa-virtual-cursor-root';
-        root.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;font-family:Inter,-apple-system,sans-serif;';
-
-        const cursor = document.createElement('div');
-        cursor.id = 'rpa-virtual-cursor';
-        cursor.style.cssText = 'position:fixed;top:0;left:0;width:28px;height:28px;pointer-events:none;z-index:2147483647;will-change:transform;';
-        cursor.innerHTML = \`
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 3px 6px rgba(0,0,0,0.6));">
-                <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.63-4.63c.1-.1.22-.15.35-.15h6.63c.45 0 .67-.54.35-.85L5.5 3.21z" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round"/>
-                <path d="M11 16l4 8 2.5-1.2-4-8" stroke="#0f172a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="#ffffff"/>
-                <circle cx="6" cy="4" r="2.8" fill="#6366f1" />
-            </svg>
-            <div id="rpa-cursor-ripple" style="position:absolute;top:0;left:0;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:2.5px solid #6366f1;opacity:0;transform:scale(0.2);pointer-events:none;"></div>
-            <div id="rpa-cursor-badge" style="position:absolute;top:20px;left:14px;background:#4f46e5;color:#ffffff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.4);white-space:nowrap;">BOT RPA</div>
-        \`;
-
-        root.appendChild(cursor);
-        (document.body || document.documentElement).appendChild(root);
-
-        window.__rpa_pos = window.__rpa_pos || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-        cursor.style.transform = \`translate(\${window.__rpa_pos.x}px, \${window.__rpa_pos.y}px)\`;
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', buildCursorUI);
-    } else {
-        buildCursorUI();
-    }
-
-    window.__rpa_pulse = function() {
-        const ripple = document.getElementById('rpa-cursor-ripple');
-        if (!ripple) return;
-        ripple.style.transition = 'none';
-        ripple.style.transform = 'scale(0.2)';
-        ripple.style.opacity = '1';
-        setTimeout(() => {
-            ripple.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
-            ripple.style.transform = 'scale(2.4)';
-            ripple.style.opacity = '0';
-        }, 20);
-    };
-
-    window.__rpa_move = function(targetX, targetY, durationMs) {
-        return new Promise((resolve) => {
-            const cursor = document.getElementById('rpa-virtual-cursor');
-            if (!cursor) return resolve();
-            window.__rpa_pos = window.__rpa_pos || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-            const startX = window.__rpa_pos.x;
-            const startY = window.__rpa_pos.y;
-            const startTime = performance.now();
-            const dur = Math.max(durationMs || 500, 50);
-
-            const dist = Math.hypot(targetX - startX, targetY - startY);
-            const dev = Math.min(dist * 0.2, 70);
-            const cp1X = startX + (targetX - startX) * 0.25 + (Math.random() - 0.5) * dev;
-            const cp1Y = startY + (targetY - startY) * 0.25 + (Math.random() - 0.5) * dev;
-            const cp2X = startX + (targetX - startX) * 0.75 + (Math.random() - 0.5) * dev;
-            const cp2Y = startY + (targetY - startY) * 0.75 + (Math.random() - 0.5) * dev;
-
-            function step(now) {
-                const elapsed = now - startTime;
-                const progress = Math.min(elapsed / dur, 1);
-                const t = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                const u = 1 - t;
-
-                const curX = u*u*u*startX + 3*u*u*t*cp1X + 3*u*t*t*cp2X + t*t*t*targetX;
-                const curY = u*u*u*startY + 3*u*u*t*cp1Y + 3*u*t*t*cp2Y + t*t*t*targetY;
-
-                window.__rpa_pos.x = curX;
-                window.__rpa_pos.y = curY;
-                cursor.style.transform = \`translate(\${curX}px, \${curY}px)\`;
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                    window.__rpa_pos.x = targetX;
-                    window.__rpa_pos.y = targetY;
-                    cursor.style.transform = \`translate(\${targetX}px, \${targetY}px)\`;
-                    resolve();
-                }
-            }
-            requestAnimationFrame(step);
-        });
-    };
-})();
-`;
-
 async function asegurarCursorEnPagina(page) {
-    try {
-        await page.evaluate((script) => {
-            if (!document.getElementById('rpa-virtual-cursor-root')) {
-                const s = document.createElement('script');
-                s.textContent = script;
-                (document.head || document.documentElement).appendChild(s);
-            }
-        }, VIRTUAL_CURSOR_SCRIPT);
-    } catch (e) {}
+    // No-op: cursor DOM removido
 }
 
 // Lectura interna: ubica un elemento, pero nunca lo enfoca ni lo desplaza.
