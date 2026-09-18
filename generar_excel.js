@@ -36,7 +36,7 @@ function aplicarBordes(ws, cIni, fIni, cFin, fFin) {
     for (var c = cIni.charCodeAt(0); c <= cFin.charCodeAt(0); c++) {
         cols.push(String.fromCharCode(c));
     }
-    cols.forEach(function(col) {
+    cols.forEach(function (col) {
         for (var r = fIni; r <= fFin; r++) {
             var cell = ws.getCell(col + r);
             cell.border = {
@@ -60,9 +60,9 @@ async function main() {
         console.log('[INFO] El archivo resultados.csv no contiene registros procesables.');
         return;
     }
-
+    //holis
     // Validar cada elemento con el motor inteligente
-    items.forEach(function(it) {
+    items.forEach(function (it) {
         var v = validador.validarCoincidencia(it.producto, it);
         it.estado = v.estado;
         it.valido = v.valido;
@@ -70,8 +70,8 @@ async function main() {
         it.intencion = v.intencion;
     });
 
-    var itemsMensual = items.filter(function(x) { return x.modo === 'compra_mes'; });
-    var itemsIndividual = items.filter(function(x) { return x.modo === 'individual'; });
+    var itemsMensual = items.filter(function (x) { return x.modo === 'compra_mes'; });
+    var itemsIndividual = items.filter(function (x) { return x.modo === 'individual'; });
 
     // Si por compatibilidad no hay diferenciación de modo, tratamos todos como compra mensual
     if (itemsMensual.length === 0 && itemsIndividual.length === 0) {
@@ -89,7 +89,7 @@ async function main() {
     var productosMensualUnicos = [];
     var grupoMensual = {};
 
-    itemsMensual.forEach(function(it) {
+    itemsMensual.forEach(function (it) {
         var p = it.producto.toLowerCase().trim();
         if (!grupoMensual[p]) {
             grupoMensual[p] = [];
@@ -107,13 +107,13 @@ async function main() {
     var filasCanasta = [];
     var costoOptimoCombinado = 0;
 
-    productosMensualUnicos.forEach(function(prod) {
+    productosMensualUnicos.forEach(function (prod) {
         var itemsDelProd = grupoMensual[prod];
         var preciosPorSuper = {};
         var itemsPorSuper = {};
 
-        supersList.forEach(function(s) {
-            var found = itemsDelProd.filter(function(x) { return x.supermercado === s; }).pop();
+        supersList.forEach(function (s) {
+            var found = itemsDelProd.filter(function (x) { return x.supermercado === s; }).pop();
             itemsPorSuper[s] = found || null;
             if (found && found.valido && found.precio !== null) {
                 var cant = found.cantidad || 1;
@@ -129,12 +129,12 @@ async function main() {
 
         // Encontrar opción más barata para este producto (ordenada menor a mayor)
         var validos = [];
-        supersList.forEach(function(s) {
+        supersList.forEach(function (s) {
             if (preciosPorSuper[s] !== null) {
                 validos.push({ superm: s, precio: preciosPorSuper[s], item: itemsPorSuper[s] });
             }
         });
-        validos.sort(function(a, b) { return a.precio - b.precio; });
+        validos.sort(function (a, b) { return a.precio - b.precio; });
 
         var ganadorProd = validos.length > 0 ? validos[0] : null;
         var masCaroProd = validos.length > 1 ? validos[validos.length - 1] : null;
@@ -159,7 +159,7 @@ async function main() {
     // Determinar Supermercado Recomendado para la Canasta Completa (por costo total)
     var superRecomendado = 'N/D';
     var menorCostoCanasta = Infinity;
-    supersList.forEach(function(s) {
+    supersList.forEach(function (s) {
         if (totalesCanasta[s] > 0 && totalesCanasta[s] < menorCostoCanasta) {
             menorCostoCanasta = totalesCanasta[s];
             superRecomendado = s;
@@ -168,7 +168,7 @@ async function main() {
 
     // Mayor costo de canasta para calcular ahorro potencial
     var mayorCostoCanasta = 0;
-    supersList.forEach(function(s) {
+    supersList.forEach(function (s) {
         if (totalesCanasta[s] > mayorCostoCanasta) {
             mayorCostoCanasta = totalesCanasta[s];
         }
@@ -241,7 +241,7 @@ async function main() {
     ws1.getCell('H6').font = { size: 14, bold: true, color: { argb: COLOR_VERDE_TEXTO } };
     ws1.getCell('H6').alignment = { horizontal: 'center' };
 
-    ['B5','C5','D5','E5','F5','G5','H5','B6','C6','D6','E6','F6','G6','H6'].forEach(function(pos) {
+    ['B5', 'C5', 'D5', 'E5', 'F5', 'G5', 'H5', 'B6', 'C6', 'D6', 'E6', 'F6', 'G6', 'H6'].forEach(function (pos) {
         ws1.getCell(pos).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_GRIS_FONDO } };
     });
     aplicarBordes(ws1, 'B', 5, 'H', 6);
@@ -267,7 +267,7 @@ async function main() {
         { col: 'H', text: 'Estado / Recomendación' }
     ];
     ws1.getRow(9).height = 22;
-    hT1.forEach(function(h) {
+    hT1.forEach(function (h) {
         var cell = ws1.getCell(h.col + '9');
         cell.value = h.text;
         cell.font = { size: 10, bold: true, color: { argb: COLOR_AZUL_OSCURO } };
@@ -276,7 +276,7 @@ async function main() {
     });
 
     var rT1 = 10;
-    supersList.forEach(function(s) {
+    supersList.forEach(function (s) {
         ws1.getRow(rT1).height = 22;
         var esGanador = (s === superRecomendado);
 
@@ -339,7 +339,7 @@ async function main() {
     ];
     rT2++;
     ws1.getRow(rT2).height = 22;
-    hT2.forEach(function(h) {
+    hT2.forEach(function (h) {
         var cell = ws1.getCell(h.col + rT2);
         cell.value = h.text;
         cell.font = { size: 10, bold: true, color: { argb: COLOR_AZUL_OSCURO } };
@@ -348,7 +348,7 @@ async function main() {
     });
 
     var rDataT2Start = rT2 + 1;
-    filasCanasta.forEach(function(f) {
+    filasCanasta.forEach(function (f) {
         rT2++;
         ws1.getRow(rT2).height = 22;
 
@@ -412,7 +412,7 @@ async function main() {
     aplicarBordes(ws1, 'B', rT2, 'H', rT2 + 3);
 
     // Tabla 3: Artículos con Problemas de Stock o No Encontrados (Directo en Conclusiones)
-    var itemsFaltantes = items.filter(function(x) { return !x.valido || x.estado !== 'VALIDADA'; });
+    var itemsFaltantes = items.filter(function (x) { return !x.valido || x.estado !== 'VALIDADA'; });
     if (itemsFaltantes.length > 0) {
         var rT3 = rT2 + 5;
         ws1.mergeCells('B' + rT3 + ':H' + rT3);
@@ -434,7 +434,7 @@ async function main() {
         ];
         rT3++;
         ws1.getRow(rT3).height = 22;
-        hT3.forEach(function(h) {
+        hT3.forEach(function (h) {
             var cell = ws1.getCell(h.col + rT3);
             cell.value = h.text;
             cell.font = { size: 10, bold: true, color: { argb: COLOR_AZUL_OSCURO } };
@@ -443,7 +443,7 @@ async function main() {
         });
 
         var rDataT3Start = rT3 + 1;
-        itemsFaltantes.forEach(function(it) {
+        itemsFaltantes.forEach(function (it) {
             rT3++;
             ws1.getRow(rT3).height = 20;
             ws1.getCell('B' + rT3).value = it.fecha;
@@ -519,7 +519,7 @@ async function main() {
         { col: 'H', text: 'Ahorro Máximo' }
     ];
     ws2.getRow(5).height = 22;
-    hWs2.forEach(function(h) {
+    hWs2.forEach(function (h) {
         var cell = ws2.getCell(h.col + '5');
         cell.value = h.text;
         cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -528,7 +528,7 @@ async function main() {
     });
 
     var rWs2 = 6;
-    filasCanasta.forEach(function(f) {
+    filasCanasta.forEach(function (f) {
         ws2.getRow(rWs2).height = 22;
 
         ws2.getCell('B' + rWs2).value = f.producto.toUpperCase();
@@ -542,7 +542,7 @@ async function main() {
             { col: 'E', superm: 'Día %', obj: f.dia }
         ];
 
-        mapeo.forEach(function(m) {
+        mapeo.forEach(function (m) {
             var cCell = ws2.getCell(m.col + rWs2);
             if (!m.obj || !m.obj.valido || m.obj.precio === null) {
                 var tag = m.obj ? (m.obj.estado === 'SIN STOCK' ? 'Sin Stock' : (m.obj.estado === 'COINCIDENCIA NO VÁLIDA' ? 'No válida' : 'No encontrado')) : 'N/D';
@@ -594,7 +594,7 @@ async function main() {
     ws2.getCell('B' + rWs2).font = { bold: true, size: 10 };
     ws2.getCell('B' + rWs2).alignment = { vertical: 'middle', horizontal: 'left' };
 
-    ['C', 'D', 'E'].forEach(function(col, idx) {
+    ['C', 'D', 'E'].forEach(function (col, idx) {
         var s = supersList[idx];
         var cell = ws2.getCell(col + rWs2);
         cell.value = totalesCanasta[s] > 0 ? totalesCanasta[s] : 0;
@@ -672,8 +672,8 @@ async function main() {
         }
         var itemsPrevios = itemsIndividual.slice(0, itemsIndividual.length - itemsUltimaConsulta.length);
 
-        var validosUltima = itemsUltimaConsulta.filter(function(x) { return x.valido && x.precio !== null && x.precio > 0; });
-        validosUltima.sort(function(a, b) { return a.precio - b.precio; });
+        var validosUltima = itemsUltimaConsulta.filter(function (x) { return x.valido && x.precio !== null && x.precio > 0; });
+        validosUltima.sort(function (a, b) { return a.precio - b.precio; });
 
         var ganadorUltima = validosUltima.length > 0 ? validosUltima[0] : null;
         var masCaroUltima = validosUltima.length > 1 ? validosUltima[validosUltima.length - 1] : null;
@@ -732,7 +732,7 @@ async function main() {
             { col: 'F', text: 'Motivo / Regla Aplicada' },
             { col: 'G', text: 'Enlace Web Directo' }
         ];
-        hUlt.forEach(function(h) {
+        hUlt.forEach(function (h) {
             var cell = ws4.getCell(h.col + '10');
             cell.value = h.text;
             cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -741,7 +741,7 @@ async function main() {
         });
 
         var rWs4 = 11;
-        itemsUltimaConsulta.forEach(function(it) {
+        itemsUltimaConsulta.forEach(function (it) {
             ws4.getRow(rWs4).height = 26;
             var esGanador = ganadorUltima && (it.supermercado === ganadorUltima.supermercado) && it.valido;
 
@@ -860,7 +860,7 @@ async function main() {
         { col: 'H', text: 'Enlace Web' }
     ];
     ws3.getRow(5).height = 22;
-    hWs3.forEach(function(h) {
+    hWs3.forEach(function (h) {
         var cell = ws3.getCell(h.col + '5');
         cell.value = h.text;
         cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -869,15 +869,15 @@ async function main() {
     });
 
     // Recopilar todos los items válidos de la canasta y ordenarlos por precio
-    var todosValidosMensual = itemsMensual.filter(function(it) {
+    var todosValidosMensual = itemsMensual.filter(function (it) {
         var v = validador.validarCoincidencia(it.producto, it);
         return v.valido && it.precio !== null && it.precio > 0;
     });
-    todosValidosMensual.sort(function(a, b) { return a.precio - b.precio; });
+    todosValidosMensual.sort(function (a, b) { return a.precio - b.precio; });
 
     var rWs3 = 6;
     var medallas = ['🥇', '🥈', '🥉'];
-    todosValidosMensual.forEach(function(it, idx) {
+    todosValidosMensual.forEach(function (it, idx) {
         ws3.getRow(rWs3).height = 22;
         var medalla = idx < 3 ? medallas[idx] : (idx + 1).toString();
 
@@ -969,7 +969,7 @@ async function main() {
     stWs5.alignment = { vertical: 'middle', horizontal: 'center' };
     ws5.getRow(3).height = 18;
 
-    var itemsFaltantesAll = items.filter(function(x) { return !x.valido || x.estado !== 'VALIDADA'; });
+    var itemsFaltantesAll = items.filter(function (x) { return !x.valido || x.estado !== 'VALIDADA'; });
 
     if (itemsFaltantesAll.length === 0) {
         ws5.mergeCells('B5:H5');
@@ -990,7 +990,7 @@ async function main() {
             { col: 'H', text: 'Motivo del Rechazo' }
         ];
         ws5.getRow(5).height = 22;
-        hWs5.forEach(function(h) {
+        hWs5.forEach(function (h) {
             var cell = ws5.getCell(h.col + '5');
             cell.value = h.text;
             cell.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -999,7 +999,7 @@ async function main() {
         });
 
         var rWs5 = 6;
-        itemsFaltantesAll.forEach(function(it) {
+        itemsFaltantesAll.forEach(function (it) {
             ws5.getRow(rWs5).height = 20;
 
             ws5.getCell('B' + rWs5).value = it.fecha;
