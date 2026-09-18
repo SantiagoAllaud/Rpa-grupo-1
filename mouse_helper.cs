@@ -79,6 +79,58 @@ public class MouseHelper {
     [DllImport("kernel32.dll")]
     public static extern uint GetCurrentThreadId();
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PROCESSENTRY32 {
+        public uint dwSize;
+        public uint cntUsage;
+        public uint th32ProcessID;
+        public IntPtr th32DefaultHeapID;
+        public uint th32ModuleID;
+        public uint cntThreads;
+        public uint th32ParentProcessID;
+        public int pcPriClassBase;
+        public uint dwFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szExeFile;
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+    public static extern bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+    public static extern bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+    public static bool IsPidInTree(uint pid, int targetPid) {
+        if (targetPid <= 0) return true;
+        if (pid == (uint)targetPid) return true;
+        IntPtr hSnap = CreateToolhelp32Snapshot(0x00000002, 0); // TH32CS_SNAPPROCESS = 2
+        if (hSnap == IntPtr.Zero || hSnap == (IntPtr)(-1)) return false;
+        try {
+            PROCESSENTRY32 pe = new PROCESSENTRY32();
+            pe.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32));
+            if (Process32First(hSnap, ref pe)) {
+                do {
+                    if (pe.th32ProcessID == pid && pe.th32ParentProcessID == (uint)targetPid) {
+                        return true;
+                    }
+                } while (Process32Next(hSnap, ref pe));
+            }
+        } catch {}
+        finally {
+            CloseHandle(hSnap);
+        }
+        return false;
+    }
+
     [DllImport("user32.dll")]
     public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
 
@@ -112,13 +164,28 @@ public class MouseHelper {
                 System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
                 GetClassName(hWnd, sb, sb.Capacity);
                 if (sb.ToString() == "Chrome_WidgetWin_1") {
+                    // 1. Filtrar ventanas que pertenezcan al Dashboard Web del usuario
+                    System.Text.StringBuilder titleSb = new System.Text.StringBuilder(512);
+                    GetWindowText(hWnd, titleSb, titleSb.Capacity);
+                    string title = titleSb.ToString();
+                    if (!string.IsNullOrEmpty(title)) {
+                        if (title.IndexOf("Dashboard", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            title.IndexOf("Comparador", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            title.IndexOf("3000", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            title.IndexOf("Visor", StringComparison.OrdinalIgnoreCase) >= 0) {
+                            return true; // Saltar cualquier ventana del dashboard del usuario
+                        }
+                    }
+
+                    // 2. Si se especificó un targetPid, verificar pertenencia al árbol de procesos del Chrome lanzado
                     if (targetPid > 0) {
                         uint pid = 0;
                         GetWindowThreadProcessId(hWnd, out pid);
-                        if (pid != (uint)targetPid) {
+                        if (!IsPidInTree(pid, targetPid)) {
                             return true; // Sigue buscando la ventana con el PID específico
                         }
                     }
+
                     RECT r;
                     if (GetWindowRect(hWnd, out r)) {
                         int w = r.Right - r.Left;
@@ -144,7 +211,8 @@ public class MouseHelper {
             Thread.Sleep(100);
             elapsed += 100;
         }
-        return GetChromeHwnd(0); // Fallback a cualquier ventana de Chrome
+        if (targetPid > 0) return IntPtr.Zero; // NUNCA tomar ventanas ajenas si se especificó targetPid
+        return GetChromeHwnd(0);
     }
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -492,15 +560,15 @@ public class MouseHelper {
 
     // Navegación 100% VISIBLE por la barra de direcciones de Chrome:
     // 1. Foco en Chrome -> 2. Mover mouse a Omnibox -> 3. Click real -> 4. Alt+D / Ctrl+L para seleccionar todo -> 5. Pausa -> 6. Tipeo carácter por carácter -> 7. Enter
-    public static void NavigateOmnibox(string url, int typingDelayMs) {
+    public static void NavigateOmnibox(string url, int typingDelayMs, int targetPid = 0) {
         // 1. Llevar Chrome al frente
-        int pid = GetStoredChromePid();
-        FocusChrome(pid);
-        Thread.Sleep(150);
+        if (targetPid <= 0) targetPid = GetStoredChromePid();
+        FocusChrome(targetPid);
+        Thread.Sleep(100);
         POINT preNav = GetPosition();
         SetFailsafeState(false, preNav.X, preNav.Y);
 
-        IntPtr hwnd = GetChromeHwnd(pid);
+        IntPtr hwnd = GetChromeHwnd(targetPid);
         int targetX = 500;
         int targetY = 82;
 
@@ -513,12 +581,12 @@ public class MouseHelper {
         }
 
         // 2. Mover físicamente el mouse hacia la barra de direcciones
-        MoveSmooth(targetX, targetY, 450);
-        Thread.Sleep(100);
+        MoveSmooth(targetX, targetY, 300);
+        Thread.Sleep(80);
 
         // 3. Hacer click real sobre la barra para activar el foco
-        Click(targetX, targetY, 150);
-        Thread.Sleep(150);
+        Click(targetX, targetY, 100);
+        Thread.Sleep(100);
 
         // 4. Utilizar Alt+D o Ctrl+L para seleccionar TODA la URL actual
         try {
@@ -528,15 +596,15 @@ public class MouseHelper {
                 SendKeys.SendWait("^l");
             } catch {}
         }
-        Thread.Sleep(150);
+        Thread.Sleep(100);
         try {
             SendKeys.SendWait("{BACKSPACE}");
         } catch {}
-        Thread.Sleep(120);
+        Thread.Sleep(80);
 
         // 5. Escribir la nueva URL carácter por carácter (reemplaza visualmente la selección anterior)
         TypeText(url, typingDelayMs);
-        Thread.Sleep(150);
+        Thread.Sleep(100);
 
         // 6. Presionar Enter para iniciar la navegación
         try {
@@ -576,8 +644,8 @@ public class MouseHelper {
             Console.WriteLine("  drag <x1> <y1> <x2> <y2> [ms] -> drag & drop");
             Console.WriteLine("  type <text> [charDelayMs]     -> types progressive text");
             Console.WriteLine("  key <keys>                    -> sends special keys (e.g. {ENTER})");
-            Console.WriteLine("  nav <url> [charDelayMs]       -> visible move to omnibox, clicks, types url, hits Enter");
-            Console.WriteLine("  focus                         -> brings Chrome to front");
+            Console.WriteLine("  nav <url> [charDelayMs] [pid] -> visible move to omnibox, clicks, types url, hits Enter");
+            Console.WriteLine("  focus [pid]                   -> brings Chrome to front");
             return;
         }
 
@@ -597,7 +665,7 @@ public class MouseHelper {
                 case "move": {
                     int x = int.Parse(args[1]);
                     int y = int.Parse(args[2]);
-                    int ms = args.Length > 3 ? int.Parse(args[3]) : 500;
+                    int ms = args.Length > 3 ? int.Parse(args[3]) : 300;
                     MoveSmooth(x, y, ms);
                     Console.WriteLine("OK");
                     break;
@@ -606,7 +674,7 @@ public class MouseHelper {
                     if (args.Length >= 3) {
                         int x = int.Parse(args[1]);
                         int y = int.Parse(args[2]);
-                        int ms = args.Length > 3 ? int.Parse(args[3]) : 400;
+                        int ms = args.Length > 3 ? int.Parse(args[3]) : 200;
                         Click(x, y, ms);
                     } else {
                         Click(null, null);
@@ -615,7 +683,7 @@ public class MouseHelper {
                     break;
                 }
                 case "moveviewport": {
-                    int ms = args.Length > 7 ? int.Parse(args[7]) : 500;
+                    int ms = args.Length > 7 ? int.Parse(args[7]) : 300;
                     MoveViewport(int.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), int.Parse(args[6]), ms);
                     Console.WriteLine("OK");
                     break;
@@ -638,14 +706,14 @@ public class MouseHelper {
                     int y1 = int.Parse(args[2]);
                     int x2 = int.Parse(args[3]);
                     int y2 = int.Parse(args[4]);
-                    int ms = args.Length > 5 ? int.Parse(args[5]) : 600;
+                    int ms = args.Length > 5 ? int.Parse(args[5]) : 400;
                     Drag(x1, y1, x2, y2, ms);
                     Console.WriteLine("OK");
                     break;
                 }
                 case "type": {
                     string text = args[1];
-                    int delay = args.Length > 2 ? int.Parse(args[2]) : 50;
+                    int delay = args.Length > 2 ? int.Parse(args[2]) : 25;
                     TypeText(text, delay);
                     Console.WriteLine("OK");
                     break;
@@ -658,8 +726,9 @@ public class MouseHelper {
                 }
                 case "nav": {
                     string url = args[1];
-                    int delay = args.Length > 2 ? int.Parse(args[2]) : 45;
-                    NavigateOmnibox(url, delay);
+                    int delay = args.Length > 2 ? int.Parse(args[2]) : 25;
+                    int targetPid = args.Length > 3 ? int.Parse(args[3]) : 0;
+                    NavigateOmnibox(url, delay, targetPid);
                     Console.WriteLine("OK");
                     break;
                 }

@@ -287,7 +287,7 @@ app.post('/api/compra-mes', async (req, res) => {
 
         broadcast({ type: 'log', message: `Iniciando compra mensual para ${itemsCanasta.length} productos...` });
 
-        const { demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+        const { demoMode = true, typingDelay = 20, mouseDuration = 250 } = req.body || {};
 
         const resultados = await getRpaRunner().runRPA({
             modo: 'compra_mes',
@@ -373,7 +373,7 @@ app.post('/api/buscar-individual', async (req, res) => {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
-    const { producto, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+    const { producto, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 20, mouseDuration = 250 } = req.body || {};
     if (!producto || !producto.trim()) {
         return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
     }

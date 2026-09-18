@@ -25,14 +25,14 @@ const MOUSE_HELPER_PATH = path.join(__dirname, 'mouse_helper.exe');
 // ==============================================================================
 const CONFIG = {
     DEMO_MODE: true,
-    TYPING_DELAY: 25,          // 25ms por carácter (tipeo humano ágil y visible)
-    MOUSE_MOVE_DURATION: 300,  // 300ms de movimiento fluido del cursor
-    PAUSE_BEFORE_CLICK: 150,   // Pausa breve antes del click
-    PAUSE_AFTER_CLICK: 200,    // Pausa breve posterior al click
-    PAUSE_AFTER_PAGE_LOAD: 800, // Pausa tras cargar la página
-    PAUSE_AFTER_SEARCH: 800,   // Pausa tras ejecutar la búsqueda
-    PAUSE_AFTER_FILTER: 600,   // Pausa tras aplicar el ordenamiento
-    SCROLL_STEP_DELAY: 150     // Pausa entre pasos de scroll progresivo
+    TYPING_DELAY: 20,          // 20ms por carácter (tipeo humano ágil y visible)
+    MOUSE_MOVE_DURATION: 250,  // 250ms de movimiento fluido del cursor
+    PAUSE_BEFORE_CLICK: 80,    // Pausa breve antes del click
+    PAUSE_AFTER_CLICK: 120,    // Pausa breve posterior al click
+    PAUSE_AFTER_PAGE_LOAD: 500, // Pausa tras cargar la página
+    PAUSE_AFTER_SEARCH: 500,   // Pausa tras ejecutar la búsqueda
+    PAUSE_AFTER_FILTER: 400,   // Pausa tras aplicar el ordenamiento
+    SCROLL_STEP_DELAY: 100     // Pausa entre pasos de scroll progresivo
 };
 
 // Control de aborto global e instantáneo (Kill-Switch y FailSafe de Movimiento de Mouse)
@@ -274,6 +274,7 @@ function viewportArgs(command, pos, durationMs) {
 async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELAY, maxAttempts = 2) {
     checkAborted();
     const targetHost = new URL(targetUrl).hostname;
+    const curPid = process.env.CHROME_PID || '0';
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         checkAborted();
@@ -284,16 +285,16 @@ async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELA
             try {
                 await page.bringToFront();
             } catch (e) {}
-            runMouseHelper(['focus']);
-            await sleep(200);
+            runMouseHelper(['focus', curPid]);
+            await sleep(120);
 
             // Secuencia física real de mouse_helper.exe: Omnibox -> click -> Ctrl+L -> TypeText -> Enter
-            runMouseHelper(['nav', targetUrl, Math.max(typingDelay, 25).toString()]);
+            runMouseHelper(['nav', targetUrl, Math.max(typingDelay, 20).toString(), curPid]);
 
             // Esperar que la navegación se concrete por el Enter en la barra de direcciones
             let arrived = false;
-            for (let t = 0; t < 80; t++) {
-                await sleep(250);
+            for (let t = 0; t < 25; t++) {
+                await sleep(200);
                 checkAborted();
                 const curUrl = page.url();
                 if (curUrl.includes(targetHost)) {
@@ -322,8 +323,8 @@ async function visibleNavigate(page, targetUrl, typingDelay = CONFIG.TYPING_DELA
             try {
                 await page.bringToFront();
             } catch (e) {}
-            runMouseHelper(['focus']);
-            await sleep(600);
+            runMouseHelper(['focus', curPid]);
+            await sleep(300);
         }
     }
 
@@ -916,8 +917,8 @@ async function searchDia(page, prodClean, options = {}) {
 
     // Esperar a que cargue la tienda oficial de Día %
     let diaArrived = false;
-    for (let t = 0; t < 40; t++) {
-        await sleep(500);
+    for (let t = 0; t < 25; t++) {
+        await sleep(200);
         checkAborted();
         const curU = page.url();
         if (curU.includes('diaonline') || curU.includes('supermercadosdia.com.ar')) {

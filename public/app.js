@@ -134,8 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // NOTA: demoMode: true y headless: false aseguran que Chrome abra visiblemente en el escritorio
         const payload = Object.assign({}, body || {}, {
             demoMode: true,
-            typingDelay: 50,
-            mouseDuration: 600
+            typingDelay: 20,
+            mouseDuration: 250
         });
         
         try {
