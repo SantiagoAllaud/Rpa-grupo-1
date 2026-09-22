@@ -6,3 +6,6 @@ temp_input.csv
 *.tag.cmd
 __test*.tmp
 ~$*
+*.xlsx
+reporte_supermercados.xlsx
+reporte_supermercados_nuevo.xlsx

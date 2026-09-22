@@ -1,10 +1,11 @@
-producto,modo
-leche,compra_mes
-arroz,compra_mes
-fideos,compra_mes
-aceite,compra_mes
-yerba,compra_mes
-azucar,compra_mes
-cafe,compra_mes
-galletitas,compra_mes
-papel higienico,compra_mes
+producto,cantidad,unidad,unidades
+Coca Cola,2.25,L,2
+Arroz Gallo,1,kg,1
+Fideos Matarazzo,500,g,2
+Aceite Cocinero,1.5,L,1
+Yerba Playadito,1,kg,1
+Leche La Serenísima,1,L,4
+Secco,2.25,L,2
+Galletitas Oreo,118,g,2
+Detergente Magistral,500,ml,1
+Papel Higiénico Higienol,4,un,2
