@@ -199,7 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let catalogoGlobal = null;
     let itemsCatalogoGlobal = [];
     const selectProducto = document.getElementById('select-producto');
-    const inputUnidadesCompra = document.getElementById('input-unidades-compra');
     const boxInfoProducto = document.getElementById('box-info-producto');
     const infoMarca = document.getElementById('info-marca');
     const infoVariante = document.getElementById('info-variante');
@@ -277,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBuscarIndividual.addEventListener('click', () => {
         const prodId = selectProducto ? selectProducto.value : '';
         const item = itemsCatalogoGlobal.find(it => it.id === prodId);
-        const unidades = inputUnidadesCompra ? (parseInt(inputUnidadesCompra.value, 10) || 1) : 1;
+        const unidades = 1;
 
         if (!item) {
             addLog("Por favor selecciona un producto del catálogo cerrado.", true);
@@ -299,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCerrarEditarModal = document.getElementById('btn-cerrar-editar-modal');
     const btnCerrarXModal = document.getElementById('btn-cerrar-x-modal');
     const btnGuardarLista = document.getElementById('btn-guardar-lista');
-    const btnAgregarFilaModal = document.getElementById('btn-agregar-fila-modal');
     const modalTbodyCanasta = document.getElementById('modal-tbody-canasta');
 
     function escapeHtml(str) {
@@ -385,14 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnAgregarFilaModal) {
-        btnAgregarFilaModal.addEventListener('click', () => {
-            if (modalTbodyCanasta) {
-                const tr = crearFilaCanasta(null, 1);
-                modalTbodyCanasta.appendChild(tr);
-            }
-        });
-    }
+
 
     if (btnCerrarEditarModal) {
         btnCerrarEditarModal.addEventListener('click', () => {
@@ -466,22 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Control de Portada / Pantalla de Bienvenida
-    const welcomeScreen = document.getElementById('welcome-screen');
-    const btnEntrarDashboard = document.getElementById('btn-entrar-dashboard');
-    const btnVolverPortada = document.getElementById('btn-volver-portada');
 
-    if (btnEntrarDashboard && welcomeScreen) {
-        btnEntrarDashboard.addEventListener('click', () => {
-            welcomeScreen.classList.add('hidden');
-        });
-    }
-
-    if (btnVolverPortada && welcomeScreen) {
-        btnVolverPortada.addEventListener('click', () => {
-            welcomeScreen.classList.remove('hidden');
-        });
-    }
 
     // Kill-switch: Si el usuario cierra el frontend en el navegador, abortar la búsqueda inmediatamente
     window.addEventListener('beforeunload', () => {
