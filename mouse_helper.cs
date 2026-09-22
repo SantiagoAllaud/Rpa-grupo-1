@@ -232,8 +232,11 @@ public class MouseHelper {
         POINT initPos = GetPosition();
         SetFailsafeState(false, initPos.X, initPos.Y);
 
+        int consecutiveViolations = 0;
+        const int REQUIRED_CONSECUTIVE_VIOLATIONS = 4; // Requiere ~160ms sostenidos de desvío brusco
+
         while (true) {
-            Thread.Sleep(30);
+            Thread.Sleep(40);
             POINT cur = GetPosition();
 
             bool isMoving = false;
@@ -254,20 +257,22 @@ public class MouseHelper {
                 } catch {}
             }
 
-            if (isMoving) {
-                // Durante movimiento activo del robot: tolerancia de trayectoria
-                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
-                if (dist > 50.0) {
+            double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
+
+            // Umbrales calibrados para movimiento deliberado y brusco:
+            // - En movimiento del bot: > 320px
+            // - En reposo/pausas del bot: > 260px
+            double threshold = isMoving ? 320.0 : 260.0;
+
+            if (dist > threshold) {
+                consecutiveViolations++;
+                if (consecutiveViolations >= REQUIRED_CONSECUTIVE_VIOLATIONS) {
                     TriggerFailsafe(cur.X, cur.Y);
                     return;
                 }
             } else {
-                // Durante reposo / espera del robot: cualquier movimiento de más de 14px aborta de inmediato
-                double dist = Math.Sqrt(Math.Pow(cur.X - expX, 2) + Math.Pow(cur.Y - expY, 2));
-                if (dist > 14.0) {
-                    TriggerFailsafe(cur.X, cur.Y);
-                    return;
-                }
+                // Si la distancia está dentro de lo normal, reseteamos el contador
+                consecutiveViolations = 0;
             }
         }
     }
@@ -302,14 +307,20 @@ public class MouseHelper {
         int sleepPerStep = Math.Max(durationMs / steps, 8);
         int lastSetX = start.X;
         int lastSetY = start.Y;
+        int inFlightDeviations = 0;
 
         for (int i = 1; i <= steps; i++) {
-            // Regla estricta: Detección de intervención física del usuario durante el movimiento
+            // Regla: Detección de intervención física brusca del usuario durante el movimiento
             POINT current = GetPosition();
             double userDeviation = Math.Sqrt(Math.Pow(current.X - lastSetX, 2) + Math.Pow(current.Y - lastSetY, 2));
-            if (i > 1 && userDeviation > 35.0) {
-                TriggerFailsafe(current.X, current.Y);
-                return;
+            if (i > 1 && userDeviation > 280.0) {
+                inFlightDeviations++;
+                if (inFlightDeviations >= 2) {
+                    TriggerFailsafe(current.X, current.Y);
+                    return;
+                }
+            } else {
+                inFlightDeviations = 0;
             }
 
             double tLinear = (double)i / steps;

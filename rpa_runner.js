@@ -197,113 +197,16 @@ async function eliminarCookies(page) {
 }
 
 // ==============================================================================
-// MOTOR VISUAL DEL CURSOR EN PÁGINA (INDICADOR DINÁMICO DE ACCIONES REALES)
+// GESTIÓN DEL CURSOR EN PÁGINA
 // ==============================================================================
-const VIRTUAL_CURSOR_SCRIPT = `
-(function() {
-    if (window.__rpa_cursor_installed) return;
-    window.__rpa_cursor_installed = true;
-
-    function buildCursorUI() {
-        if (document.getElementById('rpa-virtual-cursor-root')) return;
-
-        const root = document.createElement('div');
-        root.id = 'rpa-virtual-cursor-root';
-        root.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;font-family:Inter,-apple-system,sans-serif;';
-
-        const cursor = document.createElement('div');
-        cursor.id = 'rpa-virtual-cursor';
-        cursor.style.cssText = 'position:fixed;top:0;left:0;width:28px;height:28px;pointer-events:none;z-index:2147483647;will-change:transform;';
-        cursor.innerHTML = \`
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 3px 6px rgba(0,0,0,0.6));">
-                <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.63-4.63c.1-.1.22-.15.35-.15h6.63c.45 0 .67-.54.35-.85L5.5 3.21z" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round"/>
-                <path d="M11 16l4 8 2.5-1.2-4-8" stroke="#0f172a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="#ffffff"/>
-                <circle cx="6" cy="4" r="2.8" fill="#6366f1" />
-            </svg>
-            <div id="rpa-cursor-ripple" style="position:absolute;top:0;left:0;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:2.5px solid #6366f1;opacity:0;transform:scale(0.2);pointer-events:none;"></div>
-            <div id="rpa-cursor-badge" style="position:absolute;top:20px;left:14px;background:#4f46e5;color:#ffffff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.4);white-space:nowrap;">BOT RPA</div>
-        \`;
-
-        root.appendChild(cursor);
-        (document.body || document.documentElement).appendChild(root);
-
-        window.__rpa_pos = window.__rpa_pos || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-        cursor.style.transform = \`translate(\${window.__rpa_pos.x}px, \${window.__rpa_pos.y}px)\`;
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', buildCursorUI);
-    } else {
-        buildCursorUI();
-    }
-
-    window.__rpa_pulse = function() {
-        const ripple = document.getElementById('rpa-cursor-ripple');
-        if (!ripple) return;
-        ripple.style.transition = 'none';
-        ripple.style.transform = 'scale(0.2)';
-        ripple.style.opacity = '1';
-        setTimeout(() => {
-            ripple.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
-            ripple.style.transform = 'scale(2.4)';
-            ripple.style.opacity = '0';
-        }, 20);
-    };
-
-    window.__rpa_move = function(targetX, targetY, durationMs) {
-        return new Promise((resolve) => {
-            const cursor = document.getElementById('rpa-virtual-cursor');
-            if (!cursor) return resolve();
-            window.__rpa_pos = window.__rpa_pos || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-            const startX = window.__rpa_pos.x;
-            const startY = window.__rpa_pos.y;
-            const startTime = performance.now();
-            const dur = Math.max(durationMs || 500, 50);
-
-            const dist = Math.hypot(targetX - startX, targetY - startY);
-            const dev = Math.min(dist * 0.2, 70);
-            const cp1X = startX + (targetX - startX) * 0.25 + (Math.random() - 0.5) * dev;
-            const cp1Y = startY + (targetY - startY) * 0.25 + (Math.random() - 0.5) * dev;
-            const cp2X = startX + (targetX - startX) * 0.75 + (Math.random() - 0.5) * dev;
-            const cp2Y = startY + (targetY - startY) * 0.75 + (Math.random() - 0.5) * dev;
-
-            function step(now) {
-                const elapsed = now - startTime;
-                const progress = Math.min(elapsed / dur, 1);
-                const t = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                const u = 1 - t;
-
-                const curX = u*u*u*startX + 3*u*u*t*cp1X + 3*u*t*t*cp2X + t*t*t*targetX;
-                const curY = u*u*u*startY + 3*u*u*t*cp1Y + 3*u*t*t*cp2Y + t*t*t*targetY;
-
-                window.__rpa_pos.x = curX;
-                window.__rpa_pos.y = curY;
-                cursor.style.transform = \`translate(\${curX}px, \${curY}px)\`;
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                    window.__rpa_pos.x = targetX;
-                    window.__rpa_pos.y = targetY;
-                    cursor.style.transform = \`translate(\${targetX}px, \${targetY}px)\`;
-                    resolve();
-                }
-            }
-            requestAnimationFrame(step);
-        });
-    };
-})();
-`;
-
+// El puntero DOM sintético que quedaba en el centro de la pantalla ha sido removido.
+// mouse_helper.exe maneja exclusivamente el cursor físico real de Windows mediante la Win32 API.
 async function asegurarCursorEnPagina(page) {
     try {
-        await page.evaluate((script) => {
-            if (!document.getElementById('rpa-virtual-cursor-root')) {
-                const s = document.createElement('script');
-                s.textContent = script;
-                (document.head || document.documentElement).appendChild(s);
-            }
-        }, VIRTUAL_CURSOR_SCRIPT);
+        await page.evaluate(() => {
+            const root = document.getElementById('rpa-virtual-cursor-root');
+            if (root) root.remove();
+        });
     } catch (e) {}
 }
 
@@ -560,28 +463,35 @@ async function searchCarrefour(page, prodClean, options = {}) {
     checkAborted();
 
     const itemCat = catalogo.buscarEnCatalogo(itemObj) || catalogo.buscarEnCatalogo(prodClean);
-    const textoATipear = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
+    const baseTexto = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
+    const textoATipear = validador.adaptarTerminoSupermercado(baseTexto, 'Carrefour');
 
-    if (onStatus) {
-        onStatus({ type: 'log', message: '[SUPERMERCADO 1] Navegando visualmente a https://www.carrefour.com.ar...' });
+    const yaEnCarrefour = page.url().includes('carrefour.com.ar');
+    if (!yaEnCarrefour) {
+        if (onStatus) {
+            onStatus({ type: 'log', message: '[SUPERMERCADO 1] Navegando visualmente a https://www.carrefour.com.ar...' });
+        }
+        // 1. Navegar por barra de direcciones
+        await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
+        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+        await eliminarCookies(page);
+        await sleep(400);
+    } else {
+        await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+        await eliminarCookies(page);
+        await sleep(250);
     }
 
-    // 1. Navegar por barra de direcciones
-    await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
-
-    // 2. Despejar modales o avisos promocionales que puedan cubrir el buscador
-    await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
-    await eliminarCookies(page);
-    await sleep(400);
-
-    // 3. Localizar buscador
+    // 2. Localizar buscador
     if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Localizando buscador para: "${textoATipear}"...` });
     const searchSel = 'input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input';
     await page.waitForSelector(searchSel, { timeout: 10000 }).catch(() => {});
 
-    // 4. Escribir carácter por carácter de forma visible el término específico
+    // 3. Escribir carácter por carácter de forma visible el término específico
     let typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
     if (!typedCarrefour) {
+        await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
+        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
         await eliminarCookies(page);
         await sleep(500);
         typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
@@ -609,26 +519,7 @@ async function searchCarrefour(page, prodClean, options = {}) {
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
     await eliminarCookies(page);
 
-    // 5. Scroll visible por la grilla de resultados
-    await visibleScroll(page, 450, 3);
-    await sleep(600);
-
-    // 6. Localizar y aplicar filtro de orden "menor a mayor"
-    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Aplicando ordenamiento: Menor precio...' });
-    const sortBtnSel = 'button.valtech-carrefourar-search-result-3-x-orderByButton, button[class*="orderByButton"]';
-    if (await visibleClick(page, sortBtnSel, mouseDuration)) {
-        await sleep(800);
-        const optionClicked = await visibleClickText(page, 'button, [role="menuitem"], [role="option"], a', 'más bajo', mouseDuration);
-        if (optionClicked) {
-            await sleep(2500);
-        }
-    }
-
-    // Scroll de inspección sobre los productos ordenados
-    await visibleScroll(page, 350, 2);
-    await sleep(1500);
-
-    // 7. Extracción interna con validador estricto de marca
+    // 5. Extracción directa del mejor producto según relevancia de búsqueda específica
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Extrayendo datos del producto seleccionado...' });
     const baseConfig = validador.obtenerConfiguracionBusqueda(prodClean);
     const queryConfig = {
@@ -637,7 +528,7 @@ async function searchCarrefour(page, prodClean, options = {}) {
         variante: itemCat ? itemCat.variante : (baseConfig.variantesRequeridas[0] || null),
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
-        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2),
+        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
         marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
     };
 
@@ -716,12 +607,21 @@ async function searchCarrefour(page, prodClean, options = {}) {
 
             // C) REQUISITO DE VARIANTE (si aplica, ej: Pomelo vs Cola)
             if (config.variante) {
-                var varNorm = config.variante.toLowerCase();
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
-                    return varNorm.includes(b);
+                var varNorm = cleanText(config.variante);
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
+                    return varNorm.indexOf(b) > -1;
                 });
                 if (!esBase) {
-                    if (!nClean.includes(varNorm)) continue;
+                    if (nClean.indexOf(varNorm) === -1) continue;
+                } else {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                        continue;
+                    }
+                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                            continue;
+                        }
+                    }
                 }
             }
 
@@ -730,13 +630,23 @@ async function searchCarrefour(page, prodClean, options = {}) {
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
-                if (nClean.includes(cantStr) || nClean.includes(cantDot)) {
+                var cantSpace = String(config.cantidad).replace('.', ' ');
+                if (nClean.indexOf(cantStr) > -1 || nClean.indexOf(cantDot) > -1 || nClean.indexOf(cantSpace) > -1) {
                     score += 50;
                 }
-                if (config.unidad === 'L' && (nClean.includes('2.25') || nClean.includes('2,25') || nClean.includes('2250'))) {
+                if (config.unidad === 'L') {
+                    if (config.cantidad === 1 && (nClean.indexOf('1l') > -1 || nClean.indexOf('1 l') > -1 || nClean.indexOf('1 lt') > -1 || nClean.indexOf('1lt') > -1 || nClean.indexOf('1000ml') > -1)) {
+                        score += 50;
+                    } else if (config.cantidad === 1.5 && (nClean.indexOf('1 5') > -1 || nClean.indexOf('1,5') > -1 || nClean.indexOf('1.5') > -1 || nClean.indexOf('1500ml') > -1)) {
+                        score += 50;
+                    } else if (config.cantidad === 2.25 && (nClean.indexOf('2 25') > -1 || nClean.indexOf('2,25') > -1 || nClean.indexOf('2.25') > -1 || nClean.indexOf('2250') > -1)) {
+                        score += 50;
+                    }
+                }
+                if (config.unidad === 'kg' && (nClean.indexOf('1kg') > -1 || nClean.indexOf('1 kg') > -1 || nClean.indexOf('1000g') > -1 || nClean.indexOf('1000 g') > -1)) {
                     score += 50;
                 }
-                if (config.unidad === 'kg' && (nClean.includes('1kg') || nClean.includes('1 kg') || nClean.includes('1000g') || nClean.includes('1000 g'))) {
+                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
                     score += 50;
                 }
             }
@@ -767,14 +677,23 @@ async function searchCoto(page, prodClean, options = {}) {
     checkAborted();
 
     const itemCat = catalogo.buscarEnCatalogo(itemObj) || catalogo.buscarEnCatalogo(prodClean);
-    const textoATipear = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
+    const baseTexto = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
+    const textoATipear = validador.adaptarTerminoSupermercado(baseTexto, 'COTO');
 
-    if (onStatus) {
-        onStatus({ type: 'log', message: '[SUPERMERCADO 2] Navegando visualmente a https://www.coto.com.ar...' });
+    const yaEnCoto = page.url().includes('coto.com.ar');
+    if (!yaEnCoto) {
+        if (onStatus) {
+            onStatus({ type: 'log', message: '[SUPERMERCADO 2] Navegando visualmente a https://www.coto.com.ar...' });
+        }
+        // 1. Navegar por barra de direcciones
+        await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
+        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+        await eliminarCookies(page);
+    } else {
+        await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+        await eliminarCookies(page);
+        await sleep(250);
     }
-
-    // 1. Navegar por barra de direcciones
-    await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
 
     // 2. Localizar buscador de COTO
     if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 2] Localizando buscador para: "${textoATipear}"...` });
@@ -782,7 +701,13 @@ async function searchCoto(page, prodClean, options = {}) {
     await page.waitForSelector(cotoSearchSel, { visible: true, timeout: 10000 }).catch(() => {});
 
     // 3. Tipear carácter por carácter
-    const typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
+    let typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
+    if (!typedOkCt) {
+        await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
+        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+        await eliminarCookies(page);
+        typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
+    }
     if (!typedOkCt) {
         throw new Error('No se encontró un buscador visible de COTO.');
     }
@@ -798,22 +723,7 @@ async function searchCoto(page, prodClean, options = {}) {
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
     await eliminarCookies(page);
 
-    // 5. Scroll visible por los resultados
-    await visibleScroll(page, 450, 3);
-    await sleep(600);
-
-    // 6. Localizar y aplicar selector de orden "menor a mayor"
-    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Aplicando ordenamiento: Menor precio...' });
-    const cotoSortSel = 'select.form-select.w-auto, select[class*="form-select"]';
-    if (await visibleSelectOption(page, cotoSortSel, 'price|ascending', mouseDuration)) {
-        await sleep(CONFIG.PAUSE_AFTER_FILTER);
-    }
-
-    // Scroll de inspección
-    await visibleScroll(page, 350, 2);
-    await sleep(800);
-
-    // 7. Extracción interna con validador estricto de marca
+    // 5. Extracción directa del mejor producto según relevancia de búsqueda específica
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Extrayendo datos del producto seleccionado...' });
     const baseConfig = validador.obtenerConfiguracionBusqueda(prodClean);
     const queryConfig = {
@@ -822,7 +732,7 @@ async function searchCoto(page, prodClean, options = {}) {
         variante: itemCat ? itemCat.variante : (baseConfig.variantesRequeridas[0] || null),
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
-        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2),
+        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
         marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
     };
 
@@ -897,12 +807,21 @@ async function searchCoto(page, prodClean, options = {}) {
 
             // C) REQUISITO DE VARIANTE
             if (config.variante) {
-                var varNorm = config.variante.toLowerCase();
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
-                    return varNorm.includes(b);
+                var varNorm = cleanText(config.variante);
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
+                    return varNorm.indexOf(b) > -1;
                 });
                 if (!esBase) {
-                    if (!nClean.includes(varNorm)) continue;
+                    if (nClean.indexOf(varNorm) === -1) continue;
+                } else {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                        continue;
+                    }
+                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                            continue;
+                        }
+                    }
                 }
             }
 
@@ -911,13 +830,23 @@ async function searchCoto(page, prodClean, options = {}) {
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
-                if (nClean.includes(cantStr) || nClean.includes(cantDot)) {
+                var cantSpace = String(config.cantidad).replace('.', ' ');
+                if (nClean.indexOf(cantStr) > -1 || nClean.indexOf(cantDot) > -1 || nClean.indexOf(cantSpace) > -1) {
                     score += 50;
                 }
-                if (config.unidad === 'L' && (nClean.includes('2.25') || nClean.includes('2,25') || nClean.includes('2250'))) {
+                if (config.unidad === 'L') {
+                    if (config.cantidad === 1 && (nClean.indexOf('1l') > -1 || nClean.indexOf('1 l') > -1 || nClean.indexOf('1 lt') > -1 || nClean.indexOf('1lt') > -1 || nClean.indexOf('1000ml') > -1)) {
+                        score += 50;
+                    } else if (config.cantidad === 1.5 && (nClean.indexOf('1 5') > -1 || nClean.indexOf('1,5') > -1 || nClean.indexOf('1.5') > -1 || nClean.indexOf('1500ml') > -1)) {
+                        score += 50;
+                    } else if (config.cantidad === 2.25 && (nClean.indexOf('2 25') > -1 || nClean.indexOf('2,25') > -1 || nClean.indexOf('2.25') > -1 || nClean.indexOf('2250') > -1)) {
+                        score += 50;
+                    }
+                }
+                if (config.unidad === 'kg' && (nClean.indexOf('1kg') > -1 || nClean.indexOf('1 kg') > -1 || nClean.indexOf('1000g') > -1 || nClean.indexOf('1000 g') > -1)) {
                     score += 50;
                 }
-                if (config.unidad === 'kg' && (nClean.includes('1kg') || nClean.includes('1 kg') || nClean.includes('1000g') || nClean.includes('1000 g'))) {
+                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
                     score += 50;
                 }
             }
@@ -948,14 +877,23 @@ async function searchDia(page, prodClean, options = {}) {
     checkAborted();
 
     const itemCat = catalogo.buscarEnCatalogo(itemObj) || catalogo.buscarEnCatalogo(prodClean);
-    const textoATipear = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
+    const baseTexto = (itemCat && itemCat.termino_busqueda) ? itemCat.termino_busqueda : ((itemObj && itemObj.terminoBusqueda) ? itemObj.terminoBusqueda : prodClean);
+    const textoATipear = validador.adaptarTerminoSupermercado(baseTexto, 'Día %');
 
-    if (onStatus) {
-        onStatus({ type: 'log', message: '[SUPERMERCADO 3] Navegando visualmente a https://diaonline.supermercadosdia.com.ar...' });
+    const yaEnDia = page.url().includes('supermercadosdia.com.ar');
+    if (!yaEnDia) {
+        if (onStatus) {
+            onStatus({ type: 'log', message: '[SUPERMERCADO 3] Navegando visualmente a https://diaonline.supermercadosdia.com.ar...' });
+        }
+        // 1. Navegar por barra de direcciones
+        await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
+        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+        await eliminarCookies(page);
+    } else {
+        await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+        await eliminarCookies(page);
+        await sleep(250);
     }
-
-    // 1. Navegar por barra de direcciones
-    await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
 
     // 2. Localizar buscador de Día %
     if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Localizando buscador para: "${textoATipear}"...` });
@@ -963,7 +901,14 @@ async function searchDia(page, prodClean, options = {}) {
     await page.waitForSelector(diaSearchSel, { timeout: 10000 }).catch(() => {});
 
     // 3. Tipear carácter por carácter de forma visible
-    if (!await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration)) {
+    let typedOkDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
+    if (!typedOkDia) {
+        await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
+        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+        await eliminarCookies(page);
+        typedOkDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
+    }
+    if (!typedOkDia) {
         throw new Error('No se encontró un buscador visible de Día %.');
     }
 
@@ -986,40 +931,7 @@ async function searchDia(page, prodClean, options = {}) {
     await sleep(CONFIG.PAUSE_AFTER_SEARCH);
     await eliminarCookies(page);
 
-    // 5. Scroll visible por los resultados
-    await visibleScroll(page, 450, 3);
-    await sleep(600);
-
-    // 6. Localizar y aplicar filtro de orden "menor a mayor"
-    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Aplicando ordenamiento: Menor precio...' });
-    const diaSortBtnSel = 'button.diaio-search-result-0-x-orderByButton, button[class*="orderByButton"]';
-    if (await visibleClick(page, diaSortBtnSel, mouseDuration)) {
-        await sleep(800);
-        const diaOptionSel = '[role="menuitem"], [role="option"], button[class*="orderBy"] span, li[class*="orderBy"]';
-        let optionClickedD = await visibleClickText(page, diaOptionSel, 'más bajo', mouseDuration);
-        if (!optionClickedD) {
-            optionClickedD = await page.evaluate(() => {
-                const candidates = Array.from(document.querySelectorAll('[role="menuitem"], [role="option"], button, li'));
-                for (const el of candidates) {
-                    const txt = (el.innerText || el.textContent || '').toLowerCase().trim();
-                    if (txt.includes('más bajo') || txt.includes('menor precio') || txt.includes('menor a mayor')) {
-                        el.click();
-                        return true;
-                    }
-                }
-                return false;
-            }).catch(() => false);
-        }
-        if (optionClickedD) {
-            await sleep(2500);
-        }
-    }
-
-    // Scroll de inspección
-    await visibleScroll(page, 350, 2);
-    await sleep(1500);
-
-    // 7. Extracción interna con validador estricto de marca
+    // 5. Extracción directa del mejor producto según relevancia de búsqueda específica
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Extrayendo datos del producto seleccionado...' });
     const baseConfig = validador.obtenerConfiguracionBusqueda(prodClean);
     const queryConfig = {
@@ -1028,7 +940,7 @@ async function searchDia(page, prodClean, options = {}) {
         variante: itemCat ? itemCat.variante : (baseConfig.variantesRequeridas[0] || null),
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
-        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2),
+        palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
         marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
     };
 
@@ -1107,12 +1019,21 @@ async function searchDia(page, prodClean, options = {}) {
 
             // C) REQUISITO DE VARIANTE
             if (config.variante) {
-                var varNorm = config.variante.toLowerCase();
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
-                    return varNorm.includes(b);
+                var varNorm = cleanText(config.variante);
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
+                    return varNorm.indexOf(b) > -1;
                 });
                 if (!esBase) {
-                    if (!nClean.includes(varNorm)) continue;
+                    if (nClean.indexOf(varNorm) === -1) continue;
+                } else {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                        continue;
+                    }
+                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                            continue;
+                        }
+                    }
                 }
             }
 
@@ -1121,13 +1042,23 @@ async function searchDia(page, prodClean, options = {}) {
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
-                if (nClean.includes(cantStr) || nClean.includes(cantDot)) {
+                var cantSpace = String(config.cantidad).replace('.', ' ');
+                if (nClean.indexOf(cantStr) > -1 || nClean.indexOf(cantDot) > -1 || nClean.indexOf(cantSpace) > -1) {
                     score += 50;
                 }
-                if (config.unidad === 'L' && (nClean.includes('2.25') || nClean.includes('2,25') || nClean.includes('2250'))) {
+                if (config.unidad === 'L') {
+                    if (config.cantidad === 1 && (nClean.indexOf('1l') > -1 || nClean.indexOf('1 l') > -1 || nClean.indexOf('1 lt') > -1 || nClean.indexOf('1lt') > -1 || nClean.indexOf('1000ml') > -1)) {
+                        score += 50;
+                    } else if (config.cantidad === 1.5 && (nClean.indexOf('1 5') > -1 || nClean.indexOf('1,5') > -1 || nClean.indexOf('1.5') > -1 || nClean.indexOf('1500ml') > -1)) {
+                        score += 50;
+                    } else if (config.cantidad === 2.25 && (nClean.indexOf('2 25') > -1 || nClean.indexOf('2,25') > -1 || nClean.indexOf('2.25') > -1 || nClean.indexOf('2250') > -1)) {
+                        score += 50;
+                    }
+                }
+                if (config.unidad === 'kg' && (nClean.indexOf('1kg') > -1 || nClean.indexOf('1 kg') > -1 || nClean.indexOf('1000g') > -1 || nClean.indexOf('1000 g') > -1)) {
                     score += 50;
                 }
-                if (config.unidad === 'kg' && (nClean.includes('1kg') || nClean.includes('1 kg') || nClean.includes('1000g') || nClean.includes('1000 g'))) {
+                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
                     score += 50;
                 }
             }
@@ -1268,7 +1199,16 @@ async function runRPA({
         });
 
         const totalItems = items.length;
+        const totalPasos = totalItems * 3;
+        let pasosCompletados = 0;
 
+        // ==============================================================================
+        // 1. CARREFOUR ARGENTINA (Buscar todos los productos consecutivamente)
+        // ==============================================================================
+        if (onStatus) {
+            onStatus({ type: 'log', message: '========================================' });
+            onStatus({ type: 'log', message: '[SUPERMERCADO 1] Iniciando Carrefour Argentina...' });
+        }
         for (let i = 0; i < totalItems; i++) {
             checkAborted();
             const itemObj = items[i];
@@ -1277,11 +1217,13 @@ async function runRPA({
             const unidad = determinarUnidadDefault(productoOriginal, itemObj.unidad);
             const prodClean = productoOriginal.replace(/"/g, '').replace(/'/g, '').trim();
 
+            pasosCompletados++;
+            const pct = Math.round((pasosCompletados / totalPasos) * 100);
             if (onStatus) {
                 onStatus({
                     type: 'progress',
-                    percent: Math.round((i / totalItems) * 70),
-                    message: `[${i + 1}/${totalItems}] Buscando: "${prodClean}" (x${cantidad} ${unidad})`
+                    percent: pct,
+                    message: `[SUPERMERCADO 1 - Carrefour] [${i + 1}/${totalItems}] "${prodClean}" (x${cantidad} ${unidad})`
                 });
             }
 
@@ -1291,10 +1233,10 @@ async function runRPA({
                 mouseDuration: currentMouseDuration,
                 itemObj,
                 cantidad,
-                unidad
+                unidad,
+                itemIndex: i
             };
 
-            // 1. CARREFOUR ARGENTINA
             try {
                 checkAborted();
                 const cData = await searchCarrefour(page, prodClean, stepOptions);
@@ -1317,15 +1259,52 @@ async function runRPA({
                 resultadosSesion.push(carrefourItem);
 
                 if (onStatus) {
-                    onStatus({ type: 'log', message: `[SUPERMERCADO 1] Extraído: ${carrefourItem.nombre_encontrado} | ${carrefourItem.precio} | ${carrefourItem.stock_status}` });
-                    onStatus({ type: 'log', message: '[SUPERMERCADO 1] Finalizado.' });
+                    onStatus({ type: 'log', message: `[SUPERMERCADO 1] [${i + 1}/${totalItems}] Extraído: ${carrefourItem.nombre_encontrado} | ${carrefourItem.precio} | ${carrefourItem.stock_status}` });
                 }
             } catch (errC) {
                 console.error('Error en Carrefour:', errC);
                 if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Advertencia: ${errC.message}. Continuando...` });
             }
+        }
+        if (onStatus) {
+            onStatus({ type: 'log', message: '[SUPERMERCADO 1] Finalizado.' });
+        }
 
-            // 2. COTO DIGITAL
+        // ==============================================================================
+        // 2. COTO DIGITAL (Buscar todos los productos consecutivamente)
+        // ==============================================================================
+        if (onStatus) {
+            onStatus({ type: 'log', message: '========================================' });
+            onStatus({ type: 'log', message: '[SUPERMERCADO 2] Iniciando COTO Digital...' });
+        }
+        for (let i = 0; i < totalItems; i++) {
+            checkAborted();
+            const itemObj = items[i];
+            const productoOriginal = (typeof itemObj === 'string') ? itemObj : itemObj.producto;
+            const cantidad = (itemObj.cantidad && parseFloat(itemObj.cantidad) > 0) ? parseFloat(itemObj.cantidad) : 1;
+            const unidad = determinarUnidadDefault(productoOriginal, itemObj.unidad);
+            const prodClean = productoOriginal.replace(/"/g, '').replace(/'/g, '').trim();
+
+            pasosCompletados++;
+            const pct = Math.round((pasosCompletados / totalPasos) * 100);
+            if (onStatus) {
+                onStatus({
+                    type: 'progress',
+                    percent: pct,
+                    message: `[SUPERMERCADO 2 - COTO] [${i + 1}/${totalItems}] "${prodClean}" (x${cantidad} ${unidad})`
+                });
+            }
+
+            const stepOptions = {
+                onStatus,
+                typingDelay: currentTypingDelay,
+                mouseDuration: currentMouseDuration,
+                itemObj,
+                cantidad,
+                unidad,
+                itemIndex: i
+            };
+
             try {
                 checkAborted();
                 const ctData = await searchCoto(page, prodClean, stepOptions);
@@ -1348,15 +1327,52 @@ async function runRPA({
                 resultadosSesion.push(cotoItem);
 
                 if (onStatus) {
-                    onStatus({ type: 'log', message: `[SUPERMERCADO 2] Extraído: ${cotoItem.nombre_encontrado} | ${cotoItem.precio} | ${cotoItem.stock_status}` });
-                    onStatus({ type: 'log', message: '[SUPERMERCADO 2] Finalizado.' });
+                    onStatus({ type: 'log', message: `[SUPERMERCADO 2] [${i + 1}/${totalItems}] Extraído: ${cotoItem.nombre_encontrado} | ${cotoItem.precio} | ${cotoItem.stock_status}` });
                 }
             } catch (errCt) {
                 console.error('Error en COTO:', errCt);
                 if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 2] Advertencia: ${errCt.message}. Continuando...` });
             }
+        }
+        if (onStatus) {
+            onStatus({ type: 'log', message: '[SUPERMERCADO 2] Finalizado.' });
+        }
 
-            // 3. DÍA %
+        // ==============================================================================
+        // 3. DÍA % (Buscar todos los productos consecutivamente)
+        // ==============================================================================
+        if (onStatus) {
+            onStatus({ type: 'log', message: '========================================' });
+            onStatus({ type: 'log', message: '[SUPERMERCADO 3] Iniciando Supermercados Día %...' });
+        }
+        for (let i = 0; i < totalItems; i++) {
+            checkAborted();
+            const itemObj = items[i];
+            const productoOriginal = (typeof itemObj === 'string') ? itemObj : itemObj.producto;
+            const cantidad = (itemObj.cantidad && parseFloat(itemObj.cantidad) > 0) ? parseFloat(itemObj.cantidad) : 1;
+            const unidad = determinarUnidadDefault(productoOriginal, itemObj.unidad);
+            const prodClean = productoOriginal.replace(/"/g, '').replace(/'/g, '').trim();
+
+            pasosCompletados++;
+            const pct = Math.round((pasosCompletados / totalPasos) * 100);
+            if (onStatus) {
+                onStatus({
+                    type: 'progress',
+                    percent: pct,
+                    message: `[SUPERMERCADO 3 - Día %] [${i + 1}/${totalItems}] "${prodClean}" (x${cantidad} ${unidad})`
+                });
+            }
+
+            const stepOptions = {
+                onStatus,
+                typingDelay: currentTypingDelay,
+                mouseDuration: currentMouseDuration,
+                itemObj,
+                cantidad,
+                unidad,
+                itemIndex: i
+            };
+
             try {
                 checkAborted();
                 const dData = await searchDia(page, prodClean, stepOptions);
@@ -1379,13 +1395,15 @@ async function runRPA({
                 resultadosSesion.push(diaItem);
 
                 if (onStatus) {
-                    onStatus({ type: 'log', message: `[SUPERMERCADO 3] Extraído: ${diaItem.nombre_encontrado} | ${diaItem.precio} | ${diaItem.stock_status}` });
-                    onStatus({ type: 'log', message: '[SUPERMERCADO 3] Finalizado.' });
+                    onStatus({ type: 'log', message: `[SUPERMERCADO 3] [${i + 1}/${totalItems}] Extraído: ${diaItem.nombre_encontrado} | ${diaItem.precio} | ${diaItem.stock_status}` });
                 }
             } catch (errD) {
                 console.error('Error en Día %:', errD);
                 if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Advertencia: ${errD.message}. Continuando...` });
             }
+        }
+        if (onStatus) {
+            onStatus({ type: 'log', message: '[SUPERMERCADO 3] Finalizado.' });
         }
 
         // Finalización

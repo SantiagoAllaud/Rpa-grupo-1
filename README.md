@@ -172,8 +172,7 @@ Rpa programa/
 ├── public/                       # Frontend web servido por Express
 │   ├── app.js                    # Lógica del cliente web (WebSocket, REST, UI).
 │   ├── index.html                # Dashboard principal con panel de control y monitor.
-│   ├── styles.css                # Estilos visuales (diseño glassmorphism moderno).
-│   └── visor-proceso.html        # Visor interactivo de resultados e inspección.
+│   └── styles.css                # Estilos visuales (diseño glassmorphism moderno).
 ├── tests/                        # Pruebas y scripts de verificación
 │   ├── capture_frontend_ui.js    # Captura de interfaz de usuario.
 │   ├── test_error_concurrency.js # Prueba de control de concurrencia y errores.

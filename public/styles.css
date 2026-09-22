@@ -494,10 +494,20 @@ select,
     transition: all 0.2s ease;
 }
 
+select optgroup {
+    background: #0f172a;
+    color: #38bdf8;
+    font-weight: 700;
+    font-style: normal;
+    padding: 6px 4px;
+    letter-spacing: 0.5px;
+}
+
 select option {
     background: #0f172a;
     color: #f8fafc;
     padding: 0.5rem;
+    font-weight: 400;
 }
 
 input[type="text"]:focus,
@@ -525,58 +535,6 @@ select:focus,
 .btn-action-search:hover:not(:disabled) {
     background: linear-gradient(135deg, #0369a1, #075985);
     box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
-}
-
-/* ==========================================================================
-   6. HERRAMIENTAS Y REPORTES
-   ========================================================================== */
-.tools-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.85rem;
-}
-
-@media (max-width: 500px) {
-    .tools-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.btn-tool {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-main);
-    padding: 0.85rem 0.5rem;
-    flex-direction: column;
-    gap: 0.4rem;
-    border-radius: 14px;
-    font-size: 0.82rem;
-}
-
-.btn-tool i {
-    font-size: 1.25rem;
-}
-
-.icon-excel {
-    color: #22c55e;
-}
-
-.icon-viewer {
-    color: #38bdf8;
-}
-
-.icon-trash {
-    color: #f87171;
-}
-
-.btn-tool:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.btn-tool-danger:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(239, 68, 68, 0.35);
 }
 
 /* ==========================================================================
@@ -1212,7 +1170,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .log-container {
-    height: 220px;
+    height: 340px;
     overflow-y: auto;
     padding: 1.1rem 1.25rem;
     font-family: 'JetBrains Mono', monospace;

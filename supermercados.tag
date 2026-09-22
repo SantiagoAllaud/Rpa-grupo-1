@@ -5,7 +5,7 @@
 // Script: supermercados.tag
 // Descripción: Entregable académico independiente para ejecutar explícitamente
 //              con TagUI. El Dashboard y server.js usan rpa_runner.js como único
-//              motor de producción visible; no mezclar ambas ejecuciones.
+//              motor de producción visible.
 //
 // Ejecución: tagui supermercados.tag input.csv
 // ==============================================================================

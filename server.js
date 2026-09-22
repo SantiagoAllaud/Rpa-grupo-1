@@ -106,7 +106,7 @@ function runCommand(command) {
     });
 }
 
-// Endpoint para obtener último proceso (usado por visor-proceso.html si no hay query param)
+// Endpoint para obtener último proceso
 app.get('/api/ultimo-proceso', (req, res) => {
     res.json({ success: true, data: ultimoProcesoData });
 });
@@ -274,6 +274,9 @@ app.post('/api/compra-mes', async (req, res) => {
         };
 
         // Generar Excel consolidado
+        try {
+            execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
+        } catch (eKill) {}
         await runCommand('node generar_excel.js');
 
         // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda
@@ -403,6 +406,9 @@ app.post('/api/buscar-individual', async (req, res) => {
 
         // Reporte en consola y actualización de Excel
         await runCommand(`node validador.js --reporte-individual "${producto}"`);
+        try {
+            execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
+        } catch (eKill) {}
         await runCommand('node generar_excel.js');
 
         // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda

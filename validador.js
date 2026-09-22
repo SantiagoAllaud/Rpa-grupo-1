@@ -46,7 +46,7 @@ const MARCAS_CONOCIDAS = [
     'cereal mix', 'lays', 'doritos', 'cheetos', 'guaymallen', 'havanna', 'jorgito',
     'fantoche', 'capitan del espacio', 'bimbo', 'fargo', 'lactal',
     // Higiene y Limpieza
-    'dove', 'sedal', 'pantene', 'head & shoulders', 'elvive', 'plusbelle', 'suave',
+    'dove', 'sedal', 'pantene', 'head & shoulders', 'elvive', 'plusbelle',
     'garnier', 'tresemme', 'colgate', 'oral-b', 'sensodyne', 'aquafresh', 'gillette',
     'rexona', 'axe', 'nivea', 'old spice', 'higienol', 'elegante', 'campanita',
     'felpita', 'scott', 'elite', 'sussex', 'ariel', 'skip', 'drive', 'ala jabon',
@@ -246,7 +246,7 @@ const SABORES_Y_VARIANTES = new Set([
     'durazno', 'anana', 'multifruta', 'citrico', 'lima', 'vainilla', 'chocolate',
     'dulce', 'salado', 'amargo', 'suave', 'intenso', 'fuerte', 'extra', 'parboil',
     'largo', 'fino', 'entera', 'descremada', 'parcialmente', 'deslactosada',
-    'zero', 'diet', 'light', 'cero'
+    'zero', 'diet', 'light', 'cero', 'despalada', 'hierbas', 'compuesta', 'liviana', 'chocolatada'
 ]);
 
 // Palabras que expresamente indican búsqueda genérica
@@ -741,7 +741,7 @@ function validarCoincidencia(queryOriginal, resultado) {
         // B) Validación estricta de VARIANTE / SABOR requerida
         if (itemCat.variante) {
             var varCatNorm = normalizar(itemCat.variante);
-            var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon'].some(function(b) {
+            var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'suave'].some(function(b) {
                 return varCatNorm.includes(b);
             });
 
@@ -755,6 +755,17 @@ function validarCoincidencia(queryOriginal, resultado) {
                     var tieneVariante = palabrasVar.every(function(v) { return nombreNorm.includes(v); });
                     if (!tieneVariante && varCatNorm.includes('lima') && varCatNorm.includes('limon')) {
                         tieneVariante = nombreNorm.includes('lima') || nombreNorm.includes('limon') || nombreNorm.includes('sprite') || nombreNorm.includes('7up');
+                    }
+                    if (!tieneVariante && (itemCat.categoria === 'yerba' || (itemCat._normProducto && itemCat._normProducto.includes('yerba')))) {
+                        if (nombreNorm.includes('suave') || nombreNorm.includes('tradicional') || nombreNorm.includes('con palo') || nombreNorm.includes('clasica')) {
+                            tieneVariante = true;
+                        }
+                    }
+                    if (!tieneVariante && (itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche')))) {
+                        // Para leche, 'entera', 'clasica' y '3%' representan la leche entera estándar
+                        if ((varCatNorm.includes('entera') || varCatNorm.includes('clasica')) && (nombreNorm.includes('clasica') || nombreNorm.includes('entera') || nombreNorm.includes('3%'))) {
+                            tieneVariante = true;
+                        }
                     }
                     if (!tieneVariante) {
                         return {
@@ -778,6 +789,14 @@ function validarCoincidencia(queryOriginal, resultado) {
                         }
                         // Excepciones conocidas: 'limon' o 'lima' para Sprite o 7UP no es incompatible
                         if ((itemCat._normMarca.includes('sprite') || itemCat._normMarca.includes('7up')) && (sabOtra === 'limon' || sabOtra === 'lima')) {
+                            continue;
+                        }
+                        // Excepción para yerba mate: 'suave' y 'tradicional' son variantes base compatibles entre sí
+                        if ((itemCat.categoria === 'yerba' || (itemCat._normProducto && itemCat._normProducto.includes('yerba'))) && (sabOtra === 'suave' || sabOtra === 'tradicional')) {
+                            continue;
+                        }
+                        // Excepción para leche: 'clasica', 'entera' y '3%' son variantes base compatibles entre sí
+                        if ((itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche'))) && (sabOtra === 'entera' || sabOtra === 'clasica')) {
                             continue;
                         }
                         var rxSabOtra = new RegExp('(?:^|\\s)' + sabOtra + '(?:$|\\s)', 'i');
@@ -937,6 +956,17 @@ function validarCoincidencia(queryOriginal, resultado) {
         var lineaProd = LINEAS_PRODUCTO[li];
         var rxL = new RegExp('(?:^|\\s)' + lineaProd + '(?:$|\\s)', 'i');
         if (rxL.test(intencion.queryNormalizada)) {
+            // Excepción: para yerba mate, 'tradicional' y 'suave' / 'con palo' son equivalentes a nivel de línea base
+            if (intencion.categoria === 'yerba' && lineaProd === 'tradicional' && (nombreNorm.includes('suave') || nombreNorm.includes('con palo'))) {
+                continue;
+            }
+            if (intencion.categoria === 'yerba' && lineaProd === 'suave' && (nombreNorm.includes('tradicional') || nombreNorm.includes('con palo'))) {
+                continue;
+            }
+            // Excepción: para leche, 'entera' y 'clasica' / '3%' son equivalentes a nivel de línea estándar
+            if (intencion.categoria === 'leche' && (lineaProd === 'clasica' || lineaProd === 'entera') && (nombreNorm.includes('clasica') || nombreNorm.includes('entera') || nombreNorm.includes('3%'))) {
+                continue;
+            }
             if (!rxL.test(nombreNorm)) {
                 return {
                     estado: 'COINCIDENCIA NO VÁLIDA',
@@ -1107,7 +1137,7 @@ function leerResultadosCSV(filePath) {
                 url: cols[5] || '',
                 fecha: cols[6] || '',
                 stockRaw: cols[7] || 'DISPONIBLE',
-                cantidad: cols[8] ? (parseInt(cols[8], 10) || 1) : 1,
+                cantidad: cols[8] ? (parseFloat(String(cols[8]).replace(',', '.')) || 1) : 1,
                 unidad: cols[9] || ''
             });
         } else if (cols.length >= 5) {
@@ -1497,7 +1527,22 @@ if (require.main === module) {
     }
 }
 
+// Adapta el separador decimal de cualquier número en el término de búsqueda según el supermercado.
+// Detecta de forma genérica cualquier número decimal con punto (ej: 2.25, 1.5, 0.5)
+// y, únicamente para Carrefour, convierte su separador a coma (2,25, 1,5, 0,5).
+// Para COTO y Día %, mantiene el formato original con punto.
+function adaptarTerminoSupermercado(termino, supermercado) {
+    if (!termino || typeof termino !== 'string') return '';
+    if (supermercado === 'Carrefour') {
+        return termino.replace(/(\d+)\.(\d+)/g, function(match, entero, decimal) {
+            return entero + ',' + decimal;
+        });
+    }
+    return termino;
+}
+
 module.exports = {
+    adaptarTerminoSupermercado: adaptarTerminoSupermercado,
     normalizar: normalizar,
     extraerPresentacion: extraerPresentacion,
     extraerAtributos: extraerAtributos,

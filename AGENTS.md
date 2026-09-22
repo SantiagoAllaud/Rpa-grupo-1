@@ -28,7 +28,6 @@ El repositorio implementa una arquitectura desacoplada en cuatro capas de softwa
 │ 1. CAPA DE INTERFAZ Y PRESENTACIÓN                                    │
 │    - Web Dashboard: Express 5 + Vanilla JS (public/index.html, app.js) │
 │    - Consola CLI Windows: ejecutar.bat (Menú de 7 opciones)            │
-│    - Visor de Procesos: public/visor-proceso.html                      │
 ├───────────────────────────────────┬────────────────────────────────────┤
 │ 2. CAPA DE COMUNICACIÓN Y API     │ 3. CAPA DE MOTORES RPA             │
 │    - server.js: HTTP REST + WS    │    A) Motor Visible Puppeteer:     │
@@ -55,8 +54,7 @@ Rpa programa/
 ├── public/                       # Frontend web servido por server.js
 │   ├── app.js                    # Cliente Web: WebSocket, REST y DOM
 │   ├── index.html                # UI principal: Glassmorphism, controles y monitor
-│   ├── styles.css                # Estilos CSS modernos (variables, dark theme)
-│   └── visor-proceso.html        # Visor interactivo experimental de resultados
+│   └── styles.css                # Estilos CSS modernos (variables, dark theme)
 ├── tests/                        # Banco de pruebas de integración y verificación
 │   ├── capture_frontend_ui.js    # Captura de pantalla de la interfaz web
 │   ├── test_error_concurrency.js # Test de concurrencia y bloqueo de ejecuciones
@@ -290,7 +288,7 @@ El archivo `supermercados.tag` debe:
 ## 17. Código que Puede Simplificarse
 
 - **Extracción DOM compartida Carrefour / Día %:** Ambos sitios están construidos sobre VTEX IO. La función de evaluación del DOM para extraer tarjetas y validar con `validador.js` puede unificarse en una función auxiliar común para reducir líneas repetidas.
-- ~~**Visor experimental (`public/visor-proceso.html`):**~~ INTEGRADO. Se añadió enlace en la tarjeta de Utilidades del dashboard web.
+- **Visor experimental (`public/visor-proceso.html`):** Eliminado por requerimiento de usuario para mantener la arquitectura centrada en el reporte Excel y el Dashboard principal.
 
 ---
 

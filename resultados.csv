@@ -1,4 +1,34 @@
 modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad,unidad
-"individual","Coca Cola","Gaseosa Coca-Cola Zero 600 ml","$ 1.733,33 c/u","Carrefour","https://www.carrefour.com.ar/gaseosa-coca-cola-zero-600-ml-763995/p","2026-09-17","DISPONIBLE","2.25","L"
-"individual","Coca Cola","Gaseosa Coca-Cola Sabor Original 2,25 Lt","$3.933,53","COTO","https://www.coto.com.ar/productos/gaseosa-coca-cola-sabor-original-2-25-lt-/_/R-00014450-00014450-200","2026-09-17","DISPONIBLE","2.25","L"
-"individual","Coca Cola","Gaseosa Coca-Cola Sabor Original 2.25 Lt.","$ 5.900","Día %","https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-sabor-original-225-lt-14837/p","2026-09-17","DISPONIBLE","2.25","L"
+compra_mes,Coca Cola,Gaseosa Coca-Cola sabor original 600 ml,"$ 1.733,33 c/u",Carrefour,https://www.carrefour.com.ar/gaseosa-coca-cola-sabor-original-600-ml-763994/p,2026-09-22,DISPONIBLE,2.25,L
+compra_mes,Arroz Gallo,Arroz largo fino Gallo 00000 en bolsa 1 kg,"$ 1.799,25 c/u",Carrefour,https://www.carrefour.com.ar/arroz-largo-fino-gallo-00000-en-bolsa-1-kg-718789/p,2026-09-22,DISPONIBLE,1,kg
+compra_mes,Fideos Matarazzo,Fideos tallarines N15 Matarazzo 500 g.,"$ 944,00",Carrefour,https://www.carrefour.com.ar/fideos-tallarines-n15-matarazzo-500-g-718989/p,2026-09-22,DISPONIBLE,500,g
+compra_mes,Aceite Cocinero,Aceite de girasol Cocinero 1.5 l.,"$ 5.539,00 - 20%",Carrefour,https://www.carrefour.com.ar/aceite-de-girasol-cocinero-15-l-41078/p,2026-09-22,DISPONIBLE,1.5,L
+compra_mes,Yerba Playadito,No encontrado,N/D,Carrefour,https://www.carrefour.com.ar,2026-09-22,NO ENCONTRADO,1,kg
+compra_mes,Leche La Serenísima,No encontrado,N/D,Carrefour,https://www.carrefour.com.ar,2026-09-22,NO ENCONTRADO,1,L
+compra_mes,Secco,Gaseosa pomelo Secco sin azúcar botella 2.25 l.,"$ 93,11",Carrefour,https://www.carrefour.com.ar/gaseosa-pomelo-secco-sin-azucar-botella-225-l/p,2026-09-22,DISPONIBLE,2.25,L
+compra_mes,Galletitas Oreo,Galletitas dulces Oreo rellenas con crema 118 g.,"$ 2.469,00",Carrefour,https://www.carrefour.com.ar/galletitas-dulce-oreo-rellenas-con-crema-118-g-715949/p,2026-09-22,DISPONIBLE,118,g
+compra_mes,Detergente Magistral,Detergente Magistral Ultra Limón Botella 500 ml,"$ 4.429,00",Carrefour,https://www.carrefour.com.ar/detergente-magistral-ultra-limon-en-botella-500-ml-741296/p,2026-09-22,DISPONIBLE,500,ml
+compra_mes,Papel Higiénico Higienol,Papel higiénico Higienol Max hoja simple 100 mts 4 uni,"$ 7.680,00",Carrefour,https://www.carrefour.com.ar/papel-higienico-higienol-max-hoja-simple-100-mts-4-uni-723830/p,2026-09-22,DISPONIBLE,4,un
+compra_mes,Coca Cola,"Gaseosa Coca-Cola Sabor Original 2,25 Lt","$3.933,53",COTO,https://www.coto.com.ar/productos/gaseosa-coca-cola-sabor-original-2-25-lt-/_/R-00014450-00014450-200,2026-09-22,DISPONIBLE,2.25,L
+compra_mes,Arroz Gallo,Arroz Largo Fino Gallo 1 Kg,"$2.620,00",COTO,https://www.coto.com.ar/productos/arroz-largo-fino-gallo-1-kg-/_/R-00561452-00561452-200,2026-09-22,DISPONIBLE,1,kg
+compra_mes,Fideos Matarazzo,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,500,g
+compra_mes,Aceite Cocinero,Aceite Girasol COCINERO Bot 1.5 Ltr,"$6.925,00",COTO,https://www.coto.com.ar/productos/aceite-girasol-cocinero-bot-1-5-ltr-/_/R-00011760-00011760-200,2026-09-22,DISPONIBLE,1.5,L
+compra_mes,Yerba Playadito,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,1,kg
+compra_mes,Leche La Serenísima,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,1,L
+compra_mes,Secco,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,2.25,L
+compra_mes,Galletitas Oreo,Galletitas OREO Rellenas Con Crema De Chocolate 118g,"$1.605,50",COTO,https://www.coto.com.ar/productos/galletitas-oreo-rellenas-con-crema-de-chocolate-118g-/_/R-00511280-00511280-200,2026-09-22,DISPONIBLE,118,g
+compra_mes,Detergente Magistral,Detergente MAGISTRAL Ultra Limón Botella 500ml,"$3.282,49",COTO,https://www.coto.com.ar/productos/detergente-magistral-ultra-limon-botella-500ml-/_/R-00584037-00584037-200,2026-09-22,DISPONIBLE,500,ml
+compra_mes,Papel Higiénico Higienol,Papel Higiénico HIGIENOL Plus Fusión Doble Hoja 30 M 4 Un,"$4.593,99",COTO,https://www.coto.com.ar/productos/papel-higienico-higienol-plus-fusion-doble-hoja-30-m-4-un-/_/R-00580544-00580544-200,2026-09-22,DISPONIBLE,4,un
+compra_mes,Coca Cola,Gaseosa Coca-Cola Sabor Original 2.25 Lt.,$ 5.900,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-sabor-original-225-lt-14837/p,2026-09-22,DISPONIBLE,2.25,L
+compra_mes,Arroz Gallo,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,1,kg
+compra_mes,Fideos Matarazzo,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,500,g
+compra_mes,Aceite Cocinero,"Aceite de Girasol Cocinero 1,5 Lt.",$ 6.925,Día %,https://diaonline.supermercadosdia.com.ar/aceite-de-girasol-cocinero-15-lt-25338/p,2026-09-22,DISPONIBLE,1.5,L
+compra_mes,Yerba Playadito,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,1,kg
+compra_mes,Leche La Serenísima,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,1,L
+compra_mes,Secco,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,2.25,L
+compra_mes,Galletitas Oreo,Galletitas Oreo Rellenas con Crema Sabor Original Menos sodio 118 Gr.,$ 2.470,Día %,https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-menos-sodio-118-gr-271629/p,2026-09-22,DISPONIBLE,118,g
+compra_mes,Detergente Magistral,Detergente Magistral Ultra Limon Botella 500 Ml.,$ 4.409,Día %,https://diaonline.supermercadosdia.com.ar/detergente-magistral-ultra-limon-botella-500-ml-307689/p,2026-09-22,DISPONIBLE,500,ml
+compra_mes,Papel Higiénico Higienol,Papel Higiénico Doble Hoja Fusion Higienol 4 Ud.,$ 4.985,Día %,https://diaonline.supermercadosdia.com.ar/papel-higienico-doble-hoja-fusion-higienol-4-ud-301701/p,2026-09-22,DISPONIBLE,4,un
+"individual","Coca Cola","Gaseosa cola Coca Cola sabor original 2,25 lts","$ 3.933,33 c/u","Carrefour","https://www.carrefour.com.ar/gaseosa-cola-coca-cola-sabor-original-225-lts-30138/p","2026-09-22","DISPONIBLE","2.25","L"
+"individual","Coca Cola","Gaseosa Coca-Cola Sabor Original 2,25 Lt","$3.933,53","COTO","https://www.coto.com.ar/productos/gaseosa-coca-cola-sabor-original-2-25-lt-/_/R-00014450-00014450-200","2026-09-22","DISPONIBLE","2.25","L"
+"individual","Coca Cola","Gaseosa Coca-Cola Sabor Original 2.25 Lt.","$ 5.900","Día %","https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-sabor-original-225-lt-14837/p","2026-09-22","DISPONIBLE","2.25","L"

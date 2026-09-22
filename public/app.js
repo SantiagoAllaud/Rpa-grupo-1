@@ -4,18 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputProducto = document.getElementById('input-producto');
     const inputCantidad = document.getElementById('input-cantidad');
     const inputUnidad = document.getElementById('input-unidad');
-    const btnAbrirExcel = document.getElementById('btn-abrir-excel');
-    const btnLimpiar = document.getElementById('btn-limpiar');
-    
     const logContainer = document.getElementById('log-container');
     const statusIndicator = document.getElementById('status-indicator');
     const btnAbort = document.getElementById('btn-abort');
     const abortBar = document.getElementById('abort-bar');
-    
-    const modal = document.getElementById('limpiar-modal');
-    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
-    const btnsClean = document.querySelectorAll('.btn-clean');
-
 
     // Monitor y Pasos de Supermercados
     const monitorStatusText = document.getElementById('monitor-status-text');
@@ -27,37 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusCoto = document.getElementById('status-coto');
     const stepDia = document.getElementById('step-dia');
     const statusDia = document.getElementById('status-dia');
-
-    // Pantalla Virtual Integrada
-    const virtualScreenCard = document.getElementById('virtual-screen-card');
-    const virtualScreenBody = document.getElementById('virtual-screen-body');
-    const virtualUrlDisplay = document.getElementById('virtual-url-display');
-    const liveScreenImg = document.getElementById('live-screen-img');
-    const screenPlaceholder = document.getElementById('screen-placeholder');
-    const btnToggleScreen = document.getElementById('btn-toggle-screen');
-    const iconToggleScreen = document.getElementById('icon-toggle-screen');
-    const labelToggleScreen = document.getElementById('label-toggle-screen');
-    const screenLiveTag = document.getElementById('screen-live-tag');
-
-    let isScreenVisible = true;
-
-    // Toggle para mostrar u ocultar la pantalla virtual en vivo
-    if (btnToggleScreen && virtualScreenBody) {
-        btnToggleScreen.addEventListener('click', () => {
-            isScreenVisible = !isScreenVisible;
-            if (isScreenVisible) {
-                virtualScreenBody.style.display = 'block';
-                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye';
-                if (labelToggleScreen) labelToggleScreen.textContent = 'Ocultar pantalla';
-                btnToggleScreen.classList.remove('active');
-            } else {
-                virtualScreenBody.style.display = 'none';
-                if (iconToggleScreen) iconToggleScreen.className = 'fa-solid fa-eye-slash';
-                if (labelToggleScreen) labelToggleScreen.textContent = 'Ver en vivo';
-                btnToggleScreen.classList.add('active');
-            }
-        });
-    }
 
     let ws = null;
 
@@ -71,16 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mainProgressFill) mainProgressFill.style.width = '0%';
         if (progressPercentBadge) progressPercentBadge.textContent = '0%';
         if (monitorStatusText) monitorStatusText.textContent = 'RPA EN ESPERA';
-        if (virtualUrlDisplay) virtualUrlDisplay.textContent = 'chrome://navegador-virtual';
-        if (liveScreenImg) {
-            liveScreenImg.style.display = 'none';
-            liveScreenImg.src = '';
-        }
-        if (screenPlaceholder) screenPlaceholder.style.display = 'flex';
-        if (screenLiveTag) {
-            screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
-            screenLiveTag.className = 'screen-live-tag';
-        }
     }
 
     // Conectar WebSocket para logs en vivo del sistema
@@ -97,24 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'screencast') {
-                    if (isScreenVisible && liveScreenImg) {
-                        liveScreenImg.src = msg.data;
-                        liveScreenImg.style.display = 'block';
-                        if (screenPlaceholder) screenPlaceholder.style.display = 'none';
-                    }
-                    if (virtualUrlDisplay && msg.url) {
-                        virtualUrlDisplay.textContent = msg.url;
-                    }
-                    if (screenLiveTag) {
-                        screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
-                        screenLiveTag.className = 'screen-live-tag live';
-                    }
-                } else if (msg.type === 'nav_url') {
-                    if (virtualUrlDisplay && msg.url) {
-                        virtualUrlDisplay.textContent = msg.url;
-                    }
-                } else if (msg.type === 'log') {
+                if (msg.type === 'log') {
                     addLog(msg.message);
                     parseLogStep(msg.message);
                 } else if (msg.type === 'progress') {
@@ -125,39 +59,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (msg.type === 'status') {
                     if (monitorStatusText) {
                         if (msg.state === 'live') {
-                            monitorStatusText.textContent = '🔴 NAVEGADOR VIRTUAL EN VIVO';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish fa-fade"></i> EN VIVO';
-                                screenLiveTag.className = 'screen-live-tag live';
-                            }
+                            monitorStatusText.textContent = '🤖 AUTOMATIZACIÓN EN CURSO';
                         } else if (msg.state === 'connecting') {
                             monitorStatusText.textContent = 'CONECTANDO CON NAVEGADOR...';
                         } else if (msg.state === 'finished') {
                             monitorStatusText.textContent = '✓ RPA FINALIZADO EXITOSAMENTE';
                             if (mainProgressFill) mainProgressFill.style.width = '100%';
                             if (progressPercentBadge) progressPercentBadge.textContent = '100%';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-check"></i> COMPLETADO';
-                                screenLiveTag.className = 'screen-live-tag finished';
-                            }
                         } else if (msg.state === 'idle') {
                             monitorStatusText.textContent = 'RPA EN ESPERA';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> EN ESPERA';
-                                screenLiveTag.className = 'screen-live-tag';
-                            }
                         } else if (msg.state === 'aborted') {
                             monitorStatusText.textContent = '🛑 RPA DETENIDO';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> DETENIDO';
-                                screenLiveTag.className = 'screen-live-tag aborted';
-                            }
                         } else if (msg.state === 'error') {
                             monitorStatusText.textContent = 'ERROR EN LA EJECUCIÓN';
-                            if (screenLiveTag) {
-                                screenLiveTag.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ERROR';
-                                screenLiveTag.className = 'screen-live-tag error';
-                            }
                         }
                     }
                 }
@@ -284,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================================
     let catalogoGlobal = null;
     let itemsCatalogoGlobal = [];
-    const selectCategoria = document.getElementById('select-categoria');
     const selectProducto = document.getElementById('select-producto');
     const inputUnidadesCompra = document.getElementById('input-unidades-compra');
     const boxInfoProducto = document.getElementById('box-info-producto');
@@ -299,49 +212,34 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success && data.catalogo) {
                 catalogoGlobal = data.catalogo;
                 itemsCatalogoGlobal = data.items || [];
-                poblarSelectCategorias();
+                poblarSelectProductosUnificado();
             }
         } catch (e) {
             console.error('Error cargando catálogo:', e);
         }
     }
 
-    function poblarSelectCategorias() {
-        if (!selectCategoria || !catalogoGlobal) return;
-        selectCategoria.innerHTML = '<option value="">-- Selecciona una categoría --</option>';
+    function poblarSelectProductosUnificado() {
+        if (!selectProducto || !catalogoGlobal) return;
+        selectProducto.innerHTML = '<option value="">-- Selecciona un producto del catálogo --</option>';
+
         const categorias = Object.keys(catalogoGlobal);
         categorias.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat;
-            opt.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
-            selectCategoria.appendChild(opt);
+            const prods = catalogoGlobal[cat];
+            if (!prods || prods.length === 0) return;
+
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = cat.toUpperCase();
+
+            prods.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.nombre_completo;
+                optgroup.appendChild(opt);
+            });
+
+            selectProducto.appendChild(optgroup);
         });
-        if (categorias.length > 0) {
-            selectCategoria.value = categorias[0];
-            poblarSelectProductos(categorias[0]);
-        }
-    }
-
-    function poblarSelectProductos(categoria) {
-        if (!selectProducto || !catalogoGlobal) return;
-        selectProducto.innerHTML = '<option value="">-- Selecciona un producto --</option>';
-        if (!categoria || !catalogoGlobal[categoria]) {
-            if (boxInfoProducto) boxInfoProducto.style.display = 'none';
-            return;
-        }
-
-        const prods = catalogoGlobal[categoria];
-        prods.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.nombre_completo}`;
-            selectProducto.appendChild(opt);
-        });
-
-        if (prods.length > 0) {
-            selectProducto.value = prods[0].id;
-            mostrarInfoProducto(prods[0]);
-        }
     }
 
     function mostrarInfoProducto(item) {
@@ -356,15 +254,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (infoPresentacion) infoPresentacion.textContent = `${item.cantidad} ${item.unidad}`;
     }
 
-    if (selectCategoria) {
-        selectCategoria.addEventListener('change', (e) => {
-            poblarSelectProductos(e.target.value);
-        });
-    }
-
     if (selectProducto) {
         selectProducto.addEventListener('change', (e) => {
-            const item = itemsCatalogoGlobal.find(it => it.id === e.target.value);
+            const val = e.target.value;
+            if (!val) {
+                mostrarInfoProducto(null);
+                return;
+            }
+            const item = itemsCatalogoGlobal.find(it => it.id === val);
             mostrarInfoProducto(item);
         });
     }
@@ -393,22 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
             cantidad: item.cantidad,
             unidad: item.unidad,
             unidades: unidades
-        });
-    });
-
-    btnAbrirExcel.addEventListener('click', () => {
-        executeAction('/api/abrir-excel');
-    });
-
-    // Manejo de Modal de Limpieza
-    btnLimpiar.addEventListener('click', () => modal.classList.add('active'));
-    btnCerrarModal.addEventListener('click', () => modal.classList.remove('active'));
-
-    btnsClean.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tipo = btn.getAttribute('data-tipo');
-            modal.classList.remove('active');
-            executeAction('/api/limpiar', { tipo });
         });
     });
 
@@ -442,30 +323,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
             </td>
             <td>
-                <span class="modal-pres-label" style="color: #34d399; font-weight: 600; font-size: 0.88rem;">-</span>
-            </td>
-            <td>
                 <input type="number" class="modal-input modal-input-unid-compra" min="1" step="1" value="${unidades > 0 ? unidades : 1}" />
             </td>
             <td style="text-align: center;">
                 <button type="button" class="btn-del-row" title="Eliminar este producto"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
-
-        const sel = tr.querySelector('.modal-select-prod');
-        const presLabel = tr.querySelector('.modal-pres-label');
-
-        function actualizarPres() {
-            const found = itemsCatalogoGlobal.find(it => it.id === sel.value);
-            if (found) {
-                presLabel.textContent = `${found.cantidad} ${found.unidad}`;
-            } else {
-                presLabel.textContent = '-';
-            }
-        }
-
-        sel.addEventListener('change', actualizarPres);
-        actualizarPres();
 
         tr.querySelector('.btn-del-row').addEventListener('click', () => {
             tr.remove();
@@ -477,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnEditarLista.addEventListener('click', async () => {
             editarModal.classList.add('active');
             if (modalTbodyCanasta) {
-                modalTbodyCanasta.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando lista...</td></tr>';
+                modalTbodyCanasta.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando lista...</td></tr>';
             }
             try {
                 const response = await fetch('/api/input');

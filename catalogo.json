@@ -20,7 +20,7 @@
       "cantidad": 2.25,
       "unidad": "L",
       "nombre_completo": "Sprite Lima Limón 2.25 L",
-      "termino_busqueda": "Sprite 2.25L"
+      "termino_busqueda": "Sprite 2.25 L"
     },
     {
       "id": "gaseosa_secco_pomelo_225l",
@@ -31,7 +31,7 @@
       "cantidad": 2.25,
       "unidad": "L",
       "nombre_completo": "Secco Pomelo 2.25 L",
-      "termino_busqueda": "Secco Pomelo 2.25L"
+      "termino_busqueda": "Secco Pomelo 2.25 L"
     },
     {
       "id": "gaseosa_manaos_cola_225l",
@@ -42,7 +42,7 @@
       "cantidad": 2.25,
       "unidad": "L",
       "nombre_completo": "Manaos Cola 2.25 L",
-      "termino_busqueda": "Manaos Cola 2.25L"
+      "termino_busqueda": "Manaos Cola 2.25 L"
     }
   ],
   "arroz": [
@@ -55,7 +55,7 @@
       "cantidad": 1,
       "unidad": "kg",
       "nombre_completo": "Arroz Gallo Largo Fino 1 kg",
-      "termino_busqueda": "Arroz Gallo Largo Fino 1kg"
+      "termino_busqueda": "Arroz Gallo Largo Fino 1 kg"
     },
     {
       "id": "arroz_lucchetti_largo_fino_1kg",
@@ -66,7 +66,7 @@
       "cantidad": 1,
       "unidad": "kg",
       "nombre_completo": "Arroz Lucchetti Largo Fino 1 kg",
-      "termino_busqueda": "Arroz Lucchetti 1kg"
+      "termino_busqueda": "Arroz Lucchetti 1 kg"
     }
   ],
   "fideos": [
@@ -79,7 +79,7 @@
       "cantidad": 500,
       "unidad": "g",
       "nombre_completo": "Fideos Matarazzo Tallarines 500 g",
-      "termino_busqueda": "Fideos Matarazzo Tallarines 500g"
+      "termino_busqueda": "Fideos Matarazzo Tallarines 500 g"
     },
     {
       "id": "fideos_lucchetti_tallarines_500g",
@@ -90,7 +90,7 @@
       "cantidad": 500,
       "unidad": "g",
       "nombre_completo": "Fideos Lucchetti Tallarines 500 g",
-      "termino_busqueda": "Fideos Lucchetti Tallarines 500g"
+      "termino_busqueda": "Fideos Lucchetti Tallarines 500 g"
     }
   ],
   "galletitas": [
@@ -103,7 +103,7 @@
       "cantidad": 118,
       "unidad": "g",
       "nombre_completo": "Galletitas Oreo Original 118 g",
-      "termino_busqueda": "Galletitas Oreo 118g"
+      "termino_busqueda": "Galletitas Oreo 118 g"
     },
     {
       "id": "galletitas_criollitas_clasicas_300g",
@@ -114,7 +114,7 @@
       "cantidad": 300,
       "unidad": "g",
       "nombre_completo": "Galletitas Criollitas Clásicas 300 g",
-      "termino_busqueda": "Galletitas Criollitas 300g"
+      "termino_busqueda": "Galletitas Criollitas 300 g"
     }
   ],
   "leche": [
@@ -123,11 +123,11 @@
       "categoria": "leche",
       "marca": "La Serenísima",
       "producto": "Leche La Serenísima",
-      "variante": "Entera",
+      "variante": "Clásica / Entera",
       "cantidad": 1,
       "unidad": "L",
-      "nombre_completo": "Leche La Serenísima Entera 1 L",
-      "termino_busqueda": "Leche La Serenisima Entera 1L"
+      "nombre_completo": "Leche La Serenísima Clásica 1 L",
+      "termino_busqueda": "Leche La Serenisima Clasica 1 L"
     },
     {
       "id": "leche_tregar_entera_1l",
@@ -138,7 +138,7 @@
       "cantidad": 1,
       "unidad": "L",
       "nombre_completo": "Leche Tregar Entera 1 L",
-      "termino_busqueda": "Leche Tregar Entera 1L"
+      "termino_busqueda": "Leche Tregar Entera 1 L"
     }
   ],
   "aceite": [
@@ -151,7 +151,7 @@
       "cantidad": 1.5,
       "unidad": "L",
       "nombre_completo": "Aceite Cocinero Girasol 1.5 L",
-      "termino_busqueda": "Aceite Cocinero Girasol 1.5L"
+      "termino_busqueda": "Aceite Cocinero Girasol 1.5 L"
     },
     {
       "id": "aceite_natura_girasol_15l",
@@ -162,7 +162,7 @@
       "cantidad": 1.5,
       "unidad": "L",
       "nombre_completo": "Aceite Natura Girasol 1.5 L",
-      "termino_busqueda": "Aceite Natura Girasol 1.5L"
+      "termino_busqueda": "Aceite Natura Girasol 1.5 L"
     }
   ],
   "yerba": [
@@ -174,8 +174,8 @@
       "variante": "Tradicional",
       "cantidad": 1,
       "unidad": "kg",
-      "nombre_completo": "Yerba Playadito Tradicional 1 kg",
-      "termino_busqueda": "Yerba Playadito 1kg"
+      "nombre_completo": "Yerba Playadito 1 kg",
+      "termino_busqueda": "Yerba Playadito 1 kg"
     },
     {
       "id": "yerba_taragui_tradicional_1kg",
@@ -186,7 +186,7 @@
       "cantidad": 1,
       "unidad": "kg",
       "nombre_completo": "Yerba Taragüí Tradicional 1 kg",
-      "termino_busqueda": "Yerba Taragui 1kg"
+      "termino_busqueda": "Yerba Taragui 1 kg"
     }
   ],
   "limpieza": [
@@ -199,7 +199,7 @@
       "cantidad": 500,
       "unidad": "ml",
       "nombre_completo": "Detergente Magistral Limón 500 ml",
-      "termino_busqueda": "Detergente Magistral Limon 500ml"
+      "termino_busqueda": "Detergente Magistral Limon 500 ml"
     },
     {
       "id": "lavandina_ayudin_clasica_1l",
@@ -210,7 +210,7 @@
       "cantidad": 1,
       "unidad": "L",
       "nombre_completo": "Lavandina Ayudín Clásica 1 L",
-      "termino_busqueda": "Lavandina Ayudin 1L"
+      "termino_busqueda": "Lavandina Ayudin 1 L"
     },
     {
       "id": "papel_higienico_higienol_4un",
@@ -221,7 +221,7 @@
       "cantidad": 4,
       "unidad": "un",
       "nombre_completo": "Papel Higiénico Higienol 4 un",
-      "termino_busqueda": "Papel Higienico Higienol 4un"
+      "termino_busqueda": "Papel Higienico Higienol 4 un"
     }
   ]
 }

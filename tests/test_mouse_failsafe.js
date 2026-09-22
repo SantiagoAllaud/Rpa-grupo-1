@@ -45,17 +45,11 @@ setTimeout(() => {
     const stateContent = fs.readFileSync(STATE_FILE, 'utf8').trim();
     console.log(`[TEST] Estado inicial en failsafe.state: "${stateContent}"`);
 
-    // 3. Simular intervención del usuario: mover el cursor 25 píxeles físicamente
-    console.log('[TEST] Simulando intervención física del usuario (movimiento manual > 14px)...');
+    // 3. Simular intervención física brusca del usuario (> 260px de desvío sostenido)
+    console.log('[TEST] Simulando intervención física brusca del usuario (movimiento manual > 260px)...');
     
-    // Cambiar la posición del cursor directamente por Win32 SetCursorPos simulando que la mano lo movió
-    const targetX = initX + 25;
-    const targetY = initY + 25;
-    // Usamos mouse_helper pero SIN actualizar el state esperado (como haría la mano física)
-    // Para ello llamamos a SetCursorPos indirectamente o posicionado
-    // En mouse_helper pos solo lee; pero podemos llamar a un comando directo o verificar
-    // O podemos modificar failsafe.state con coordenadas anteriores para simular la desviación
-    fs.writeFileSync(STATE_FILE, `0,${initX - 30},${initY - 30}`);
+    // Simular que la posición física del cursor se aparta más de 300px
+    fs.writeFileSync(STATE_FILE, `0,${initX - 350},${initY - 350}`);
 
     setTimeout(() => {
         const flagExists = fs.existsSync(FLAG_FILE);
@@ -69,11 +63,11 @@ setTimeout(() => {
         if (fs.existsSync(STATE_FILE)) fs.unlinkSync(STATE_FILE);
 
         if (flagExists || watchdogOutput.includes('USER_MOUSE_INTERVENTION') || exitCode === 99) {
-            console.log('[TEST OK] ✅ Regla estricta verificada con éxito: El watchdog detectó la intervención y disparó el failsafe.');
+            console.log('[TEST OK] ✅ Failsafe verificado con éxito: El watchdog detectó el movimiento brusco y disparó la cancelación.');
             process.exit(0);
         } else {
             console.error('[TEST FAIL] ❌ El watchdog no detectó la intervención.');
             process.exit(1);
         }
-    }, 200);
-}, 100);
+    }, 350);
+}, 150);
