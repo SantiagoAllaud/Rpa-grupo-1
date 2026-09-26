@@ -55,7 +55,7 @@
       "cantidad": 1,
       "unidad": "kg",
       "nombre_completo": "Arroz Gallo Largo Fino 1 kg",
-      "termino_busqueda": "Arroz Gallo Largo Fino 1 kg"
+      "termino_busqueda": "Arroz Gallo 1 kg"
     },
     {
       "id": "arroz_lucchetti_largo_fino_1kg",
@@ -79,7 +79,7 @@
       "cantidad": 500,
       "unidad": "g",
       "nombre_completo": "Fideos Matarazzo Tallarines 500 g",
-      "termino_busqueda": "Fideos Matarazzo Tallarines 500 g"
+      "termino_busqueda": "Fideos Matarazzo 500 g"
     },
     {
       "id": "fideos_lucchetti_tallarines_500g",
@@ -90,7 +90,7 @@
       "cantidad": 500,
       "unidad": "g",
       "nombre_completo": "Fideos Lucchetti Tallarines 500 g",
-      "termino_busqueda": "Fideos Lucchetti Tallarines 500 g"
+      "termino_busqueda": "Fideos Lucchetti 500 g"
     }
   ],
   "galletitas": [
@@ -127,7 +127,7 @@
       "cantidad": 1,
       "unidad": "L",
       "nombre_completo": "Leche La Serenísima Clásica 1 L",
-      "termino_busqueda": "Leche La Serenisima Clasica 1 L"
+      "termino_busqueda": "Leche La Serenisima 1 L"
     },
     {
       "id": "leche_tregar_entera_1l",

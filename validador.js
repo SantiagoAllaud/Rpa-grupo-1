@@ -452,12 +452,174 @@ function calcularPrecioNormalizado(item) {
     };
 }
 
+// ==============================================================================
+// COMPARACIÓN DE PRODUCTOS POR SUBCADENAS COMPARANDO PALABRA POR PALABRA
+// ==============================================================================
+
+// Comprueba si una palabra individual de A coincide en el texto o lista de palabras de B por subcadena
+function palabraCoincideSubcadena(wTarget, palabrasCand, textoCandNorm) {
+    if (!wTarget || wTarget.length < 2) return false;
+    // 1. Coincidencia exacta o como subcadena en el texto completo normalizado
+    if (wTarget.length >= 3 && textoCandNorm.includes(wTarget)) return true;
+
+    // 2. Coincidencia bidireccional contra cada palabra del candidato
+    for (var i = 0; i < palabrasCand.length; i++) {
+        var wCand = palabrasCand[i];
+        if (wTarget === wCand) return true;
+        if (wTarget.length >= 3 && wCand.length >= 3) {
+            // Subcadenas mutuas (ej: tallarin <-> tallarines, fideo <-> fideos, galleta <-> galletitas)
+            if (wTarget.includes(wCand) || wCand.includes(wTarget)) return true;
+        }
+    }
+    return false;
+}
+
+// Extrae palabras significativas excluyendo stop words y unidades aisladas
+function extraerPalabrasSignificativas(texto) {
+    var norm = normalizar(texto);
+    if (!norm) return [];
+    var UNIDADES_AISLADAS = new Set(['l', 'lt', 'lts', 'litro', 'litros', 'ml', 'cc', 'kg', 'kgs', 'kilo', 'kilos', 'g', 'gr', 'grs', 'un', 'uni', 'ud', 'rollos', 'paquetes']);
+    return norm.split(/\s+/).filter(function(w) {
+        if (!w || w.length < 2) return false;
+        if (STOP_WORDS.has(w)) return false;
+        if (UNIDADES_AISLADAS.has(w)) return false;
+        return true;
+    });
+}
+
+// Compara dos productos o nombres por subcadenas palabra por palabra
+function coincidePorSubcadenas(textoA, textoB, opciones) {
+    opciones = opciones || {};
+    var strA = (textoA && typeof textoA === 'object') ? (textoA.nombre || textoA.producto || textoA.nombre_encontrado || '') : String(textoA || '');
+    var strB = (textoB && typeof textoB === 'object') ? (textoB.nombre || textoB.producto || textoB.nombre_encontrado || '') : String(textoB || '');
+
+    var normA = normalizar(strA);
+    var normB = normalizar(strB);
+
+    if (!normA || !normB) {
+        return { coincide: false, score: 0, palabrasCoincidentes: 0, totalPalabras: 0, motivo: 'Texto vacío.' };
+    }
+
+    var palabrasA = extraerPalabrasSignificativas(normA);
+    var palabrasB = normalizar(strB).split(/\s+/).filter(Boolean);
+
+    if (palabrasA.length === 0) {
+        return { coincide: true, score: 100, palabrasCoincidentes: 0, totalPalabras: 0, motivo: 'Sin palabras discriminantes.' };
+    }
+
+    var coincidencias = 0;
+    for (var i = 0; i < palabrasA.length; i++) {
+        var w = palabrasA[i];
+        if (palabraCoincideSubcadena(w, palabrasB, normB)) {
+            coincidencias++;
+        } else {
+            // Equivalencias semánticas de variantes base
+            var esEquiv = false;
+            if (['tradicional', 'con palo', 'suave'].includes(w) && (normB.includes('con palo') || normB.includes('suave') || normB.includes('tradicional'))) {
+                esEquiv = true;
+            } else if (['clasica', 'entera'].includes(w) && (normB.includes('entera') || normB.includes('clasica') || normB.includes('3%'))) {
+                esEquiv = true;
+            } else if (['tallarin', 'tallarines', 'spaghetti'].includes(w) && (normB.includes('tallarin') || normB.includes('tallarines') || normB.includes('spaghetti'))) {
+                esEquiv = true;
+            }
+            if (esEquiv) coincidencias++;
+        }
+    }
+
+    var ratio = coincidencias / palabrasA.length;
+
+    // Verificar marca si está presente en A
+    var attrA = extraerAtributos(strA);
+    var attrB = extraerAtributos(strB);
+
+    if (attrA.marca) {
+        var palabrasMarcaA = normalizar(attrA.marca).split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
+        var marcaOk = palabrasMarcaA.every(function(m) {
+            return palabraCoincideSubcadena(m, palabrasB, normB);
+        });
+        if (!marcaOk) {
+            return {
+                coincide: false,
+                score: Math.round(ratio * 40),
+                ratio: ratio,
+                palabrasCoincidentes: coincidencias,
+                totalPalabras: palabrasA.length,
+                motivo: 'Marca requerida "' + attrA.marca.toUpperCase() + '" no coincide por subcadena.'
+            };
+        }
+
+        // Rechazo estricto si B contiene otra marca competidora
+        var marcaANorm = normalizar(attrA.marca);
+        for (var mIdx = 0; mIdx < MARCAS_CONOCIDAS.length; mIdx++) {
+            var mOtra = MARCAS_CONOCIDAS[mIdx];
+            if (mOtra !== marcaANorm && !marcaANorm.includes(mOtra) && !mOtra.includes(marcaANorm)) {
+                var rxOtra = new RegExp('(?:^|\\s)' + mOtra.replace('-', '[-\\s]') + '(?:$|\\s)', 'i');
+                if (rxOtra.test(normB)) {
+                    return {
+                        coincide: false,
+                        score: 0,
+                        ratio: 0,
+                        palabrasCoincidentes: 0,
+                        totalPalabras: palabrasA.length,
+                        motivo: 'Se detectó marca competidora "' + mOtra.toUpperCase() + '".'
+                    };
+                }
+            }
+        }
+    }
+
+    // Verificar incompatibilidad de categorías
+    if (attrA.categoria && DEFINICION_CATEGORIAS[attrA.categoria]) {
+        var incomp = DEFINICION_CATEGORIAS[attrA.categoria].incompatibles || [];
+        for (var ic = 0; ic < incomp.length; ic++) {
+            var incTerm = incomp[ic];
+            var rxInc = new RegExp('(?:^|\\s)' + incTerm + '(?:$|\\s)', 'i');
+            if (rxInc.test(normB)) {
+                return {
+                    coincide: false,
+                    score: 0,
+                    ratio: 0,
+                    palabrasCoincidentes: 0,
+                    totalPalabras: palabrasA.length,
+                    motivo: 'Contiene término incompatible "' + incTerm.toUpperCase() + '".'
+                };
+            }
+        }
+    }
+
+    // Verificar presentación si ambas la declaran
+    if (attrA.presentacion && attrB.presentacion) {
+        if (!catalogo.esPresentacionEquivalente(attrA.presentacion.valor, attrA.presentacion.tipo === 'l' ? 'L' : attrA.presentacion.tipo, attrB.presentacion.valor, attrB.presentacion.tipo === 'l' ? 'L' : attrB.presentacion.tipo)) {
+            return {
+                coincide: false,
+                score: Math.round(ratio * 30),
+                ratio: ratio,
+                palabrasCoincidentes: coincidencias,
+                totalPalabras: palabrasA.length,
+                motivo: 'Presentación incompatible (' + attrA.presentacion.raw + ' vs ' + attrB.presentacion.raw + ').'
+            };
+        }
+    }
+
+    var minRatio = opciones.minRatio !== undefined ? opciones.minRatio : 0.5;
+    var esCoincidente = ratio >= minRatio;
+
+    return {
+        coincide: esCoincidente,
+        score: Math.round(ratio * 100),
+        ratio: ratio,
+        palabrasCoincidentes: coincidencias,
+        totalPalabras: palabrasA.length,
+        motivo: esCoincidente ? 'Coincidencia validada por subcadenas palabra por palabra (' + Math.round(ratio * 100) + '%).' : 'Coincidencia insuficiente de palabras (' + Math.round(ratio * 100) + '%).'
+    };
+}
+
 // Motor General de Comparabilidad: Determina si dos productos son comercialmente comparables
 function sonComparables(itemA, itemB, queryOriginal) {
     var qNorm = normalizar(queryOriginal || '');
     var intencion = detectarIntencion(queryOriginal || '');
-    var nomA = (itemA && typeof itemA === 'object') ? (itemA.nombre || itemA.producto || '') : String(itemA || '');
-    var nomB = (itemB && typeof itemB === 'object') ? (itemB.nombre || itemB.producto || '') : String(itemB || '');
+    var nomA = (itemA && typeof itemA === 'object') ? (itemA.nombre || itemA.producto || itemA.nombre_encontrado || '') : String(itemA || '');
+    var nomB = (itemB && typeof itemB === 'object') ? (itemB.nombre || itemB.producto || itemB.nombre_encontrado || '') : String(itemB || '');
     var attrA = extraerAtributos(nomA);
     var attrB = extraerAtributos(nomB);
 
@@ -472,13 +634,19 @@ function sonComparables(itemA, itemB, queryOriginal) {
         return { comparable: false, motivo: 'Categorías incompatibles (' + attrA.categoria + ' vs ' + attrB.categoria + ').' };
     }
 
-    // 3. Marca: Si la intención incluye marca, ambos deben poseer dicha marca
+    // 3. Marca: Si la intención incluye marca, ambos deben poseer dicha marca y coincidir por subcadenas
     if (intencion.marca) {
-        var marcaReq = normalizar(intencion.marca);
-        var matchA = attrA.textoNorm.includes(marcaReq);
-        var matchB = attrB.textoNorm.includes(marcaReq);
+        var palabrasMarca = normalizar(intencion.marca).split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
+        var palA = normalizar(nomA).split(/\s+/);
+        var palB = normalizar(nomB).split(/\s+/);
+        var matchA = palabrasMarca.every(function(m) { return palabraCoincideSubcadena(m, palA, normalizar(nomA)); });
+        var matchB = palabrasMarca.every(function(m) { return palabraCoincideSubcadena(m, palB, normalizar(nomB)); });
         if (!matchA || !matchB) {
             return { comparable: false, motivo: 'La búsqueda requería marca específica "' + intencion.marca.toUpperCase() + '".' };
+        }
+        var comp = coincidePorSubcadenas(nomA, nomB, { queryOriginal: queryOriginal, minRatio: 0.35 });
+        if (!comp.coincide) {
+            return { comparable: false, motivo: comp.motivo };
         }
     }
 
@@ -519,7 +687,7 @@ function sonComparables(itemA, itemB, queryOriginal) {
         }
     }
 
-    return { comparable: true, motivo: 'Productos equivalentes y comparables.' };
+    return { comparable: true, motivo: 'Productos equivalentes y comparables por subcadenas palabra por palabra.' };
 }
 
 // Detecta la intención de búsqueda: ESPECÍFICA o GENÉRICA de forma general para todas las categorías
@@ -752,7 +920,15 @@ function validarCoincidencia(queryOriginal, resultado) {
 
             if (esBusquedaEstricta) {
                 if (queryMencionaVariante || !esBase) {
-                    var tieneVariante = palabrasVar.every(function(v) { return nombreNorm.includes(v); });
+                    var opcionesVariante = itemCat.variante.split('/').map(function(s) { return normalizar(s); }).filter(Boolean);
+                    var palabrasCard = nombreNorm.split(/\s+/).filter(Boolean);
+                    var tieneVariante = opcionesVariante.some(function(op) {
+                        var opWords = op.split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
+                        return opWords.every(function(w) { return palabraCoincideSubcadena(w, palabrasCard, nombreNorm); });
+                    });
+                    if (!tieneVariante) {
+                        tieneVariante = palabrasVar.some(function(v) { return palabraCoincideSubcadena(v, palabrasCard, nombreNorm); });
+                    }
                     if (!tieneVariante && varCatNorm.includes('lima') && varCatNorm.includes('limon')) {
                         tieneVariante = nombreNorm.includes('lima') || nombreNorm.includes('limon') || nombreNorm.includes('sprite') || nombreNorm.includes('7up');
                     }
@@ -764,6 +940,11 @@ function validarCoincidencia(queryOriginal, resultado) {
                     if (!tieneVariante && (itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche')))) {
                         // Para leche, 'entera', 'clasica' y '3%' representan la leche entera estándar
                         if ((varCatNorm.includes('entera') || varCatNorm.includes('clasica')) && (nombreNorm.includes('clasica') || nombreNorm.includes('entera') || nombreNorm.includes('3%'))) {
+                            tieneVariante = true;
+                        }
+                    }
+                    if (!tieneVariante && (itemCat.categoria === 'fideos' || (itemCat._normProducto && itemCat._normProducto.includes('fideos')))) {
+                        if (nombreNorm.includes('tallarin') || nombreNorm.includes('tallarines') || nombreNorm.includes('spaghetti')) {
                             tieneVariante = true;
                         }
                     }
@@ -936,10 +1117,11 @@ function validarCoincidencia(queryOriginal, resultado) {
 
     // Validación de Sabor o Variante específica en búsqueda específica
     var variantesArray = Array.from(SABORES_Y_VARIANTES);
+    var palabrasNombreNorm = nombreNorm.split(/\s+/).filter(Boolean);
     for (var v = 0; v < variantesArray.length; v++) {
         var varItem = variantesArray[v];
         if (intencion.queryNormalizada.includes(varItem)) {
-            if (!nombreNorm.includes(varItem)) {
+            if (!nombreNorm.includes(varItem) && !palabraCoincideSubcadena(varItem, palabrasNombreNorm, nombreNorm)) {
                 return {
                     estado: 'COINCIDENCIA NO VÁLIDA',
                     valido: false,
@@ -1514,6 +1696,26 @@ if (require.main === module) {
         var comp3Completo = validarComparacion3Supermercados(itemsTestCompleto);
         assertEq('3 Supermercados: Válido en los 3 -> Comparable', comp3Completo.comparable, true);
 
+        // Test 36: Subcadenas palabra por palabra: Leche La Serenisima con nombres diferentes entre supermercados
+        var t36 = validarCoincidencia('Leche La Serenisima 1L', { nombre: 'Leche entera ultra La Serenisima 1 L', precio: 1450 });
+        assertEq('Subcadenas: Leche entera ultra La Serenísima 1 L vs Leche La Serenisima 1L', t36.estado, 'VALIDADA');
+
+        // Test 37: Subcadenas palabra por palabra: Yerba Playadito con agregados ("suave con palo")
+        var t37 = validarCoincidencia('Yerba Playadito 1kg', { nombre: 'Yerba mate suave Playadito con palo 1 kg.', precio: 4200 });
+        assertEq('Subcadenas: Yerba mate suave Playadito con palo 1 kg vs Yerba Playadito 1kg', t37.estado, 'VALIDADA');
+
+        // Test 38: Subcadenas palabra por palabra: Fideos Matarazzo Tallarines vs Tallarin
+        var t38 = validarCoincidencia('Fideos Matarazzo Tallarines 500g', { nombre: 'Fideos Matarazzo Tallarín 500 Gr', precio: 1100 });
+        assertEq('Subcadenas: Fideos Matarazzo Tallarin vs Tallarines', t38.estado, 'VALIDADA');
+
+        // Test 39: coincidePorSubcadenas directa entre nombres de dos supermercados
+        var c39 = coincidePorSubcadenas('Fideos tallarines N15 Matarazzo 500 g.', 'Fideos Matarazzo Tallarín 500 Gr');
+        assertEq('coincidePorSubcadenas: Carrefour vs COTO para Fideos Matarazzo', c39.coincide, true);
+
+        // Test 40: coincidePorSubcadenas rechazo estricto si marcas son competidoras
+        var c40 = coincidePorSubcadenas('Gaseosa Coca-Cola 2.25L', 'Gaseosa Manaos Cola 2.25L');
+        assertEq('coincidePorSubcadenas: Rechazo Coca-Cola vs Manaos Cola', c40.coincide, false);
+
         console.log('----------------------------------------------------------------------');
         if (errores === 0) {
             console.log(' 🎉 DIAGNÓSTICO FINAL: TODAS LAS PRUEBAS DEL VALIDADOR PASARON CON ÉXITO\n');
@@ -1559,6 +1761,10 @@ module.exports = {
     mostrarReporteIndividual: mostrarReporteIndividual,
     limpiarResultados: limpiarResultados,
     crearTempInput: crearTempInput,
+    coincidePorSubcadenas: coincidePorSubcadenas,
+    compararPalabraPorPalabra: coincidePorSubcadenas,
+    palabraCoincideSubcadena: palabraCoincideSubcadena,
+    extraerPalabrasSignificativas: extraerPalabrasSignificativas,
     MARCAS_CONOCIDAS: MARCAS_CONOCIDAS,
     DEFINICION_CATEGORIAS: DEFINICION_CATEGORIAS,
     CATEGORIAS_PRODUCTO: CATEGORIAS_PRODUCTO,

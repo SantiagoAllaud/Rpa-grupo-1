@@ -529,13 +529,27 @@ async function searchCarrefour(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        palabrasTarget: validador.extraerPalabrasSignificativas(prodClean + ' ' + (itemCat ? (itemCat.nombre_completo || itemCat.producto || '') : '')),
+        productoOriginal: prodClean
     };
 
     const cData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
             return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+        function palabraCoincide(wTarget, palabrasCand, textoCandNorm) {
+            if (!wTarget || wTarget.length < 2) return false;
+            if (wTarget.length >= 3 && textoCandNorm.indexOf(wTarget) > -1) return true;
+            for (var p = 0; p < palabrasCand.length; p++) {
+                var wC = palabrasCand[p];
+                if (wTarget === wC) return true;
+                if (wTarget.length >= 3 && wC.length >= 3) {
+                    if (wTarget.indexOf(wC) > -1 || wC.indexOf(wTarget) > -1) return true;
+                }
+            }
+            return false;
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -573,6 +587,7 @@ async function searchCarrefour(page, prodClean, options = {}) {
             if (priceVal === 'N/D' || priceVal === '' || priceVal === '$0' || priceVal === '$0,00') unavail = true;
 
             var nClean = cleanText(nameVal);
+            var palabrasCand = nClean.split(/\s+/).filter(Boolean);
 
             // A) Filtro de términos incompatibles (accesorios u otras categorías)
             if (config.terminosIncompatibles && config.terminosIncompatibles.length > 0) {
@@ -585,7 +600,9 @@ async function searchCarrefour(page, prodClean, options = {}) {
 
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
-                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
+                var tieneMarcaReq = config.palabrasMarca.every(function(w) {
+                    return palabraCoincide(w, palabrasCand, nClean);
+                });
                 if (!tieneMarcaReq) continue; // Descarte de marcas ajenas
 
                 // Descartar si menciona otra marca competidora
@@ -605,14 +622,22 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 if (tieneMarcaComp) continue;
             }
 
-            // C) REQUISITO DE VARIANTE (si aplica, ej: Pomelo vs Cola)
+            // C) REQUISITO DE VARIANTE (con coincidencia por subcadenas y soporte de alternativas con /)
             if (config.variante) {
-                var varNorm = cleanText(config.variante);
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
-                    return varNorm.indexOf(b) > -1;
+                var variantesOpciones = config.variante.split('/').map(function(v) { return cleanText(v); }).filter(Boolean);
+                var esBase = variantesOpciones.some(function(vNorm) {
+                    return ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave', 'con palo'].some(function(b) {
+                        return vNorm.indexOf(b) > -1;
+                    });
                 });
                 if (!esBase) {
-                    if (nClean.indexOf(varNorm) === -1) continue;
+                    var varianteCoincide = variantesOpciones.some(function(vNorm) {
+                        var palabrasVar = vNorm.split(/\s+/).filter(Boolean);
+                        return palabrasVar.every(function(wV) {
+                            return palabraCoincide(wV, palabrasCand, nClean);
+                        });
+                    });
+                    if (!varianteCoincide) continue;
                 } else {
                     if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
                         continue;
@@ -625,14 +650,26 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
-            var score = 50;
+            // D) SCORING POR PALABRAS DEL PRODUCTO (SUBCADENAS PALABRA POR PALABRA) Y PRESENTACIÓN
+            var score = 10;
+            if (config.palabrasTarget && config.palabrasTarget.length > 0) {
+                var matchedWords = 0;
+                for (var t = 0; t < config.palabrasTarget.length; t++) {
+                    if (palabraCoincide(config.palabrasTarget[t], palabrasCand, nClean)) {
+                        matchedWords++;
+                    }
+                }
+                score += Math.round((matchedWords / config.palabrasTarget.length) * 50);
+            } else {
+                score += 30;
+            }
+
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
                 var cantSpace = String(config.cantidad).replace('.', ' ');
                 if (nClean.indexOf(cantStr) > -1 || nClean.indexOf(cantDot) > -1 || nClean.indexOf(cantSpace) > -1) {
-                    score += 50;
+                    score += 40;
                 }
                 if (config.unidad === 'L') {
                     if (config.cantidad === 1 && (nClean.indexOf('1l') > -1 || nClean.indexOf('1 l') > -1 || nClean.indexOf('1 lt') > -1 || nClean.indexOf('1lt') > -1 || nClean.indexOf('1000ml') > -1)) {
@@ -646,7 +683,7 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 if (config.unidad === 'kg' && (nClean.indexOf('1kg') > -1 || nClean.indexOf('1 kg') > -1 || nClean.indexOf('1000g') > -1 || nClean.indexOf('1000 g') > -1)) {
                     score += 50;
                 }
-                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
+                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1 || nClean.indexOf(cantStr + ' g') > -1)) {
                     score += 50;
                 }
             }
@@ -733,13 +770,27 @@ async function searchCoto(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        palabrasTarget: validador.extraerPalabrasSignificativas(prodClean + ' ' + (itemCat ? (itemCat.nombre_completo || itemCat.producto || '') : '')),
+        productoOriginal: prodClean
     };
 
     const ctData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
             return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+        function palabraCoincide(wTarget, palabrasCand, textoCandNorm) {
+            if (!wTarget || wTarget.length < 2) return false;
+            if (wTarget.length >= 3 && textoCandNorm.indexOf(wTarget) > -1) return true;
+            for (var p = 0; p < palabrasCand.length; p++) {
+                var wC = palabrasCand[p];
+                if (wTarget === wC) return true;
+                if (wTarget.length >= 3 && wC.length >= 3) {
+                    if (wTarget.indexOf(wC) > -1 || wC.indexOf(wTarget) > -1) return true;
+                }
+            }
+            return false;
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -773,6 +824,7 @@ async function searchCoto(page, prodClean, options = {}) {
             if (priceVal === 'N/D' || priceVal === '' || priceVal === '$0' || priceVal === '$0,00') unavail = true;
 
             var nClean = cleanText(nameVal);
+            var palabrasCand = nClean.split(/\s+/).filter(Boolean);
 
             // A) Filtro de términos incompatibles (accesorios u otras categorías)
             if (config.terminosIncompatibles && config.terminosIncompatibles.length > 0) {
@@ -785,8 +837,10 @@ async function searchCoto(page, prodClean, options = {}) {
 
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
-                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
-                if (!tieneMarcaReq) continue;
+                var tieneMarcaReq = config.palabrasMarca.every(function(w) {
+                    return palabraCoincide(w, palabrasCand, nClean);
+                });
+                if (!tieneMarcaReq) continue; // Descarte de marcas ajenas
 
                 // Descartar si menciona otra marca competidora
                 var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
@@ -805,14 +859,22 @@ async function searchCoto(page, prodClean, options = {}) {
                 if (tieneMarcaComp) continue;
             }
 
-            // C) REQUISITO DE VARIANTE
+            // C) REQUISITO DE VARIANTE (con coincidencia por subcadenas y soporte de alternativas con /)
             if (config.variante) {
-                var varNorm = cleanText(config.variante);
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
-                    return varNorm.indexOf(b) > -1;
+                var variantesOpciones = config.variante.split('/').map(function(v) { return cleanText(v); }).filter(Boolean);
+                var esBase = variantesOpciones.some(function(vNorm) {
+                    return ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave', 'con palo'].some(function(b) {
+                        return vNorm.indexOf(b) > -1;
+                    });
                 });
                 if (!esBase) {
-                    if (nClean.indexOf(varNorm) === -1) continue;
+                    var varianteCoincide = variantesOpciones.some(function(vNorm) {
+                        var palabrasVar = vNorm.split(/\s+/).filter(Boolean);
+                        return palabrasVar.every(function(wV) {
+                            return palabraCoincide(wV, palabrasCand, nClean);
+                        });
+                    });
+                    if (!varianteCoincide) continue;
                 } else {
                     if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
                         continue;
@@ -825,14 +887,26 @@ async function searchCoto(page, prodClean, options = {}) {
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
-            var score = 50;
+            // D) SCORING POR PALABRAS DEL PRODUCTO (SUBCADENAS PALABRA POR PALABRA) Y PRESENTACIÓN
+            var score = 10;
+            if (config.palabrasTarget && config.palabrasTarget.length > 0) {
+                var matchedWords = 0;
+                for (var t = 0; t < config.palabrasTarget.length; t++) {
+                    if (palabraCoincide(config.palabrasTarget[t], palabrasCand, nClean)) {
+                        matchedWords++;
+                    }
+                }
+                score += Math.round((matchedWords / config.palabrasTarget.length) * 50);
+            } else {
+                score += 30;
+            }
+
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
                 var cantSpace = String(config.cantidad).replace('.', ' ');
                 if (nClean.indexOf(cantStr) > -1 || nClean.indexOf(cantDot) > -1 || nClean.indexOf(cantSpace) > -1) {
-                    score += 50;
+                    score += 40;
                 }
                 if (config.unidad === 'L') {
                     if (config.cantidad === 1 && (nClean.indexOf('1l') > -1 || nClean.indexOf('1 l') > -1 || nClean.indexOf('1 lt') > -1 || nClean.indexOf('1lt') > -1 || nClean.indexOf('1000ml') > -1)) {
@@ -846,7 +920,7 @@ async function searchCoto(page, prodClean, options = {}) {
                 if (config.unidad === 'kg' && (nClean.indexOf('1kg') > -1 || nClean.indexOf('1 kg') > -1 || nClean.indexOf('1000g') > -1 || nClean.indexOf('1000 g') > -1)) {
                     score += 50;
                 }
-                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
+                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1 || nClean.indexOf(cantStr + ' g') > -1)) {
                     score += 50;
                 }
             }
@@ -941,13 +1015,27 @@ async function searchDia(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        palabrasTarget: validador.extraerPalabrasSignificativas(prodClean + ' ' + (itemCat ? (itemCat.nombre_completo || itemCat.producto || '') : '')),
+        productoOriginal: prodClean
     };
 
     const dData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
             return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+        function palabraCoincide(wTarget, palabrasCand, textoCandNorm) {
+            if (!wTarget || wTarget.length < 2) return false;
+            if (wTarget.length >= 3 && textoCandNorm.indexOf(wTarget) > -1) return true;
+            for (var p = 0; p < palabrasCand.length; p++) {
+                var wC = palabrasCand[p];
+                if (wTarget === wC) return true;
+                if (wTarget.length >= 3 && wC.length >= 3) {
+                    if (wTarget.indexOf(wC) > -1 || wC.indexOf(wTarget) > -1) return true;
+                }
+            }
+            return false;
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -985,6 +1073,7 @@ async function searchDia(page, prodClean, options = {}) {
             if (priceVal === 'N/D' || priceVal === '' || priceVal === '$0' || priceVal === '$0,00') unavail = true;
 
             var nClean = cleanText(nameVal);
+            var palabrasCand = nClean.split(/\s+/).filter(Boolean);
 
             // A) Filtro de términos incompatibles (accesorios u otras categorías)
             if (config.terminosIncompatibles && config.terminosIncompatibles.length > 0) {
@@ -997,8 +1086,10 @@ async function searchDia(page, prodClean, options = {}) {
 
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
-                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
-                if (!tieneMarcaReq) continue;
+                var tieneMarcaReq = config.palabrasMarca.every(function(w) {
+                    return palabraCoincide(w, palabrasCand, nClean);
+                });
+                if (!tieneMarcaReq) continue; // Descarte de marcas ajenas
 
                 // Descartar si menciona otra marca competidora
                 var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
@@ -1017,14 +1108,22 @@ async function searchDia(page, prodClean, options = {}) {
                 if (tieneMarcaComp) continue;
             }
 
-            // C) REQUISITO DE VARIANTE
+            // C) REQUISITO DE VARIANTE (con coincidencia por subcadenas y soporte de alternativas con /)
             if (config.variante) {
-                var varNorm = cleanText(config.variante);
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
-                    return varNorm.indexOf(b) > -1;
+                var variantesOpciones = config.variante.split('/').map(function(v) { return cleanText(v); }).filter(Boolean);
+                var esBase = variantesOpciones.some(function(vNorm) {
+                    return ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave', 'con palo'].some(function(b) {
+                        return vNorm.indexOf(b) > -1;
+                    });
                 });
                 if (!esBase) {
-                    if (nClean.indexOf(varNorm) === -1) continue;
+                    var varianteCoincide = variantesOpciones.some(function(vNorm) {
+                        var palabrasVar = vNorm.split(/\s+/).filter(Boolean);
+                        return palabrasVar.every(function(wV) {
+                            return palabraCoincide(wV, palabrasCand, nClean);
+                        });
+                    });
+                    if (!varianteCoincide) continue;
                 } else {
                     if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
                         continue;
@@ -1037,14 +1136,26 @@ async function searchDia(page, prodClean, options = {}) {
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
-            var score = 50;
+            // D) SCORING POR PALABRAS DEL PRODUCTO (SUBCADENAS PALABRA POR PALABRA) Y PRESENTACIÓN
+            var score = 10;
+            if (config.palabrasTarget && config.palabrasTarget.length > 0) {
+                var matchedWords = 0;
+                for (var t = 0; t < config.palabrasTarget.length; t++) {
+                    if (palabraCoincide(config.palabrasTarget[t], palabrasCand, nClean)) {
+                        matchedWords++;
+                    }
+                }
+                score += Math.round((matchedWords / config.palabrasTarget.length) * 50);
+            } else {
+                score += 30;
+            }
+
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
                 var cantSpace = String(config.cantidad).replace('.', ' ');
                 if (nClean.indexOf(cantStr) > -1 || nClean.indexOf(cantDot) > -1 || nClean.indexOf(cantSpace) > -1) {
-                    score += 50;
+                    score += 40;
                 }
                 if (config.unidad === 'L') {
                     if (config.cantidad === 1 && (nClean.indexOf('1l') > -1 || nClean.indexOf('1 l') > -1 || nClean.indexOf('1 lt') > -1 || nClean.indexOf('1lt') > -1 || nClean.indexOf('1000ml') > -1)) {
@@ -1058,7 +1169,7 @@ async function searchDia(page, prodClean, options = {}) {
                 if (config.unidad === 'kg' && (nClean.indexOf('1kg') > -1 || nClean.indexOf('1 kg') > -1 || nClean.indexOf('1000g') > -1 || nClean.indexOf('1000 g') > -1)) {
                     score += 50;
                 }
-                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
+                if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1 || nClean.indexOf(cantStr + ' g') > -1)) {
                     score += 50;
                 }
             }

@@ -158,22 +158,50 @@ function buscarEnCatalogo(queryOAtributos) {
         }
     }
 
-    // 2. Coincidencia estricta por marca y/o producto con presentación
-    const VARIANTES_CONOCIDAS = ['pomelo', 'naranja', 'limon', 'cola', 'manzana', 'frambuesa', 'vainilla', 'chocolate', 'original', 'zero', 'light', 'diet', 'largo fino', 'doble carolina', 'parboil', 'tallarines', 'tirabuzon', 'entera', 'descremada', 'girasol', 'oliva', 'maiz', 'tradicional', 'con palo', 'despalada', 'sin gas', 'con gas', 'restauracion', 'limpieza'];
+    // 2. Coincidencia por subcadenas palabra por palabra con marca y presentación
+    const VARIANTES_CONOCIDAS = ['pomelo', 'naranja', 'limon', 'cola', 'manzana', 'frambuesa', 'vainilla', 'chocolate', 'original', 'zero', 'light', 'diet', 'largo fino', 'doble carolina', 'parboil', 'tallarines', 'tallarin', 'tirabuzon', 'entera', 'descremada', 'girasol', 'oliva', 'maiz', 'tradicional', 'con palo', 'despalada', 'sin gas', 'con gas', 'restauracion', 'limpieza'];
+
+    function palabraCoincideSubcadena(wTarget, palabrasCand, textoCand) {
+        if (!wTarget || wTarget.length < 2) return false;
+        if (wTarget.length >= 3 && textoCand.includes(wTarget)) return true;
+        for (let i = 0; i < palabrasCand.length; i++) {
+            const wCand = palabrasCand[i];
+            if (wTarget === wCand) return true;
+            if (wTarget.length >= 3 && wCand.length >= 3) {
+                if (wTarget.includes(wCand) || wCand.includes(wTarget)) return true;
+            }
+        }
+        return false;
+    }
+
+    const palabrasTarget = targetTexto.split(/\s+/).filter(w => w.length >= 2);
 
     for (const item of items) {
-        const palabrasTarget = targetTexto.split(' ');
-        const tieneMarca = palabrasTarget.includes(item._normMarca) || targetTexto.includes(item._normMarca) || targetTexto.includes(item._normProducto);
+        const palabrasMarca = item._normMarca.split(/\s+/).filter(w => !['la', 'el', 'los', 'las', 'de'].includes(w));
+        const tieneMarca = palabrasMarca.length > 0
+            ? palabrasMarca.every(w => palabraCoincideSubcadena(w, palabrasTarget, targetTexto))
+            : (targetTexto.includes(item._normMarca) || targetTexto.includes(item._normProducto));
         if (!tieneMarca) continue;
 
-        // Si targetTexto menciona alguna variante conocida, debe estar presente en item._normVariante
+        // Descarte de variantes mutuamente excluyentes
         let contradiceVariante = false;
         if (item._normVariante) {
+            const opcionesVariante = item._normVariante.split('/').map(s => normalizarTexto(s)).filter(Boolean);
+            
             for (const v of VARIANTES_CONOCIDAS) {
                 if (item._normMarca.includes(v)) continue;
-                if (targetTexto.includes(v) && !item._normVariante.includes(v)) {
-                    contradiceVariante = true;
-                    break;
+                if (targetTexto.includes(v)) {
+                    // Excepciones semánticas conocidas de variantes base compatibles
+                    const esBaseYerba = (item.categoria === 'yerba' || item._normProducto.includes('yerba')) && ['tradicional', 'con palo', 'suave'].includes(v);
+                    const esBaseLeche = (item.categoria === 'leche' || item._normProducto.includes('leche')) && ['entera', 'clasica'].includes(v);
+                    const esFideosTallarin = (item.categoria === 'fideos' || item._normProducto.includes('fideos')) && ['tallarin', 'tallarines'].includes(v);
+
+                    const coincideConOpciones = opcionesVariante.some(op => op.includes(v) || v.includes(op) || palabraCoincideSubcadena(v, op.split(/\s+/), op));
+
+                    if (!coincideConOpciones && !esBaseYerba && !esBaseLeche && !esFideosTallarin) {
+                        contradiceVariante = true;
+                        break;
+                    }
                 }
             }
         }
@@ -183,7 +211,10 @@ function buscarEnCatalogo(queryOAtributos) {
         if (typeof queryOAtributos === 'object' && queryOAtributos.variante) {
             const vBuscada = normalizarTexto(queryOAtributos.variante);
             if (item._normVariante && !item._normVariante.includes(vBuscada) && !vBuscada.includes(item._normVariante)) {
-                continue;
+                // Verificar si coinciden palabra por palabra
+                const vPalabras = vBuscada.split(/\s+/).filter(Boolean);
+                const matchVar = vPalabras.some(w => palabraCoincideSubcadena(w, item._normVariante.split(/\s+/), item._normVariante));
+                if (!matchVar) continue;
             }
         }
 
