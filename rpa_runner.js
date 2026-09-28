@@ -529,13 +529,14 @@ async function searchCarrefour(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        nombresSupermercados: (itemCat && itemCat.nombres_supermercados) ? itemCat.nombres_supermercados.map(n => validador.normalizar(n)) : []
     };
 
     const cData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
-            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(\d+)\s*%/g, '$1%').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -589,11 +590,11 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 if (!tieneMarcaReq) continue; // Descarte de marcas ajenas
 
                 // Descartar si menciona otra marca competidora
-                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var marcaBuscadaNorm = cleanText(config.marca || '');
                 var tieneMarcaComp = false;
                 if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
                     for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
-                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
+                        var mOtra = cleanText(config.marcasCompetidoras[mIdx]);
                         if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
                             if (contienePalabra(nClean, mOtra)) {
                                 tieneMarcaComp = true;
@@ -648,6 +649,17 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 }
                 if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
                     score += 50;
+                }
+            }
+
+            // Scoring extra por coincidencia con el diccionario oficial de supermercados
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean || nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 150;
+                        break;
+                    }
                 }
             }
 
@@ -733,13 +745,14 @@ async function searchCoto(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        nombresSupermercados: (itemCat && itemCat.nombres_supermercados) ? itemCat.nombres_supermercados.map(n => validador.normalizar(n)) : []
     };
 
     const ctData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
-            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(\d+)\s*%/g, '$1%').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -789,11 +802,11 @@ async function searchCoto(page, prodClean, options = {}) {
                 if (!tieneMarcaReq) continue;
 
                 // Descartar si menciona otra marca competidora
-                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var marcaBuscadaNorm = cleanText(config.marca || '');
                 var tieneMarcaComp = false;
                 if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
                     for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
-                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
+                        var mOtra = cleanText(config.marcasCompetidoras[mIdx]);
                         if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
                             if (contienePalabra(nClean, mOtra)) {
                                 tieneMarcaComp = true;
@@ -848,6 +861,17 @@ async function searchCoto(page, prodClean, options = {}) {
                 }
                 if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
                     score += 50;
+                }
+            }
+
+            // Scoring extra por coincidencia con el diccionario oficial de supermercados
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean || nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 150;
+                        break;
+                    }
                 }
             }
 
@@ -941,13 +965,14 @@ async function searchDia(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        nombresSupermercados: (itemCat && itemCat.nombres_supermercados) ? itemCat.nombres_supermercados.map(n => validador.normalizar(n)) : []
     };
 
     const dData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
-            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(\d+)\s*%/g, '$1%').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -1001,11 +1026,11 @@ async function searchDia(page, prodClean, options = {}) {
                 if (!tieneMarcaReq) continue;
 
                 // Descartar si menciona otra marca competidora
-                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var marcaBuscadaNorm = cleanText(config.marca || '');
                 var tieneMarcaComp = false;
                 if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
                     for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
-                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
+                        var mOtra = cleanText(config.marcasCompetidoras[mIdx]);
                         if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
                             if (contienePalabra(nClean, mOtra)) {
                                 tieneMarcaComp = true;
@@ -1060,6 +1085,17 @@ async function searchDia(page, prodClean, options = {}) {
                 }
                 if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
                     score += 50;
+                }
+            }
+
+            // Scoring extra por coincidencia con el diccionario oficial de supermercados
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean || nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 150;
+                        break;
+                    }
                 }
             }
 

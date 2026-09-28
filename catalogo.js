@@ -17,6 +17,7 @@ function normalizarTexto(texto) {
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // elimina tildes
+        .replace(/(\d+)\s*%/g, '$1%')    // normaliza "3 %" a "3%"
         .replace(/[\.,;:!¡?¿\(\)\[\]"'\-_/]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -38,19 +39,35 @@ function cargarCatalogo() {
     for (const cat of Object.keys(catalogoCache)) {
         const prods = catalogoCache[cat];
         for (const item of prods) {
+            const nombresSupers = Array.isArray(item.nombres_supermercados) ? item.nombres_supermercados : [];
             items.push(Object.assign({}, item, {
                 categoria: cat,
+                nombres_supermercados: nombresSupers,
                 _normMarca: normalizarTexto(item.marca),
                 _normProducto: normalizarTexto(item.producto),
                 _normVariante: normalizarTexto(item.variante || ''),
-                _normCompleto: normalizarTexto(item.nombre_completo || '')
+                _normCompleto: normalizarTexto(item.nombre_completo || ''),
+                _normTermino: normalizarTexto(item.termino_busqueda || ''),
+                _normId: normalizarTexto(item.id || ''),
+                _normCategoria: normalizarTexto(cat || ''),
+                _normNombresSupermercados: nombresSupers.map(n => normalizarTexto(n)),
+                _searchBlob: normalizarTexto([
+                    item.nombre_completo,
+                    item.producto,
+                    item.marca,
+                    item.variante,
+                    cat,
+                    item.termino_busqueda,
+                    item.id,
+                    nombresSupers.join(' ')
+                ].filter(Boolean).join(' '))
             }));
         }
     }
     itemsPlanosCache = items;
     return { catalogo: catalogoCache, items: itemsPlanosCache };
 }
-//holissssss
+
 // Normalización matemática dimensional exacta de volumen y peso
 function normalizarPresentacion(cantidad, unidad) {
     if (cantidad === undefined || cantidad === null) return null;
@@ -120,6 +137,362 @@ function parsearStringProducto(str) {
     return { texto: raw, cantidad: null, unidad: '' };
 }
 
+// Extrae todas las subcadenas relevantes de un texto (palabras individuales, n-gramas de frases y sub-raíces)
+function extraerSubcadenas(texto, minLen = 2) {
+    if (!texto || typeof texto !== 'string') return [];
+    const norm = normalizarTexto(texto);
+    if (!norm) return [];
+
+    const subcadenas = new Set();
+    const tokens = norm.split(/\s+/).filter(t => t.length >= minLen);
+
+    // 1. Tokens individuales (palabras)
+    for (const t of tokens) {
+        subcadenas.add(t);
+        // Prefijos y sub-raíces de palabras largas (longitud >= 4)
+        if (t.length >= 4) {
+            for (let l = 3; l < t.length; l++) {
+                subcadenas.add(t.substring(0, l));
+            }
+        }
+    }
+
+    // 2. N-gramas continuos de palabras (secuencias consecutivas)
+    for (let l = 2; l <= tokens.length; l++) {
+        for (let i = 0; i <= tokens.length - l; i++) {
+            const ngram = tokens.slice(i, i + l).join(' ');
+            if (ngram.length >= minLen) {
+                subcadenas.add(ngram);
+            }
+        }
+    }
+
+    // 3. Cadena completa normalizada
+    if (norm.length >= minLen) {
+        subcadenas.add(norm);
+    }
+
+    return Array.from(subcadenas);
+}
+
+/**
+ * Busca productos en el catálogo mediante coincidencia por subcadenas,
+ * obteniendo la mayor cantidad de coincidencias posibles ordenadas por relevancia y afinidad.
+ * 
+ * @param {string|object} queryOAtributos Texto de búsqueda u objeto con atributos del producto
+ * @param {object} opciones { minLongitudSubcadena: 2, limite: 0 (todos), soloValidos: false }
+ * @returns {Array<object>} Lista de productos coincidentes con detalle de subcadenas y score
+ */
+function buscarPorSubcadenas(queryOAtributos, opciones = {}) {
+    const { items } = cargarCatalogo();
+    if (!queryOAtributos) return [];
+
+    const minLen = opciones.minLongitudSubcadena || 2;
+    const limite = opciones.limite || 0;
+
+    let targetTexto = '';
+    let targetCant = null;
+    let targetUnid = '';
+    let targetMarca = '';
+    let targetVariante = '';
+
+    if (typeof queryOAtributos === 'string') {
+        const parsed = parsearStringProducto(queryOAtributos);
+        targetTexto = normalizarTexto(parsed.texto || queryOAtributos);
+        targetCant = parsed.cantidad;
+        targetUnid = parsed.unidad;
+    } else if (typeof queryOAtributos === 'object') {
+        const strBase = (queryOAtributos.producto || queryOAtributos.marca || '') + ' ' + (queryOAtributos.variante || '') + ' ' + (queryOAtributos.nombre || '');
+        const parsed = parsearStringProducto(strBase);
+        targetTexto = normalizarTexto(parsed.texto || strBase);
+        targetCant = queryOAtributos.cantidad !== undefined ? queryOAtributos.cantidad : parsed.cantidad;
+        targetUnid = queryOAtributos.unidad || parsed.unidad;
+        targetMarca = normalizarTexto(queryOAtributos.marca || '');
+        targetVariante = normalizarTexto(queryOAtributos.variante || '');
+    }
+
+    if (!targetTexto && targetCant === null) return [];
+
+    const subcadenasQuery = extraerSubcadenas(targetTexto, minLen);
+    const tokensQuery = targetTexto.split(/\s+/).filter(t => t.length >= minLen);
+
+    const resultados = [];
+
+    for (const item of items) {
+        const searchBlob = item._searchBlob || normalizarTexto([
+            item.nombre_completo, item.producto, item.marca, item.variante, item.categoria, item.termino_busqueda, item.id
+        ].filter(Boolean).join(' '));
+
+        const normCompleto = item._normCompleto || normalizarTexto(item.nombre_completo);
+        const normProducto = item._normProducto || normalizarTexto(item.producto);
+        const normMarca = item._normMarca || normalizarTexto(item.marca);
+        const normVariante = item._normVariante || normalizarTexto(item.variante || '');
+        const normCategoria = normalizarTexto(item.categoria || '');
+
+        const subcadenasCoincidentes = new Set();
+        let score = 0;
+        let tokensCoincidentes = 0;
+
+        // 1. Coincidencia exacta de nombre o ID
+        if (normCompleto === targetTexto || item.id === targetTexto) {
+            subcadenasCoincidentes.add(targetTexto);
+            score += 150;
+        }
+
+        // 2. Query completa dentro del producto o viceversa
+        if (targetTexto && searchBlob.includes(targetTexto)) {
+            subcadenasCoincidentes.add(targetTexto);
+            score += 60;
+        }
+        if (normCompleto && targetTexto.includes(normCompleto)) {
+            subcadenasCoincidentes.add(normCompleto);
+            score += 50;
+        }
+
+        // 3. Chequeo de subcadenas extraídas de la consulta
+        for (const sub of subcadenasQuery) {
+            if (sub.length < minLen) continue;
+            let coincide = false;
+            if (searchBlob.includes(sub)) {
+                coincide = true;
+            } else if (normMarca.includes(sub) || normProducto.includes(sub) || normVariante.includes(sub) || normCategoria.includes(sub)) {
+                coincide = true;
+            }
+
+            if (coincide) {
+                subcadenasCoincidentes.add(sub);
+                score += (sub.includes(' ') ? 15 : 8) + Math.min(sub.length, 10);
+            }
+        }
+
+        // 4. Coincidencia de tokens bidireccionales
+        const tokensItem = searchBlob.split(/\s+/).filter(t => t.length >= minLen);
+        for (const tq of tokensQuery) {
+            let matchedToken = false;
+            for (const ti of tokensItem) {
+                if (ti === tq) {
+                    matchedToken = true;
+                    subcadenasCoincidentes.add(tq);
+                    score += 12;
+                    break;
+                } else if ((tq.length >= 2 && ti.includes(tq)) || (ti.length >= 2 && tq.includes(ti))) {
+                    matchedToken = true;
+                    subcadenasCoincidentes.add(tq.length <= ti.length ? tq : ti);
+                    score += 6;
+                    break;
+                }
+            }
+            if (matchedToken) tokensCoincidentes++;
+        }
+
+        // 5. Coincidencias de campos semánticos
+        const coincideMarca = normMarca && (
+            (searchBlob.includes(normMarca) && targetTexto.includes(normMarca)) ||
+            (targetMarca && normMarca.includes(targetMarca)) ||
+            (targetTexto.includes(normMarca))
+        );
+        if (coincideMarca) {
+            score += 35;
+            subcadenasCoincidentes.add(normMarca);
+        }
+
+        const coincideProducto = normProducto && (
+            targetTexto.includes(normProducto) ||
+            normProducto.split(/\s+/).some(p => p.length >= 3 && targetTexto.includes(p))
+        );
+        if (coincideProducto) {
+            score += 25;
+            subcadenasCoincidentes.add(normProducto);
+        }
+
+        const coincideVariante = normVariante && (
+            targetTexto.includes(normVariante) ||
+            (targetVariante && normVariante.includes(targetVariante))
+        );
+        if (coincideVariante) {
+            score += 20;
+            subcadenasCoincidentes.add(normVariante);
+        }
+
+        const coincideCategoria = normCategoria && targetTexto.includes(normCategoria);
+        if (coincideCategoria) {
+            score += 15;
+            subcadenasCoincidentes.add(normCategoria);
+        }
+
+        // 5.5. Coincidencias con nombres del diccionario de supermercados
+        let coincideNombreSupermercado = false;
+        let nombreSuperCoincidente = null;
+        if (item._normNombresSupermercados && item._normNombresSupermercados.length > 0) {
+            for (let sIdx = 0; sIdx < item._normNombresSupermercados.length; sIdx++) {
+                const nSup = item._normNombresSupermercados[sIdx];
+                if (nSup === targetTexto || (targetTexto.length >= 6 && nSup.includes(targetTexto)) || (nSup.length >= 6 && targetTexto.includes(nSup))) {
+                    coincideNombreSupermercado = true;
+                    nombreSuperCoincidente = item.nombres_supermercados[sIdx];
+                    subcadenasCoincidentes.add(nombreSuperCoincidente);
+                    score += 65;
+                    break;
+                }
+            }
+        }
+
+        // 6. Evaluación de presentación dimensional
+        let coincidePresentacion = false;
+        if (targetCant !== null && targetUnid) {
+            coincidePresentacion = esPresentacionEquivalente(item.cantidad, item.unidad, targetCant, targetUnid);
+            if (coincidePresentacion) {
+                score += 40;
+                subcadenasCoincidentes.add(`${item.cantidad} ${item.unidad}`);
+            } else {
+                score = Math.max(1, score - 20);
+            }
+        }
+
+const STOP_WORDS_CATALOGO = new Set([
+    'de', 'del', 'en', 'para', 'con', 'sin', 'el', 'la', 'los', 'las', 'un', 'una',
+    'unos', 'unas', 'tipo', 'x', 'al', 'por', 'y', 'o'
+]);
+
+        const cantidadCoincidencias = subcadenasCoincidentes.size;
+
+        // INCLUSIÓN: Obtener la mayor cantidad de coincidencias posibles
+        if (cantidadCoincidencias > 0) {
+            // Si la consulta contiene palabras que no son stop-words, debe coincidir al menos una subcadena relevante
+            const tieneTokensRelevantes = tokensQuery.some(t => !STOP_WORDS_CATALOGO.has(t));
+            if (tieneTokensRelevantes) {
+                const tieneSubcadenaRelevante = Array.from(subcadenasCoincidentes).some(s => !STOP_WORDS_CATALOGO.has(s));
+                if (!tieneSubcadenaRelevante) continue;
+            }
+
+            const porcentajeTokens = tokensQuery.length > 0 ? (tokensCoincidentes / tokensQuery.length) : 0;
+            resultados.push({
+                item: item,
+                score: score,
+                cantidadCoincidencias: cantidadCoincidencias,
+                subcadenasCoincidentes: Array.from(subcadenasCoincidentes),
+                tokensCoincidentes: tokensCoincidentes,
+                porcentajeTokens: Math.round(porcentajeTokens * 100) / 100,
+                coincideMarca: Boolean(coincideMarca),
+                coincideProducto: Boolean(coincideProducto),
+                coincideVariante: Boolean(coincideVariante),
+                coincideCategoria: Boolean(coincideCategoria),
+                coincidePresentacion: Boolean(coincidePresentacion),
+                coincideNombreSupermercado: Boolean(coincideNombreSupermercado),
+                nombreSuperCoincidente: nombreSuperCoincidente
+            });
+        }
+    }
+
+    resultados.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.cantidadCoincidencias !== a.cantidadCoincidencias) return b.cantidadCoincidencias - a.cantidadCoincidencias;
+        return b.porcentajeTokens - a.porcentajeTokens;
+    });
+
+    if (limite > 0 && resultados.length > limite) {
+        return resultados.slice(0, limite);
+    }
+
+    return resultados;
+}
+
+// Obtiene el diccionario completo de nombres de supermercados agrupados por producto
+function obtenerDiccionarioSupermercados() {
+    const { items } = cargarCatalogo();
+    const diccionario = {};
+    for (const item of items) {
+        diccionario[item.id] = {
+            id: item.id,
+            producto: item.producto,
+            marca: item.marca,
+            variante: item.variante,
+            cantidad: item.cantidad,
+            unidad: item.unidad,
+            nombre_completo: item.nombre_completo,
+            nombres_supermercados: item.nombres_supermercados || []
+        };
+    }
+    return diccionario;
+}
+
+// Busca un producto a partir de cualquiera de sus nombres conocidos en plataformas de supermercados
+function buscarPorDiccionarioSupermercado(texto) {
+    if (!texto || typeof texto !== 'string') return null;
+    const { items } = cargarCatalogo();
+    const tNorm = normalizarTexto(texto);
+    if (!tNorm) return null;
+
+    // 1. Coincidencia exacta con nombre de supermercado
+    for (const item of items) {
+        const nombresNorm = item._normNombresSupermercados || [];
+        for (let i = 0; i < nombresNorm.length; i++) {
+            if (nombresNorm[i] === tNorm) {
+                return {
+                    match: true,
+                    tipo: 'EXACTO',
+                    item: item,
+                    nombreCoincidente: item.nombres_supermercados[i],
+                    score: 100
+                };
+            }
+        }
+    }
+
+    // 2. Coincidencia por contención bidireccional (si la cadena contiene o está contenida)
+    let mejorMatch = null;
+    let maxLen = 0;
+
+    for (const item of items) {
+        const nombresNorm = item._normNombresSupermercados || [];
+        for (let i = 0; i < nombresNorm.length; i++) {
+            const nNorm = nombresNorm[i];
+            if (nNorm.length >= 6 && (tNorm.includes(nNorm) || nNorm.includes(tNorm))) {
+                if (nNorm.length > maxLen) {
+                    maxLen = nNorm.length;
+                    mejorMatch = {
+                        match: true,
+                        tipo: 'CONTENCION',
+                        item: item,
+                        nombreCoincidente: item.nombres_supermercados[i],
+                        score: 85
+                    };
+                }
+            }
+        }
+    }
+
+    return mejorMatch;
+}
+
+// Permite agregar un nuevo alias de supermercado al producto
+function agregarNombreSupermercado(idOProducto, nuevoNombre, guardarEnArchivo = false) {
+    if (!idOProducto || !nuevoNombre) return false;
+    const { catalogo: cat, items } = cargarCatalogo();
+    const target = normalizarTexto(idOProducto);
+    const item = items.find(it => it.id === idOProducto || normalizarTexto(it.nombre_completo) === target || normalizarTexto(it.producto) === target);
+    if (!item) return false;
+
+    if (!item.nombres_supermercados) item.nombres_supermercados = [];
+    const normNuevo = normalizarTexto(nuevoNombre);
+    const existe = item.nombres_supermercados.some(n => normalizarTexto(n) === normNuevo);
+    if (!existe) {
+        item.nombres_supermercados.push(nuevoNombre.trim());
+        if (!item._normNombresSupermercados) item._normNombresSupermercados = [];
+        item._normNombresSupermercados.push(normNuevo);
+        item._searchBlob = normalizarTexto(item._searchBlob + ' ' + normNuevo);
+
+        if (guardarEnArchivo) {
+            try {
+                fs.writeFileSync(CATALOGO_PATH, JSON.stringify(cat, null, 2), 'utf8');
+            } catch (e) {
+                console.error('Error guardando en catalogo.json:', e);
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
 // Busca un producto estrictamente en el catálogo cerrado
 function buscarEnCatalogo(queryOAtributos) {
     const { items } = cargarCatalogo();
@@ -147,6 +520,18 @@ function buscarEnCatalogo(queryOAtributos) {
     }
 
     if (!targetTexto) return null;
+
+    // 0. Coincidencia directa contra diccionario de nombres de supermercado
+    const matchDict = buscarPorDiccionarioSupermercado(targetTexto);
+    if (matchDict && matchDict.item) {
+        if (targetCant !== null && targetUnid) {
+            if (esPresentacionEquivalente(matchDict.item.cantidad, matchDict.item.unidad, targetCant, targetUnid)) {
+                return matchDict.item;
+            }
+        } else {
+            return matchDict.item;
+        }
+    }
 
     // 1. Coincidencia exacta de nombre completo o ID
     for (const item of items) {
@@ -200,14 +585,18 @@ function buscarEnCatalogo(queryOAtributos) {
     return null;
 }
 
-// Valida si una entrada es válida contra el catálogo cerrado
+// Valida si una entrada es válida contra el catálogo cerrado utilizando búsqueda por subcadenas
 function validarEntrada(entrada) {
     const item = buscarEnCatalogo(entrada);
+    const coincidencias = buscarPorSubcadenas(entrada);
+
     if (item) {
         return {
             valido: true,
             item: item,
-            motivo: 'Producto perteneciente al catálogo cerrado.'
+            motivo: 'Producto perteneciente al catálogo cerrado.',
+            coincidencias: coincidencias,
+            totalCoincidencias: coincidencias.length
         };
     }
 
@@ -219,8 +608,10 @@ function validarEntrada(entrada) {
         valido: false,
         item: null,
         motivo: 'El producto ingresado no pertenece al catálogo cerrado.',
+        coincidencias: coincidencias,
+        totalCoincidencias: coincidencias.length,
         categorias: categoriasDisponibles,
-        opciones: opcionesPermitidas
+        opciones: coincidencias.length > 0 ? coincidencias.map(c => c.item.nombre_completo) : opcionesPermitidas
     };
 }
 
@@ -331,8 +722,55 @@ if (require.main === module) {
             console.error('   ... (usa --listar para ver el catálogo completo)');
             process.exit(1);
         }
+    } else if (args.includes('--subcadenas') || args.includes('--buscar')) {
+        const queryIdx = args.includes('--subcadenas') ? args.indexOf('--subcadenas') : args.indexOf('--buscar');
+        const query = args.slice(queryIdx + 1).join(' ').trim();
+        const resultados = buscarPorSubcadenas(query);
+        console.log('======================================================================');
+        console.log('       🔍 BÚSQUEDA POR SUBCADENAS EN CATÁLOGO CERRADO (catalogo.js)');
+        console.log(`       Consulta: "${query}"`);
+        console.log(`       Total de coincidencias obtenidas: ${resultados.length}`);
+        console.log('======================================================================\n');
+        resultados.forEach((r, idx) => {
+            console.log(`${idx + 1}. ${r.item.nombre_completo} [Score: ${r.score} | Coincidencias: ${r.cantidadCoincidencias}]`);
+            console.log(`   • Subcadenas coincidentes: ${r.subcadenasCoincidentes.join(', ')}`);
+        });
+    } else if (args.includes('--diccionario')) {
+        const queryIdx = args.indexOf('--diccionario');
+        const query = args.slice(queryIdx + 1).join(' ').trim();
+        if (query) {
+            const match = buscarPorDiccionarioSupermercado(query);
+            console.log('======================================================================');
+            console.log('       📖 CONSULTA AL DICCIONARIO DE SUPERMERCADOS (catalogo.js)');
+            console.log(`       Texto buscado: "${query}"`);
+            console.log('======================================================================\n');
+            if (match && match.item) {
+                console.log(`[OK] Coincidencia encontrada (${match.tipo} - Score: ${match.score}):`);
+                console.log(`   • Producto catálogo : ${match.item.nombre_completo} (ID: ${match.item.id})`);
+                console.log(`   • Alias coincidente : "${match.nombreCoincidente}"`);
+                console.log(`   • Categoría         : ${match.item.categoria}`);
+                console.log(`   • Marca             : ${match.item.marca}`);
+            } else {
+                console.log(`[SIN COINCIDENCIA DIRECTA] No se encontró coincidencia en el diccionario para "${query}".`);
+            }
+        } else {
+            const dicc = obtenerDiccionarioSupermercados();
+            console.log('======================================================================');
+            console.log('       📖 DICCIONARIO OFICIAL DE NOMBRES EN SUPERMERCADOS');
+            console.log('======================================================================\n');
+            for (const id in dicc) {
+                const prod = dicc[id];
+                console.log(`📦 [${prod.nombre_completo}] (ID: ${prod.id})`);
+                if (prod.nombres_supermercados && prod.nombres_supermercados.length > 0) {
+                    prod.nombres_supermercados.forEach(alias => console.log(`   • "${alias}"`));
+                } else {
+                    console.log('   (Sin nombres registrados)');
+                }
+                console.log('');
+            }
+        }
     } else {
-        console.log('Uso: node catalogo.js [--listar] | [--validar "producto"] | [--validar-csv input.csv]');
+        console.log('Uso: node catalogo.js [--listar] | [--diccionario ["texto"]] | [--validar "producto"] | [--subcadenas "texto"] | [--validar-csv input.csv]');
     }
 }
 
@@ -341,6 +779,12 @@ module.exports = {
     cargarCatalogo,
     normalizarPresentacion,
     esPresentacionEquivalente,
+    parsearStringProducto,
+    extraerSubcadenas,
+    buscarPorSubcadenas,
+    obtenerDiccionarioSupermercados,
+    buscarPorDiccionarioSupermercado,
+    agregarNombreSupermercado,
     buscarEnCatalogo,
     validarEntrada,
     validarArchivoCSV,

@@ -12,6 +12,7 @@ function normalizar(texto) {
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // elimina tildes
+        .replace(/(\d+)\s*%/g, '$1%')    // normaliza "3 %" a "3%"
         .replace(/[\.,;:!¡?¿\(\)\[\]"'\-_/]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -334,6 +335,164 @@ function extraerPresentacion(texto) {
     return null;
 }
 
+// Extrae todas las subcadenas relevantes de un texto (palabras individuales, n-gramas de frases y sub-raíces)
+function extraerSubcadenas(texto, minLen) {
+    if (!minLen) minLen = 2;
+    if (!texto || typeof texto !== 'string') return [];
+    var norm = normalizar(texto);
+    if (!norm) return [];
+
+    var subcadenas = new Set();
+    var tokens = norm.split(/\s+/).filter(function(t) { return t.length >= minLen; });
+
+    // 1. Tokens individuales (palabras)
+    for (var i = 0; i < tokens.length; i++) {
+        var t = tokens[i];
+        subcadenas.add(t);
+        if (t.length >= 4) {
+            for (var l = 3; l < t.length; l++) {
+                subcadenas.add(t.substring(0, l));
+            }
+        }
+    }
+
+    // 2. N-gramas continuos de palabras (secuencias consecutivas)
+    for (var nl = 2; nl <= tokens.length; nl++) {
+        for (var ni = 0; ni <= tokens.length - nl; ni++) {
+            var ngram = tokens.slice(ni, ni + nl).join(' ');
+            if (ngram.length >= minLen) {
+                subcadenas.add(ngram);
+            }
+        }
+    }
+
+    // 3. Cadena completa normalizada
+    if (norm.length >= minLen) {
+        subcadenas.add(norm);
+    }
+
+    return Array.from(subcadenas);
+}
+
+// Calcula las coincidencias de subcadenas entre dos textos cualesquiera (bidireccional)
+function calcularCoincidenciasSubcadenas(textoA, textoB, minLen) {
+    if (!minLen) minLen = 2;
+    var normA = normalizar(textoA || '');
+    var normB = normalizar(textoB || '');
+    if (!normA || !normB) {
+        return { coincidentes: [], cantidad: 0, tokensCoincidentes: 0, totalTokens: 0, porcentaje: 0, score: 0 };
+    }
+
+    var subsA = extraerSubcadenas(normA, minLen);
+    var tokensA = normA.split(/\s+/).filter(function(t) { return t.length >= minLen; });
+    var tokensB = normB.split(/\s+/).filter(function(t) { return t.length >= minLen; });
+
+    var coincidentesSet = new Set();
+    var score = 0;
+    var tokensCoincidentes = 0;
+
+    // Coincidencia exacta completa
+    if (normA === normB) {
+        coincidentesSet.add(normA);
+        score += 100;
+    } else if (normB.includes(normA)) {
+        coincidentesSet.add(normA);
+        score += 50;
+    } else if (normA.includes(normB)) {
+        coincidentesSet.add(normB);
+        score += 40;
+    }
+
+    // Coincidencia de subcadenas de A en B
+    for (var i = 0; i < subsA.length; i++) {
+        var sub = subsA[i];
+        if (normB.includes(sub)) {
+            coincidentesSet.add(sub);
+            score += (sub.includes(' ') ? 15 : 8) + Math.min(sub.length, 10);
+        }
+    }
+
+    // Coincidencia de tokens
+    for (var tIdx = 0; tIdx < tokensA.length; tIdx++) {
+        var ta = tokensA[tIdx];
+        var matched = false;
+        for (var tbIdx = 0; tbIdx < tokensB.length; tbIdx++) {
+            var tb = tokensB[tbIdx];
+            if (ta === tb) {
+                matched = true;
+                coincidentesSet.add(ta);
+                score += 12;
+                break;
+            } else if ((ta.length >= 2 && tb.includes(ta)) || (tb.length >= 2 && ta.includes(tb))) {
+                matched = true;
+                coincidentesSet.add(ta.length <= tb.length ? ta : tb);
+                score += 6;
+                break;
+            }
+        }
+        if (matched) tokensCoincidentes++;
+    }
+
+    var porcentaje = tokensA.length > 0 ? (tokensCoincidentes / tokensA.length) : 0;
+    return {
+        coincidentes: Array.from(coincidentesSet),
+        cantidad: coincidentesSet.size,
+        tokensCoincidentes: tokensCoincidentes,
+        totalTokens: tokensA.length,
+        porcentaje: Math.round(porcentaje * 100) / 100,
+        score: score
+    };
+}
+
+// Búsqueda por subcadenas que obtiene la mayor cantidad de coincidencias posibles.
+// Si no se provee 'candidatos', busca en todo el catálogo cerrado centralizado.
+// Si se provee una lista de candidatos (strings u objetos), evalúa cada uno y retorna los coincidentes ordenados.
+function buscarPorSubcadenas(query, candidatos, opciones) {
+    if (!candidatos || !Array.isArray(candidatos) || candidatos.length === 0) {
+        return catalogo.buscarPorSubcadenas(query, opciones || {});
+    }
+
+    var opts = opciones || {};
+    var minLen = opts.minLongitudSubcadena || 2;
+    var limite = opts.limite || 0;
+    var resultados = [];
+
+    for (var i = 0; i < candidatos.length; i++) {
+        var cand = candidatos[i];
+        var textoCand = '';
+        if (typeof cand === 'string') {
+            textoCand = cand;
+        } else if (cand && typeof cand === 'object') {
+            textoCand = cand.nombre || cand.nombre_completo || cand.producto || cand.titulo || cand.texto || '';
+        }
+
+        var match = calcularCoincidenciasSubcadenas(query, textoCand, minLen);
+        if (match.cantidad > 0) {
+            resultados.push({
+                candidato: cand,
+                texto: textoCand,
+                score: match.score,
+                cantidadCoincidencias: match.cantidad,
+                subcadenasCoincidentes: match.coincidentes,
+                tokensCoincidentes: match.tokensCoincidentes,
+                porcentajeTokens: match.porcentaje
+            });
+        }
+    }
+
+    resultados.sort(function(a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.cantidadCoincidencias !== a.cantidadCoincidencias) return b.cantidadCoincidencias - a.cantidadCoincidencias;
+        return b.porcentajeTokens - a.porcentajeTokens;
+    });
+
+    if (limite > 0 && resultados.length > limite) {
+        return resultados.slice(0, limite);
+    }
+
+    return resultados;
+}
+
 // Extrae todos los atributos estructurados de un producto de cualquier categoría
 function extraerAtributos(texto) {
     if (!texto || typeof texto !== 'string') {
@@ -633,13 +792,25 @@ function obtenerConfiguracionBusqueda(queryOriginal) {
     };
 }
 
-// Valida si un producto extraído coincide con la consulta solicitada
 function validarCoincidencia(queryOriginal, resultado) {
     var intencion = detectarIntencion(queryOriginal);
-    var nombreEncontrado = resultado.nombre || '';
+    var nombreEncontrado = (resultado && (resultado.nombre || resultado.nombre_encontrado)) || '';
+    var matchSub = calcularCoincidenciasSubcadenas(queryOriginal, nombreEncontrado);
+
+    var res = _validarCoincidenciaBase(queryOriginal, resultado, intencion, nombreEncontrado);
+    if (res) {
+        res.subcadenasCoincidentes = matchSub.coincidentes;
+        res.cantidadCoincidencias = matchSub.cantidad;
+        res.porcentajeCoincidencia = matchSub.porcentaje;
+        res.scoreSubcadenas = matchSub.score;
+    }
+    return res;
+}
+
+function _validarCoincidenciaBase(queryOriginal, resultado, intencion, nombreEncontrado) {
     var nombreNorm = normalizar(nombreEncontrado);
-    var precioStr = resultado.precioStr || '';
-    var stockRaw = normalizar(resultado.stockRaw || '');
+    var precioStr = (resultado && resultado.precioStr) || '';
+    var stockRaw = normalizar((resultado && resultado.stockRaw) || '');
 
     // 1. Detección de "No encontrado"
     if (!nombreEncontrado ||
@@ -686,6 +857,63 @@ function validarCoincidencia(queryOriginal, resultado) {
                     intencion: intencion.tipo,
                     marca: intencion.marca
                 };
+            }
+        }
+    }
+
+    // 2.7. VALIDACIÓN DIRECTA MEDIANTE DICCIONARIO DE NOMBRES DE SUPERMERCADOS
+    if (catalogo.buscarPorDiccionarioSupermercado) {
+        var matchDict = catalogo.buscarPorDiccionarioSupermercado(nombreEncontrado);
+        if (matchDict && matchDict.item) {
+            var itemDict = matchDict.item;
+            var targetQueryCat = catalogo.buscarEnCatalogo(queryOriginal);
+            if (!targetQueryCat && (resultado.cantidad || resultado.unidad)) {
+                targetQueryCat = catalogo.buscarEnCatalogo({
+                    producto: queryOriginal,
+                    cantidad: resultado.cantidad,
+                    unidad: resultado.unidad
+                });
+            }
+
+            var esCoherente = false;
+            if (targetQueryCat) {
+                if (targetQueryCat.id === itemDict.id) {
+                    esCoherente = true;
+                } else if (targetQueryCat.categoria === itemDict.categoria) {
+                    if (intencion.tipo === 'GENERICA' || normalizar(targetQueryCat.marca) === normalizar(itemDict.marca)) {
+                        esCoherente = true;
+                    }
+                }
+            } else {
+                var marcaDictNorm = normalizar(itemDict.marca);
+                var catDict = itemDict.categoria;
+                var coincideCat = !intencion.categoria || intencion.categoria === catDict;
+                var coincideMarca = !intencion.marca || normalizar(intencion.marca) === marcaDictNorm;
+                if (coincideCat && coincideMarca) {
+                    esCoherente = true;
+                }
+            }
+
+            if (esCoherente) {
+                var presEnc = extraerPresentacion(nombreEncontrado);
+                var presEquiv = true;
+                if (presEnc) {
+                    var uEnc = presEnc.tipo === 'l' ? 'L' : (presEnc.tipo === 'kg' ? 'kg' : 'un');
+                    presEquiv = catalogo.esPresentacionEquivalente(presEnc.valor, uEnc, itemDict.cantidad, itemDict.unidad);
+                }
+
+                if (presEquiv) {
+                    return {
+                        estado: 'VALIDADA',
+                        valido: true,
+                        motivo: 'Coincidencia validada mediante diccionario oficial de supermercados (' + itemDict.nombre_completo + ').',
+                        intencion: 'ESPECIFICA',
+                        marca: itemDict.marca,
+                        itemCatalogo: itemDict,
+                        diccionarioMatch: matchDict,
+                        precioNormalizado: calcularPrecioNormalizado({ nombre: nombreEncontrado, precio: resultado.precio, precioStr: resultado.precioStr })
+                    };
+                }
             }
         }
     }
@@ -1343,7 +1571,7 @@ if (require.main === module) {
         mostrarReporteIndividual(queryArg || null);
     } else if (args[0] === '--limpiar') {
         limpiarResultados(args[1] || '3');
-    } else if (args[0] === '--test') {
+    } else if (args[0] === '--test' || args[0] === '--diagnostico') {
         console.log('======================================================================');
         console.log('       🧪 BATERÍA DE PRUEBAS UNITARIAS: validador.js');
         console.log('======================================================================');
@@ -1514,6 +1742,23 @@ if (require.main === module) {
         var comp3Completo = validarComparacion3Supermercados(itemsTestCompleto);
         assertEq('3 Supermercados: Válido en los 3 -> Comparable', comp3Completo.comparable, true);
 
+        // Test 36: Búsqueda por subcadenas (Obtener mayor cantidad de coincidencias posibles)
+        var subsArroz = buscarPorSubcadenas('arroz');
+        assertEq('Búsqueda por subcadenas: arroz encuentra al menos 2 productos', subsArroz.length >= 2, true);
+
+        // Test 37: Búsqueda por subcadenas con candidatos
+        var candTest = [
+            'Fideos Tallarín Matarazzo 500g',
+            'Fideos Tirabuzón Matarazzo 500g',
+            'Arroz Gallo 1kg'
+        ];
+        var resCand = buscarPorSubcadenas('fideos matarazzo', candTest);
+        assertEq('Búsqueda por subcadenas en lista: encuentra 2 de fideos', resCand.length, 2);
+
+        // Test 38: Cálculo de subcadenas coincidentes
+        var matchCalc = calcularCoincidenciasSubcadenas('Coca Cola 2.25L', 'Gaseosa Coca Cola Sabor Original 2.25 L');
+        assertEq('Cálculo subcadenas coincidentes: cantidad > 0', matchCalc.cantidad > 0, true);
+
         console.log('----------------------------------------------------------------------');
         if (errores === 0) {
             console.log(' 🎉 DIAGNÓSTICO FINAL: TODAS LAS PRUEBAS DEL VALIDADOR PASARON CON ÉXITO\n');
@@ -1522,8 +1767,21 @@ if (require.main === module) {
             console.log(' ❌ DIAGNÓSTICO FINAL: SE DETECTARON ' + errores + ' ERRORES\n');
             process.exit(1);
         }
+    } else if (args[0] === '--subcadenas' || args[0] === '--buscar') {
+        var querySub = args.slice(1).join(' ').trim();
+        var resSub = buscarPorSubcadenas(querySub);
+        console.log('======================================================================');
+        console.log('       🔍 RESULTADOS DE BÚSQUEDA POR SUBCADENAS (validador.js)');
+        console.log('       Consulta: "' + querySub + '"');
+        console.log('       Total de coincidencias obtenidas: ' + resSub.length);
+        console.log('======================================================================\n');
+        resSub.forEach(function(r, idx) {
+            var nom = r.item ? r.item.nombre_completo : (r.texto || JSON.stringify(r.candidato));
+            console.log((idx + 1) + '. ' + nom + ' [Score: ' + r.score + ' | Coincidencias: ' + r.cantidadCoincidencias + ']');
+            console.log('   • Subcadenas coincidentes: ' + r.subcadenasCoincidentes.join(', '));
+        });
     } else {
-        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--limpiar 1|2|3] | [--crear-temp "producto"] | [--test]');
+        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--subcadenas "texto"] | [--limpiar 1|2|3] | [--crear-temp "producto"] | [--test|--diagnostico]');
     }
 }
 
@@ -1544,12 +1802,18 @@ function adaptarTerminoSupermercado(termino, supermercado) {
 module.exports = {
     adaptarTerminoSupermercado: adaptarTerminoSupermercado,
     normalizar: normalizar,
+    extraerSubcadenas: extraerSubcadenas,
+    calcularCoincidenciasSubcadenas: calcularCoincidenciasSubcadenas,
+    buscarPorSubcadenas: buscarPorSubcadenas,
     extraerPresentacion: extraerPresentacion,
     extraerAtributos: extraerAtributos,
     calcularPrecioNormalizado: calcularPrecioNormalizado,
     sonComparables: sonComparables,
     detectarIntencion: detectarIntencion,
     obtenerConfiguracionBusqueda: obtenerConfiguracionBusqueda,
+    obtenerDiccionarioSupermercados: catalogo.obtenerDiccionarioSupermercados,
+    buscarPorDiccionarioSupermercado: catalogo.buscarPorDiccionarioSupermercado,
+    agregarNombreSupermercado: catalogo.agregarNombreSupermercado,
     validarCoincidencia: validarCoincidencia,
     validarComparacion3Supermercados: validarComparacion3Supermercados,
     catalogo: catalogo,
