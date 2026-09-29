@@ -59,7 +59,7 @@ const MARCAS_CONOCIDAS = [
 const DEFINICION_CATEGORIAS = {
     leche: {
         terminos: ['leche', 'lactea', 'descremada', 'entera', 'uht', 'polvo'],
-        incompatibles: ['alfajor', 'jugo', 'gaseosa', 'arroz', 'fideos', 'aceite', 'yerba', 'shampoo', 'jabon', 'galletita', 'galleta', 'detergente', 'cerveza', 'vino', 'queso crema', 'dulce de leche']
+        incompatibles: ['alfajor', 'jugo', 'gaseosa', 'arroz', 'fideos', 'aceite', 'yerba', 'shampoo', 'jabon', 'galletita', 'galleta', 'detergente', 'cerveza', 'vino', 'queso crema', 'dulce de leche', 'bebida vegetal', 'vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas']
     },
     yogur: {
         terminos: ['yogur', 'yogurt', 'yogurth'],
@@ -966,12 +966,72 @@ function _validarCoincidenciaBase(queryOriginal, resultado, intencion, nombreEnc
             }
         }
 
+        // A.2) Validación estricta de CATEGORÍA E INCOMPATIBILIDADES
+        if (itemCat.categoria && DEFINICION_CATEGORIAS[itemCat.categoria]) {
+            var defCatCat = DEFINICION_CATEGORIAS[itemCat.categoria];
+            if (defCatCat.incompatibles) {
+                for (var incIdx = 0; incIdx < defCatCat.incompatibles.length; incIdx++) {
+                    var incTerm = defCatCat.incompatibles[incIdx];
+                    var rxInc = new RegExp('(?:^|\\s)' + incTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '(?:$|\\s)', 'i');
+                    if (rxInc.test(nombreNorm) || (incTerm.includes(' ') && nombreNorm.includes(incTerm))) {
+                        return {
+                            estado: 'COINCIDENCIA NO VÁLIDA',
+                            valido: false,
+                            motivo: 'El producto devuelto (' + nombreEncontrado + ') contiene "' + incTerm.toUpperCase() + '", incompatible con la categoría requerida (' + itemCat.categoria.toUpperCase() + ').',
+                            intencion: 'ESPECIFICA',
+                            marca: itemCat.marca
+                        };
+                    }
+                }
+            }
+
+            // Exigencia de término de categoría para leche (no puede ser solo marca y tamaño)
+            if (itemCat.categoria === 'leche') {
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    var rxT = new RegExp('(?:^|\\s)' + t + '(?:$|\\s)', 'i');
+                    return rxT.test(nombreNorm);
+                });
+                var esAliasDicc = itemCat._normNombresSupermercados && itemCat._normNombresSupermercados.some(function(alias) {
+                    return alias === nombreNorm || nombreNorm.includes(alias) || alias.includes(nombreNorm);
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) {
+                    return {
+                        estado: 'COINCIDENCIA NO VÁLIDA',
+                        valido: false,
+                        motivo: 'El producto devuelto (' + nombreEncontrado + ') no contiene ningún término lácteo válido ("LECHE").',
+                        intencion: 'ESPECIFICA',
+                        marca: itemCat.marca
+                    };
+                }
+            }
+        }
+
         // B) Validación estricta de VARIANTE / SABOR requerida
         if (itemCat.variante) {
             var varCatNorm = normalizar(itemCat.variante);
             var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'suave'].some(function(b) {
                 return varCatNorm.includes(b);
             });
+
+            // Rechazo preventivo de variantes incompatibles conocidas para productos base (ej: leche)
+            if (itemCat.categoria === 'leche' && esBase) {
+                var variantesIncompatiblesLeche = ['protein', 'proteina', 'proteinas', 'extra protein', 'descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'];
+                for (var vIdx = 0; vIdx < variantesIncompatiblesLeche.length; vIdx++) {
+                    var vInc = variantesIncompatiblesLeche[vIdx];
+                    if (!intencion.queryNormalizada.includes(vInc)) {
+                        var rxVInc = new RegExp('(?:^|\\s)' + vInc + '(?:$|\\s)', 'i');
+                        if (rxVInc.test(nombreNorm)) {
+                            return {
+                                estado: 'COINCIDENCIA NO VÁLIDA',
+                                valido: false,
+                                motivo: 'Se detectó variante ajena "' + vInc.toUpperCase() + '" cuando se requería "' + itemCat.variante.toUpperCase() + '".',
+                                intencion: 'ESPECIFICA',
+                                marca: itemCat.marca
+                            };
+                        }
+                    }
+                }
+            }
 
             var palabrasVar = varCatNorm.split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
             var queryMencionaVariante = palabrasVar.some(function(v) { return intencion.queryNormalizada.includes(v); });
@@ -1024,7 +1084,7 @@ function _validarCoincidenciaBase(queryOriginal, resultado, intencion, nombreEnc
                             continue;
                         }
                         // Excepción para leche: 'clasica', 'entera' y '3%' son variantes base compatibles entre sí
-                        if ((itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche'))) && (sabOtra === 'entera' || sabOtra === 'clasica')) {
+                        if ((itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche'))) && (sabOtra === 'entera' || sabOtra === 'clasica' || sabOtra === '3%')) {
                             continue;
                         }
                         var rxSabOtra = new RegExp('(?:^|\\s)' + sabOtra + '(?:$|\\s)', 'i');
@@ -1723,6 +1783,18 @@ if (require.main === module) {
         // Test 33: RECHAZO Arroz Gallo 1 kg vs Arroz Gallo 500 g
         var t33 = validarCoincidencia('Arroz Gallo 1kg', { nombre: 'Arroz Gallo 500 g', precio: 1200 });
         assertEq('Catálogo: Rechazo Arroz Gallo 1 kg vs 500 g', t33.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33b: RECHAZO Bebida Vegetal para Leche La Serenísima
+        var t33b = validarCoincidencia('Leche La Serenísima', { nombre: 'Bebida Vegetal Almendra La Serenisima Sin Endulzar 1 Lt.', precio: 5159, cantidad: 1, unidad: 'L' });
+        assertEq('Catálogo: Rechazo Bebida Vegetal para Leche La Serenísima', t33b.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33c: RECHAZO Leche Protein para Leche La Serenísima Clásica
+        var t33c = validarCoincidencia('Leche La Serenísima', { nombre: 'Leche Protein La Serenisima 1L', precio: 2340, cantidad: 1, unidad: 'L' });
+        assertEq('Catálogo: Rechazo Leche Protein para Leche Clásica', t33c.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33d: ACEPTACIÓN Leche La Serenísima Clásica 3% 1L (Carrefour / Día)
+        var t33d = validarCoincidencia('Leche La Serenísima', { nombre: 'Leche La serenisima clásica 3% 1L', precio: 2915, cantidad: 1, unidad: 'L' });
+        assertEq('Catálogo: Aceptación Leche La Serenísima Clásica 3% 1L', t33d.estado, 'VALIDADA');
 
         // Test 34: Comparación de 3 Supermercados (Incompleto en Día %)
         var itemsTestIncompleto = [

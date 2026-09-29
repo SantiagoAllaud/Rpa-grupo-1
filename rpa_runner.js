@@ -584,6 +584,24 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 if (inc) continue;
             }
 
+            // A.2) Verificación estricta de categoría láctea
+            if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                // Descartar bebidas vegetales
+                var esVegetal = ['vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas'].some(function(v) {
+                    return contienePalabra(nClean, v);
+                });
+                if (esVegetal) continue;
+
+                // Debe contener término lácteo si no coincide con diccionario oficial
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    return contienePalabra(nClean, t);
+                });
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) continue;
+            }
+
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
                 var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
@@ -615,19 +633,51 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 if (!esBase) {
                     if (nClean.indexOf(varNorm) === -1) continue;
                 } else {
-                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                         continue;
                     }
                     if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
-                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'protein', 'proteina', 'proteinas', 'extra protein', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                             continue;
                         }
                     }
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
+            // D) SCORING COMPLETO Y EXHAUSTIVO
             var score = 50;
+
+            // Coincidencia con diccionario oficial de supermercados (máxima prioridad)
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean) {
+                        score += 250;
+                        break;
+                    } else if (nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 180;
+                        break;
+                    }
+                }
+            }
+
+            // Coincidencia de variante solicitada (ej: "clasica", "entera", "3%")
+            if (config.variante) {
+                var vNorm = cleanText(config.variante);
+                if (vNorm.indexOf('clasica') > -1 || vNorm.indexOf('entera') > -1) {
+                    if (nClean.indexOf('clasica') > -1 || nClean.indexOf('clasico') > -1) score += 70;
+                    if (nClean.indexOf('entera') > -1) score += 60;
+                    if (nClean.indexOf('3%') > -1 || nClean.indexOf('3 %') > -1) score += 70;
+                } else if (vNorm.indexOf('original') > -1) {
+                    if (nClean.indexOf('original') > -1) score += 70;
+                } else if (vNorm.indexOf('largo fino') > -1) {
+                    if (nClean.indexOf('largo fino') > -1) score += 70;
+                } else if (vNorm.indexOf('tallarines') > -1) {
+                    if (nClean.indexOf('tallarin') > -1 || nClean.indexOf('tallarines') > -1) score += 70;
+                }
+            }
+
+            // Scoring por presentación
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
@@ -652,15 +702,9 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 }
             }
 
-            // Scoring extra por coincidencia con el diccionario oficial de supermercados
-            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
-                for (var d = 0; d < config.nombresSupermercados.length; d++) {
-                    var aliasNorm = config.nombresSupermercados[d];
-                    if (aliasNorm === nClean || nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
-                        score += 150;
-                        break;
-                    }
-                }
+            // Término de categoría explícito
+            if (config.categoria && nClean.indexOf(cleanText(config.categoria)) > -1) {
+                score += 30;
             }
 
             if (score > bestScore) {
@@ -671,7 +715,6 @@ async function searchCarrefour(page, prodClean, options = {}) {
                     url: urlVal,
                     stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
                 };
-                if (score >= 100) break;
             }
         }
 
@@ -796,6 +839,24 @@ async function searchCoto(page, prodClean, options = {}) {
                 if (inc) continue;
             }
 
+            // A.2) Verificación estricta de categoría láctea
+            if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                // Descartar bebidas vegetales
+                var esVegetal = ['vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas'].some(function(v) {
+                    return contienePalabra(nClean, v);
+                });
+                if (esVegetal) continue;
+
+                // Debe contener término lácteo si no coincide con diccionario oficial
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    return contienePalabra(nClean, t);
+                });
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) continue;
+            }
+
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
                 var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
@@ -827,19 +888,51 @@ async function searchCoto(page, prodClean, options = {}) {
                 if (!esBase) {
                     if (nClean.indexOf(varNorm) === -1) continue;
                 } else {
-                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                         continue;
                     }
                     if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
-                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'protein', 'proteina', 'proteinas', 'extra protein', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                             continue;
                         }
                     }
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
+            // D) SCORING COMPLETO Y EXHAUSTIVO
             var score = 50;
+
+            // Coincidencia con diccionario oficial de supermercados (máxima prioridad)
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean) {
+                        score += 250;
+                        break;
+                    } else if (nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 180;
+                        break;
+                    }
+                }
+            }
+
+            // Coincidencia de variante solicitada (ej: "clasica", "entera", "3%")
+            if (config.variante) {
+                var vNorm = cleanText(config.variante);
+                if (vNorm.indexOf('clasica') > -1 || vNorm.indexOf('entera') > -1) {
+                    if (nClean.indexOf('clasica') > -1 || nClean.indexOf('clasico') > -1) score += 70;
+                    if (nClean.indexOf('entera') > -1) score += 60;
+                    if (nClean.indexOf('3%') > -1 || nClean.indexOf('3 %') > -1) score += 70;
+                } else if (vNorm.indexOf('original') > -1) {
+                    if (nClean.indexOf('original') > -1) score += 70;
+                } else if (vNorm.indexOf('largo fino') > -1) {
+                    if (nClean.indexOf('largo fino') > -1) score += 70;
+                } else if (vNorm.indexOf('tallarines') > -1) {
+                    if (nClean.indexOf('tallarin') > -1 || nClean.indexOf('tallarines') > -1) score += 70;
+                }
+            }
+
+            // Scoring por presentación
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
@@ -864,15 +957,9 @@ async function searchCoto(page, prodClean, options = {}) {
                 }
             }
 
-            // Scoring extra por coincidencia con el diccionario oficial de supermercados
-            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
-                for (var d = 0; d < config.nombresSupermercados.length; d++) {
-                    var aliasNorm = config.nombresSupermercados[d];
-                    if (aliasNorm === nClean || nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
-                        score += 150;
-                        break;
-                    }
-                }
+            // Término de categoría explícito
+            if (config.categoria && nClean.indexOf(cleanText(config.categoria)) > -1) {
+                score += 30;
             }
 
             if (score > bestScore) {
@@ -883,7 +970,6 @@ async function searchCoto(page, prodClean, options = {}) {
                     url: urlVal,
                     stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
                 };
-                if (score >= 100) break;
             }
         }
 
@@ -1020,6 +1106,24 @@ async function searchDia(page, prodClean, options = {}) {
                 if (inc) continue;
             }
 
+            // A.2) Verificación estricta de categoría láctea
+            if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                // Descartar bebidas vegetales
+                var esVegetal = ['vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas'].some(function(v) {
+                    return contienePalabra(nClean, v);
+                });
+                if (esVegetal) continue;
+
+                // Debe contener término lácteo si no coincide con diccionario oficial
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    return contienePalabra(nClean, t);
+                });
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) continue;
+            }
+
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
                 var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
@@ -1051,19 +1155,51 @@ async function searchDia(page, prodClean, options = {}) {
                 if (!esBase) {
                     if (nClean.indexOf(varNorm) === -1) continue;
                 } else {
-                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                         continue;
                     }
                     if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
-                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'protein', 'proteina', 'proteinas', 'extra protein', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                             continue;
                         }
                     }
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
+            // D) SCORING COMPLETO Y EXHAUSTIVO
             var score = 50;
+
+            // Coincidencia con diccionario oficial de supermercados (máxima prioridad)
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean) {
+                        score += 250;
+                        break;
+                    } else if (nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 180;
+                        break;
+                    }
+                }
+            }
+
+            // Coincidencia de variante solicitada (ej: "clasica", "entera", "3%")
+            if (config.variante) {
+                var vNorm = cleanText(config.variante);
+                if (vNorm.indexOf('clasica') > -1 || vNorm.indexOf('entera') > -1) {
+                    if (nClean.indexOf('clasica') > -1 || nClean.indexOf('clasico') > -1) score += 70;
+                    if (nClean.indexOf('entera') > -1) score += 60;
+                    if (nClean.indexOf('3%') > -1 || nClean.indexOf('3 %') > -1) score += 70;
+                } else if (vNorm.indexOf('original') > -1) {
+                    if (nClean.indexOf('original') > -1) score += 70;
+                } else if (vNorm.indexOf('largo fino') > -1) {
+                    if (nClean.indexOf('largo fino') > -1) score += 70;
+                } else if (vNorm.indexOf('tallarines') > -1) {
+                    if (nClean.indexOf('tallarin') > -1 || nClean.indexOf('tallarines') > -1) score += 70;
+                }
+            }
+
+            // Scoring por presentación
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
@@ -1088,15 +1224,9 @@ async function searchDia(page, prodClean, options = {}) {
                 }
             }
 
-            // Scoring extra por coincidencia con el diccionario oficial de supermercados
-            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
-                for (var d = 0; d < config.nombresSupermercados.length; d++) {
-                    var aliasNorm = config.nombresSupermercados[d];
-                    if (aliasNorm === nClean || nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
-                        score += 150;
-                        break;
-                    }
-                }
+            // Término de categoría explícito
+            if (config.categoria && nClean.indexOf(cleanText(config.categoria)) > -1) {
+                score += 30;
             }
 
             if (score > bestScore) {
@@ -1107,7 +1237,6 @@ async function searchDia(page, prodClean, options = {}) {
                     url: urlVal,
                     stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
                 };
-                if (score >= 100) break;
             }
         }
 
