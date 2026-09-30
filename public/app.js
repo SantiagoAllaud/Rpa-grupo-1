@@ -1,9 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const btnCompraMes = document.getElementById('btn-compra-mes');
     const btnBuscarIndividual = document.getElementById('btn-buscar-individual');
-    const inputProducto = document.getElementById('input-producto');
-    const inputCantidad = document.getElementById('input-cantidad');
-    const inputUnidad = document.getElementById('input-unidad');
     const logContainer = document.getElementById('log-container');
     const statusIndicator = document.getElementById('status-indicator');
     const btnAbort = document.getElementById('btn-abort');

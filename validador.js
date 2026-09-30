@@ -1741,19 +1741,35 @@ function limpiarResultados(opcion) {
     }
 }
 
-// Genera temp_input.csv de forma 100% segura respetando RFC-4180
-function crearTempInput(producto) {
+// Genera temp_input.csv de forma 100% segura respetando RFC-4180 exclusivamente para productos del catálogo
+function crearTempInput(producto, cantidad, unidad) {
     const fs = require('fs');
     const path = require('path');
+    const catEngine = require('./catalogo.js');
 
     // Limpiar consultas individuales previas para que cada búsqueda sea limpia y actualice a la nueva
     limpiarResultados('2');
 
+    // Validación estricta contra catálogo cerrado
+    const val = catEngine.validarEntrada({ producto, cantidad, unidad });
+    if (!val.valido || !val.item) {
+        throw new Error(`El producto "${producto}" no pertenece al catálogo cerrado oficial.`);
+    }
+
+    const itemCat = val.item;
+    const prodOficial = itemCat.nombre_completo || itemCat.producto;
+    const cantOficial = itemCat.cantidad;
+    const unidOficial = itemCat.unidad;
+    const termBusqueda = itemCat.termino_busqueda || prodOficial;
+
     var tempFile = path.join(__dirname, 'temp_input.csv');
-    var q = (producto || '').trim();
-    var esc = '"' + q.replace(/"/g, '""') + '"';
-    fs.writeFileSync(tempFile, 'producto,modo\r\n' + esc + ',individual\r\n', 'utf8');
-    console.log('[OK] temp_input.csv generado de forma segura para: ' + q);
+    var escProd = '"' + prodOficial.replace(/"/g, '""') + '"';
+    var escUnid = '"' + unidOficial.replace(/"/g, '""') + '"';
+    var escTerm = '"' + termBusqueda.replace(/"/g, '""') + '"';
+
+    fs.writeFileSync(tempFile, 'producto,modo,cantidad,unidad,termino\r\n' + escProd + ',individual,' + cantOficial + ',' + escUnid + ',' + escTerm + '\r\n', 'utf8');
+    console.log('[OK] temp_input.csv generado de forma segura para: ' + prodOficial);
+    return tempFile;
 }
 
 // Ejecución como script CLI
@@ -1761,7 +1777,12 @@ if (require.main === module) {
     var args = process.argv.slice(2);
     if (args[0] === '--crear-temp') {
         var prodArg = args.slice(1).join(' ').trim();
-        crearTempInput(prodArg);
+        try {
+            crearTempInput(prodArg);
+        } catch (e) {
+            console.error('[ERROR]', e.message);
+            process.exit(1);
+        }
     } else if (args[0] === '--reporte-individual') {
         var queryArg = args.slice(1).join(' ').trim();
         mostrarReporteIndividual(queryArg || null);

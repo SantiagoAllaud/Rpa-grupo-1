@@ -1472,13 +1472,19 @@ async function searchDia(page, prodClean, options = {}) {
 // FUNCIÓN PRINCIPAL DE EJECUCIÓN RPA (ORQUESTADOR)
 // ==============================================================================
 async function runRPA({
-    modo = 'individual',
+    modo = 'compra_mes',
     items = [],
     demoMode = CONFIG.DEMO_MODE,
     typingDelay = CONFIG.TYPING_DELAY,
     mouseDuration = CONFIG.MOUSE_MOVE_DURATION,
     onStatus = null
 }) {
+    if (modo === 'individual') {
+        const err = new Error('La Búsqueda Rápida Individual debe ejecutarse exclusivamente con TagUI mediante: tagui supermercados.tag <archivo_de_entrada>. rpa_runner.js está reservado exclusivamente para Compra del Mes.');
+        if (onStatus) onStatus({ type: 'error', message: err.message });
+        throw err;
+    }
+
     isAborted = false;
     abortReason = null;
     asegurarCSV();

@@ -110,14 +110,14 @@ El sistema implementa una arquitectura modular desacoplada en tres capas:
                    │                                     │
                    ▼                                     ▼
 ┌─────────────────────────────────────┐   ┌─────────────────────────────────┐
-│         MOTOR RPA VISIBLE           │   │         SCRIPT TAGUI            │
+│      MOTOR CANASTA / COMPRA MES     │   │    MOTOR BÚSQUEDA INDIVIDUAL    │
 │         (rpa_runner.js)             │   │      (supermercados.tag)        │
 ├─────────────────────────────────────┤   ├─────────────────────────────────┤
-│ - Puppeteer-Core (lectura DOM/CDP)  │   │ - Entregable académico aislado  │
-│ - mouse_helper.exe (Win32 real)     │   │ - No lo usa el Dashboard         │
-│ - Tipeo/click/scroll nativos         │   │ - Ejecución manual de cátedra   │
-│ - Módulos: Carrefour, COTO, Día %   │                    │
-└──────────────────┬──────────────────┘                    │
+│ - Motor Exclusivo: Compra del Mes   │   │ - Motor Exclusivo: Búsq. Indiv. │
+│ - Puppeteer-Core + mouse_helper.exe │   │ - Ejecutado vía TagUI CLI       │
+│ - Tipeo/click/scroll visibles reales│   │ - Productos 100% de Catálogo    │
+│ - Módulos: Carrefour, COTO, Día %   │   │ - Carrefour, COTO y Día %       │
+└──────────────────┬──────────────────┘   └────────────────┬────────────────┘
                    │                                       │
                    └──────────────────┬────────────────────┘
                                       │
@@ -201,14 +201,15 @@ Rpa programa/
 
 | Archivo | Responsabilidad Principal |
 | :--- | :--- |
-| **`rpa_runner.js`** | Orquestador del RPA visible de producción. Puppeteer sólo lee el DOM para ubicar/extractar; navegación, foco, clicks, teclas y rueda pasan por `mouse_helper.exe`. Coordina Carrefour, COTO y Día % y guarda los resultados en `resultados.csv`. |
+| **`rpa_runner.js`** | Motor EXCLUSIVO para la Canasta / Compra del Mes. Puppeteer sólo lee el DOM para ubicar/extractar; navegación, foco, clicks, teclas y rueda pasan por `mouse_helper.exe`. Coordina Carrefour, COTO y Día % y guarda los resultados en `resultados.csv`. |
+| **`supermercados.tag`** | Motor EXCLUSIVO para la Búsqueda Rápida Individual. Ejecutado vía `tagui supermercados.tag temp_input.csv` tanto desde el Dashboard Web como desde la consola Windows `ejecutar.bat`. Opera estrictamente con los 20 productos oficiales del catálogo cerrado. |
+| **`catalogo.json` / `catalogo.js`** | Catálogo oficial cerrado de exactamente 20 productos verificados. Provee validación dimensional estricta, consultas por diccionario y menú interactivo. |
 | **`mouse_helper.cs` / `.exe`** | Herramienta Win32 que controla el mouse y teclado físicos: Omnibox (`Alt+D`, URL y Enter), coordenadas del viewport, clicks, tipeo y rueda. Convierte las coordenadas CSS leídas por Puppeteer al escritorio real de Chrome. |
-| **`server.js`** | Levanta el servidor HTTP en el puerto 3000, gestiona la conexión WebSocket `/ws/rpa-stream`, expone los endpoints para lanzar búsquedas, editar la lista de compras, abortar procesos y regenerar reportes. |
-| **`public/app.js`** | Controla los eventos del dashboard web: gestiona la conexión WebSocket, actualiza la consola virtual en vivo, sincroniza los indicadores de paso de los 3 supermercados y abre el modal interactivo de edición de la canasta. |
-| **`validador.js`** | Normaliza textos, detecta la intención del usuario, evalúa la pertinencia del producto encontrado frente a lo solicitado (marcas, términos incompatibles y categorías) y formatea el reporte comparativo en terminal. |
+| **`server.js`** | Levanta el servidor HTTP en el puerto 3000, gestiona la conexión WebSocket `/ws/rpa-stream`, expone los endpoints para lanzar búsquedas individuales (TagUI) y compra del mes (Puppeteer), editar canasta, abortar procesos y regenerar reportes. |
+| **`public/app.js`** | Controla los eventos del dashboard web: gestiona la conexión WebSocket, actualiza la consola virtual en vivo, sincroniza los indicadores de paso de los 3 supermercados y restringe la búsqueda individual a los productos oficiales del catálogo cerrado. |
+| **`validador.js`** | Normaliza textos, detecta la intención del usuario, evalúa la pertinencia del producto encontrado frente a lo solicitado (marcas, términos incompatibles y categorías) y genera `temp_input.csv` validando contra el catálogo cerrado. |
 | **`generar_excel.js`** | Lee `resultados.csv`, calcula la canasta más económica y el óptimo combinado, y construye `reporte_supermercados.xlsx` con 5 hojas formateadas profesionalmente. |
-| **`supermercados.tag`** | Entregable académico independiente de TagUI. Se conserva para la cátedra y se ejecuta explícitamente por CLI; el Dashboard y los flujos de producción no lo invocan. |
-| **`ejecutar.bat`** | Script de inicio para consola Windows con validación de dependencias (Node.js, ExcelJS, TagUI) y menú interactivo de 7 opciones. |
+| **`ejecutar.bat`** | Script de inicio para consola Windows con validación de dependencias (Node.js, ExcelJS, TagUI) y menú interactivo de 8 opciones, incluyendo visor de catálogo y búsqueda individual TagUI por número [1-20]. |
 | **`interfaz.bat`** | Script de inicio rápido que libera el puerto 3000 si estuviera ocupado, inicia `server.js` en segundo plano y abre automáticamente el navegador en `http://localhost:3000`. |
 
 ---
@@ -238,20 +239,21 @@ A diferencia de los scripts tradicionales que utilizan llamadas HTTP internas o 
 
 ---
 
-## 9. Funcionamiento de TagUI (Script Académico)
+## 9. Funcionamiento de TagUI (Motor Exclusivo de Búsqueda Individual)
 
-El archivo `supermercados.tag` constituye el entregable requerido por los lineamientos pedagógicos de la cátedra. Es una alternativa académica aislada: el Dashboard, `server.js` y las opciones normales de `ejecutar.bat` usan exclusivamente `rpa_runner.js`, con una única sesión visible de Chrome.
+El archivo `supermercados.tag` constituye el motor EXCLUSIVO para la **Búsqueda Rápida Individual**, tanto desde la interfaz web como desde el script de consola `ejecutar.bat`:
 
-- **Estructura:** Diseñado para ejecutarse mediante el comando:
+- **Restricción de Catálogo:** Sólo procesa productos validados que pertenezcan a los 20 ítems del catálogo cerrado (`catalogo.json`).
+- **Estructura de Ejecución:** Invocado directamente mediante:
   ```cmd
-  tagui supermercados.tag input.csv
+  tagui supermercados.tag temp_input.csv
   ```
-- **Procesamiento por Filas:** TagUI itera automáticamente sobre cada fila de `input.csv`. En la primera iteración inicializa la cabecera de `resultados.csv`.
+- **Procesamiento de Parámetros:** TagUI lee variables nativas (`producto`, `cantidad`, `unidad`, `termino`) generadas de manera segura por `validador.crearTempInput`.
 - **Interacción por Supermercado:**
-  - Visita Carrefour, gestiona el banner de cookies (`if present('Aceptar todo') click`), escribe en el buscador `input.vtex-styleguide-9-x-input` y extrae datos mediante un bloque JavaScript `dom begin ... dom finish`.
+  - Visita Carrefour, gestiona el banner de cookies (`if present('Aceptar todo') click`), escribe en el buscador `input.vtex-styleguide-9-x-input` con coma decimal (ej. `Coca Cola 2,25 L`) y extrae datos mediante un bloque JavaScript `dom begin ... dom finish` con filtros de incompatibilidad de marcas.
   - Visita COTO, escribe en `input#cio-autocomplete-0-input` y extrae los resultados del componente `<constructor-result-item>`.
-  - Visita Día %, escribe en el buscador de la tienda y extrae datos del catálogo.
-- **Persistencia:** Al finalizar cada tienda, escribe la fila estructurada en `resultados.csv` mediante la función interna `csv_row(...)`.
+  - Visita Día %, adapta términos de catálogo (ej. `Luchetti`) y extrae los datos del catálogo online.
+- **Persistencia:** Al finalizar cada tienda, escribe la fila estructurada en `resultados.csv` con `modo = individual` mediante la función interna `csv_row(...)`.
 
 ---
 
@@ -259,8 +261,8 @@ El archivo `supermercados.tag` constituye el entregable requerido por los lineam
 
 El frontend web (`public/index.html`, `styles.css`, `app.js`) proporciona una experiencia visual de control:
 
-- **Tarjeta "Compra del Mes":** Botón de inicio rápido del procesamiento masivo y botón "Editar Lista" que abre un modal con una tabla editable interactiva donde agregar, modificar o quitar productos, cantidades y unidades.
-- **Tarjeta "Búsqueda Rápida":** Formulario para ingresar producto, cantidad y unidad personalizada con envío mediante botón o pulsando Enter.
+- **Tarjeta "Compra del Mes":** Botón de inicio rápido del procesamiento masivo con motor Puppeteer y botón "Editar Lista" que abre un modal con una tabla editable interactiva donde agregar, modificar o quitar productos, cantidades y unidades.
+- **Tarjeta "Búsqueda Rápida (Catálogo Cerrado)":** Menú desplegable con los 20 productos verificados del catálogo oficial con ficha técnica en tiempo real (marca, variante, presentación) y botón "Comparar en 3 Súper" ejecutado con TagUI.
 - **Controles de Demostración:**
   - Switch para alternar el modo demostración visual.
   - Deslizador de velocidad de tipeo (de 0.02s a 0.12s por letra).
@@ -410,18 +412,18 @@ Para comprobar que todos los componentes funcionan de forma armónica:
 
 1. Iniciar la interfaz web ejecutando `interfaz.bat`.
 2. Verificar que en la esquina superior de la consola virtual figure el indicador **Listo**.
-3. En la tarjeta de **Búsqueda Rápida**, ingresar `arroz`, dejar cantidad en `1` y presionar **Buscar Producto**.
+3. En la tarjeta de **Búsqueda Rápida**, seleccionar un producto del desplegable del catálogo (por ejemplo, `Arroz Gallo Largo Fino 1 kg`) y presionar **Comparar en 3 Súper**.
 4. Observar en el escritorio:
-   - Se abre Google Chrome maximizado.
-   - Aparece el cursor virtual morado con el badge "BOT RPA".
-   - El robot visita Carrefour, escribe "arroz", ordena por menor precio y extrae el artículo ganador.
-   - Pasa a COTO Digital, realiza la búsqueda, ordena y extrae.
+   - Se abre Google Chrome mediante TagUI.
+   - El robot visita Carrefour, escribe el producto del catálogo, extrae el artículo y su precio.
+   - Pasa a COTO Digital, realiza la búsqueda y extrae.
    - Pasa a Día %, ejecuta la búsqueda y extrae.
    - Chrome se cierra de forma limpia.
 5. Observar en el navegador:
    - Los indicadores de los 3 supermercados pasan a verde con el tilde de completado.
    - La barra de progreso llega al 100%.
-6. Comprobar que automáticamente se abre Microsoft Excel exhibiendo el archivo `reporte_supermercados.xlsx` con los datos actualizados de la consulta en las 5 hojas.
+   - Los logs de TagUI se transmiten en vivo a la consola web.
+6. Comprobar que automáticamente se actualiza y abre Microsoft Excel exhibiendo el archivo `reporte_supermercados.xlsx` con los datos de la consulta en las 5 hojas.
 
 ---
 

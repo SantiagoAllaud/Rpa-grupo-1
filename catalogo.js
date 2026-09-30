@@ -822,8 +822,42 @@ if (require.main === module) {
                 console.log('');
             }
         }
+    } else if (args.includes('--menu-individual')) {
+        const { items } = cargarCatalogo();
+        console.log('==============================================================================');
+        console.log('       🛒 BÚSQUEDA RÁPIDA: CATÁLOGO CERRADO OFICIAL (20 PRODUCTOS)');
+        console.log('==============================================================================\n');
+        const half = Math.ceil(items.length / 2);
+        for (let i = 0; i < half; i++) {
+            const it1 = items[i];
+            const num1 = String(i + 1).padStart(2, ' ');
+            const col1 = ` [${num1}] ${it1.nombre_completo}`.padEnd(38, ' ');
+
+            let col2 = '';
+            if (i + half < items.length) {
+                const it2 = items[i + half];
+                const num2 = String(i + half + 1).padStart(2, ' ');
+                col2 = ` [${num2}] ${it2.nombre_completo}`;
+            }
+            console.log(col1 + col2);
+        }
+        console.log('\n==============================================================================');
+    } else if (args.includes('--obtener-producto')) {
+        const inputArg = args.slice(args.indexOf('--obtener-producto') + 1).join(' ').trim();
+        const { items } = cargarCatalogo();
+        const num = parseInt(inputArg, 10);
+        if (!isNaN(num) && num >= 1 && num <= items.length && String(num) === inputArg) {
+            console.log(items[num - 1].nombre_completo);
+            process.exit(0);
+        }
+        const res = validarEntrada(inputArg);
+        if (res.valido && res.item) {
+            console.log(res.item.nombre_completo);
+            process.exit(0);
+        }
+        process.exit(1);
     } else {
-        console.log('Uso: node catalogo.js [--listar] | [--diccionario ["texto"]] | [--validar "producto"] | [--subcadenas "texto"] | [--validar-csv input.csv]');
+        console.log('Uso: node catalogo.js [--listar] | [--menu-individual] | [--obtener-producto <num|nombre>] | [--diccionario ["texto"]] | [--validar "producto"] | [--subcadenas "texto"] | [--validar-csv input.csv]');
     }
 }
 
