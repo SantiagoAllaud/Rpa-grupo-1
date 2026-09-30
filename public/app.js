@@ -376,8 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="canasta-item-num">${index + 1}.</span>
                     <span class="canasta-item-name" title="${escapeHtml(item.nombre_completo || item.producto)}">${escapeHtml(item.nombre_completo || item.producto)}</span>
                 </div>
-                <button type="button" class="btn-item-del" title="Eliminar de la lista" data-idx="${index}">
+                <button type="button" class="btn-item-del" title="Eliminar este producto de la canasta" aria-label="Eliminar ${escapeHtml(item.nombre_completo || item.producto)}" data-idx="${index}">
                     <i class="fa-solid fa-trash-can"></i>
+                    <span>Eliminar</span>
                 </button>
             `;
 
@@ -419,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Agrega un producto a la lista inmediatamente
+    // Agrega un producto a la lista cuando se presiona el botón Agregar
     async function agregarProductoACanasta(prodId) {
         if (!prodId) return;
 
@@ -433,7 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const existente = canastaActual.find(it => it.id === prodId || it.producto.toLowerCase() === itemCatalogo.producto.toLowerCase());
         if (existente) {
             alert(`"${itemCatalogo.nombre_completo}" ya está en la lista de la canasta.`);
-            if (quickSelectCanasta) quickSelectCanasta.value = '';
             return;
         }
 
@@ -456,21 +456,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Al seleccionar directamente en el desplegable, se suma inmediatamente a la lista
-    if (quickSelectCanasta) {
-        quickSelectCanasta.addEventListener('change', (e) => {
-            if (e.target.value) {
-                agregarProductoACanasta(e.target.value);
-            }
-        });
-    }
-
-    // Botón Agregar opcional por si el usuario prefiere hacer clic
+    // Botón Agregar a la canasta: toma el producto seleccionado en el desplegable y lo agrega a la lista inferior
     if (btnQuickAddProd) {
         btnQuickAddProd.addEventListener('click', () => {
             const prodId = quickSelectCanasta ? quickSelectCanasta.value : '';
             if (!prodId) {
-                alert("Por favor selecciona un producto disponible en el desplegable.");
+                alert("Por favor selecciona un producto en el desplegable antes de agregarlo.");
                 return;
             }
             agregarProductoACanasta(prodId);
