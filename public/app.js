@@ -212,6 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 catalogoGlobal = data.catalogo;
                 itemsCatalogoGlobal = data.items || [];
                 poblarSelectProductosUnificado();
+                cargarCanastaActual();
             }
         } catch (e) {
             console.error('Error cargando catálogo:', e);
@@ -220,25 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function poblarSelectProductosUnificado() {
         if (!selectProducto || !catalogoGlobal) return;
-        selectProducto.innerHTML = '<option value="">-- Selecciona un producto del catálogo --</option>';
-
-        const categorias = Object.keys(catalogoGlobal);
-        categorias.forEach(cat => {
-            const prods = catalogoGlobal[cat];
-            if (!prods || prods.length === 0) return;
-
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = cat.toUpperCase();
-
-            prods.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.textContent = p.nombre_completo;
-                optgroup.appendChild(opt);
-            });
-
-            selectProducto.appendChild(optgroup);
-        });
+        poblarDesplegableConCatalogo(selectProducto, '', '-- Selecciona un producto del catálogo --');
     }
 
     function mostrarInfoProducto(item) {
@@ -268,6 +251,232 @@ document.addEventListener('DOMContentLoaded', () => {
     // Iniciar carga del catálogo
     cargarCatalogoUI();
 
+    // ==========================================================================
+    // ==========================================================================
+    // CANASTA PERSONALIZABLE Y GESTIÓN DE PRODUCTOS A BUSCAR (PRODUCTOS ÚNICOS)
+    // ==========================================================================
+    let canastaActual = [];
+    const countProdsCanasta = document.getElementById('count-prods-canasta');
+    const previewCountText = document.getElementById('preview-count-text');
+    const quickSelectCanasta = document.getElementById('quick-select-canasta');
+    const btnQuickAddProd = document.getElementById('btn-quick-add-prod');
+    const canastaSimpleLista = document.getElementById('canasta-simple-lista');
+
+    const modalSelectNuevoProd = document.getElementById('modal-select-nuevo-prod');
+    const modalBtnAgregarProd = document.getElementById('modal-btn-agregar-prod');
+    const modalTotalCount = document.getElementById('modal-total-count');
+    const btnAddEmptyRow = document.getElementById('btn-add-empty-row');
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Poblar cualquier elemento <select> con los productos del catálogo agrupados por categoría
+    function poblarDesplegableConCatalogo(selectEl, selectedId = '', placeholder = '-- Selecciona producto para agregar a la lista --') {
+        if (!selectEl || !catalogoGlobal) return;
+        selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+
+        const categorias = Object.keys(catalogoGlobal);
+        categorias.forEach(cat => {
+            const prods = catalogoGlobal[cat];
+            if (!prods || prods.length === 0) return;
+
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = cat.toUpperCase();
+
+            prods.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.nombre_completo} (${p.cantidad} ${p.unidad})`;
+                if (selectedId && (p.id === selectedId || p.producto.toLowerCase() === selectedId.toLowerCase())) {
+                    opt.selected = true;
+                }
+                optgroup.appendChild(opt);
+            });
+
+            selectEl.appendChild(optgroup);
+        });
+    }
+
+    // Carga la canasta desde input.csv del servidor
+    async function cargarCanastaActual() {
+        try {
+            const resp = await fetch('/api/input');
+            const data = await resp.json();
+            canastaActual = [];
+
+            if (data.success && data.data) {
+                const lines = data.data.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(',').map(p => p.trim());
+                    const prodText = parts[0] || '';
+                    const cant = parts[1] ? (parseFloat(parts[1]) || 1) : 1;
+                    const unid = parts[2] || '';
+
+                    if (!prodText) continue;
+
+                    const matched = itemsCatalogoGlobal.find(it => 
+                        it.id === prodText ||
+                        it.producto.toLowerCase() === prodText.toLowerCase() ||
+                        it.nombre_completo.toLowerCase() === prodText.toLowerCase() ||
+                        it.nombre_completo.toLowerCase().includes(prodText.toLowerCase()) ||
+                        it.marca.toLowerCase() === prodText.toLowerCase()
+                    );
+
+                    if (matched) {
+                        canastaActual.push({
+                            id: matched.id,
+                            producto: matched.producto,
+                            nombre_completo: matched.nombre_completo,
+                            cantidad: matched.cantidad,
+                            unidad: matched.unidad,
+                            categoria: matched.categoria
+                        });
+                    } else {
+                        canastaActual.push({
+                            id: '',
+                            producto: prodText,
+                            nombre_completo: prodText,
+                            cantidad: cant,
+                            unidad: unid,
+                            categoria: ''
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error al cargar canasta actual:', e);
+        }
+
+        renderizarListaSimpleCanasta();
+        poblarDesplegableConCatalogo(quickSelectCanasta, '', '-- Selecciona producto para agregar a la lista --');
+        poblarDesplegableConCatalogo(modalSelectNuevoProd, '', '-- Selecciona producto disponible del catálogo --');
+    }
+
+    // Renderiza la lista limpia y directa en la tarjeta de Compra del Mes (sin mayor decoración)
+    function renderizarListaSimpleCanasta() {
+        const total = canastaActual.length;
+        if (countProdsCanasta) countProdsCanasta.textContent = total;
+        if (previewCountText) previewCountText.textContent = total;
+
+        if (!canastaSimpleLista) return;
+        canastaSimpleLista.innerHTML = '';
+
+        if (total === 0) {
+            canastaSimpleLista.innerHTML = '<li style="padding: 0.6rem; color: var(--text-muted); font-size: 0.8rem; font-style: italic; text-align: center;">No hay productos en la canasta. Selecciona un producto del desplegable superior para agregarlo.</li>';
+            return;
+        }
+
+        canastaActual.forEach((item, index) => {
+            const li = document.createElement('li');
+            li.className = 'canasta-item-row';
+            li.innerHTML = `
+                <div class="canasta-item-info">
+                    <span class="canasta-item-num">${index + 1}.</span>
+                    <span class="canasta-item-name" title="${escapeHtml(item.nombre_completo || item.producto)}">${escapeHtml(item.nombre_completo || item.producto)}</span>
+                </div>
+                <button type="button" class="btn-item-del" title="Eliminar de la lista" data-idx="${index}">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            `;
+
+            li.querySelector('.btn-item-del').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (canastaActual.length <= 1) {
+                    alert("La canasta debe tener al menos un producto a buscar.");
+                    return;
+                }
+                const prodEliminado = item.nombre_completo || item.producto;
+                canastaActual.splice(index, 1);
+                await guardarCanastaEnServidor();
+                renderizarListaSimpleCanasta();
+                addLog(`✓ Se eliminó "${prodEliminado}" de la canasta.`);
+            });
+
+            canastaSimpleLista.appendChild(li);
+        });
+    }
+
+    // Persiste la canasta actual a input.csv en el backend (sin columna de unidades)
+    async function guardarCanastaEnServidor() {
+        let contenido = "producto,cantidad,unidad\n";
+        canastaActual.forEach(item => {
+            contenido += `${item.producto},${item.cantidad},${item.unidad}\n`;
+        });
+
+        try {
+            const res = await fetch('/api/input', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contenido })
+            });
+            const data = await res.json();
+            return data.success;
+        } catch (e) {
+            console.error('Error guardando canasta:', e);
+            return false;
+        }
+    }
+
+    // Agrega un producto a la lista inmediatamente
+    async function agregarProductoACanasta(prodId) {
+        if (!prodId) return;
+
+        const itemCatalogo = itemsCatalogoGlobal.find(it => it.id === prodId);
+        if (!itemCatalogo) {
+            alert("Producto no encontrado en el catálogo.");
+            return;
+        }
+
+        // Verificar si ya existe en la canasta para evitar duplicados
+        const existente = canastaActual.find(it => it.id === prodId || it.producto.toLowerCase() === itemCatalogo.producto.toLowerCase());
+        if (existente) {
+            alert(`"${itemCatalogo.nombre_completo}" ya está en la lista de la canasta.`);
+            if (quickSelectCanasta) quickSelectCanasta.value = '';
+            return;
+        }
+
+        canastaActual.push({
+            id: itemCatalogo.id,
+            producto: itemCatalogo.producto,
+            nombre_completo: itemCatalogo.nombre_completo,
+            cantidad: itemCatalogo.cantidad,
+            unidad: itemCatalogo.unidad,
+            categoria: itemCatalogo.categoria
+        });
+        addLog(`✓ Se agregó "${itemCatalogo.nombre_completo}" a la canasta.`);
+
+        const guardadoOk = await guardarCanastaEnServidor();
+        if (guardadoOk) {
+            renderizarListaSimpleCanasta();
+            if (quickSelectCanasta) quickSelectCanasta.value = '';
+        } else {
+            alert("Hubo un error al guardar la canasta en el servidor.");
+        }
+    }
+
+    // Al seleccionar directamente en el desplegable, se suma inmediatamente a la lista
+    if (quickSelectCanasta) {
+        quickSelectCanasta.addEventListener('change', (e) => {
+            if (e.target.value) {
+                agregarProductoACanasta(e.target.value);
+            }
+        });
+    }
+
+    // Botón Agregar opcional por si el usuario prefiere hacer clic
+    if (btnQuickAddProd) {
+        btnQuickAddProd.addEventListener('click', () => {
+            const prodId = quickSelectCanasta ? quickSelectCanasta.value : '';
+            if (!prodId) {
+                alert("Por favor selecciona un producto disponible en el desplegable.");
+                return;
+            }
+            agregarProductoACanasta(prodId);
+        });
+    }
+
     // Eventos de Botones Principales
     btnCompraMes.addEventListener('click', () => {
         executeAction('/api/compra-mes');
@@ -276,7 +485,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBuscarIndividual.addEventListener('click', () => {
         const prodId = selectProducto ? selectProducto.value : '';
         const item = itemsCatalogoGlobal.find(it => it.id === prodId);
-        const unidades = 1;
 
         if (!item) {
             addLog("Por favor selecciona un producto del catálogo cerrado.", true);
@@ -284,15 +492,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         executeAction('/api/buscar-individual', {
-            producto: item.producto,
+            id: item.id,
+            producto: item.nombre_completo || item.producto,
+            nombre_completo: item.nombre_completo,
+            variante: item.variante,
+            marca: item.marca,
             terminoBusqueda: item.termino_busqueda || item.nombre_completo,
             cantidad: item.cantidad,
-            unidad: item.unidad,
-            unidades: unidades
+            unidad: item.unidad
         });
     });
 
-    // Manejo del Modal de Edición de Lista Interactiva
+    // Manejo del Modal de Edición de Canasta
     const btnEditarLista = document.getElementById('btn-editar-lista');
     const editarModal = document.getElementById('editar-lista-modal');
     const btnCerrarEditarModal = document.getElementById('btn-cerrar-editar-modal');
@@ -300,90 +511,132 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnGuardarLista = document.getElementById('btn-guardar-lista');
     const modalTbodyCanasta = document.getElementById('modal-tbody-canasta');
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    function actualizarContadorModal() {
+        if (!modalTbodyCanasta || !modalTotalCount) return;
+        const rows = modalTbodyCanasta.querySelectorAll('tr');
+        modalTotalCount.textContent = rows.length;
     }
 
-    function crearFilaCanasta(prodItem = null, unidades = 1) {
+    function crearFilaCanasta(prodItem = null) {
         const tr = document.createElement('tr');
         
-        let selectOptions = '<option value="">-- Selecciona producto del catálogo --</option>';
-        itemsCatalogoGlobal.forEach(it => {
-            const selected = (prodItem && (it.id === prodItem.id || it.producto.toLowerCase() === prodItem.producto.toLowerCase())) ? 'selected' : '';
-            selectOptions += `<option value="${it.id}" ${selected}>${escapeHtml(it.nombre_completo)}</option>`;
-        });
+        const tdProd = document.createElement('td');
+        const select = document.createElement('select');
+        select.className = 'modal-input modal-select-prod';
+        poblarDesplegableConCatalogo(select, prodItem ? prodItem.id : '', '-- Selecciona producto del catálogo --');
+        tdProd.appendChild(select);
 
-        tr.innerHTML = `
-            <td>
-                <select class="modal-input modal-select-prod">
-                    ${selectOptions}
-                </select>
-            </td>
-            <td>
-                <input type="number" class="modal-input modal-input-unid-compra" min="1" step="1" value="${unidades > 0 ? unidades : 1}" />
-            </td>
-            <td style="text-align: center;">
-                <button type="button" class="btn-del-row" title="Eliminar este producto"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        `;
+        const tdDel = document.createElement('td');
+        tdDel.style.textAlign = 'center';
+        tdDel.innerHTML = `<button type="button" class="btn-del-row" title="Eliminar este producto"><i class="fa-solid fa-trash"></i></button>`;
 
-        tr.querySelector('.btn-del-row').addEventListener('click', () => {
+        tr.appendChild(tdProd);
+        tr.appendChild(tdDel);
+
+        tdDel.querySelector('.btn-del-row').addEventListener('click', () => {
             tr.remove();
+            actualizarContadorModal();
         });
+
+        select.addEventListener('change', () => {
+            actualizarContadorModal();
+        });
+
         return tr;
     }
 
     if (btnEditarLista) {
         btnEditarLista.addEventListener('click', async () => {
             editarModal.classList.add('active');
+            poblarDesplegableConCatalogo(modalSelectNuevoProd, '', '-- Selecciona producto disponible del catálogo --');
+
             if (modalTbodyCanasta) {
-                modalTbodyCanasta.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando lista...</td></tr>';
+                modalTbodyCanasta.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 1.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando lista...</td></tr>';
             }
+
             try {
                 const response = await fetch('/api/input');
                 const data = await response.json();
                 if (modalTbodyCanasta) modalTbodyCanasta.innerHTML = '';
+
                 if (data.success && data.data) {
-                    const lines = data.data.split('\n');
+                    const lines = data.data.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
                     let count = 0;
                     for (let i = 1; i < lines.length; i++) {
-                        const line = lines[i].trim();
-                        if (line) {
-                            const parts = line.split(',');
-                            const prodText = parts[0] ? parts[0].trim() : '';
-                            const cant = parts[1] ? (parseFloat(parts[1].trim()) || 1) : 1;
-                            const unid = parts[2] ? parts[2].trim() : '';
-                            const unidades = parts[3] ? (parseInt(parts[3].trim(), 10) || 1) : 1;
+                        const parts = lines[i].split(',').map(p => p.trim());
+                        const prodText = parts[0] || '';
+                        const cant = parts[1] ? (parseFloat(parts[1]) || 1) : 1;
+                        const unid = parts[2] || '';
 
-                            const matched = itemsCatalogoGlobal.find(it => 
-                                it.producto.toLowerCase() === prodText.toLowerCase() ||
-                                it.nombre_completo.toLowerCase().includes(prodText.toLowerCase()) ||
-                                it.marca.toLowerCase() === prodText.toLowerCase()
-                            );
+                        const matched = itemsCatalogoGlobal.find(it => 
+                            it.id === prodText ||
+                            it.producto.toLowerCase() === prodText.toLowerCase() ||
+                            it.nombre_completo.toLowerCase() === prodText.toLowerCase() ||
+                            it.nombre_completo.toLowerCase().includes(prodText.toLowerCase()) ||
+                            it.marca.toLowerCase() === prodText.toLowerCase()
+                        );
 
-                            if (prodText) {
-                                modalTbodyCanasta.appendChild(crearFilaCanasta(matched || { id: '', producto: prodText, cantidad: cant, unidad: unid }, unidades));
-                                count++;
-                            }
+                        if (prodText) {
+                            modalTbodyCanasta.appendChild(crearFilaCanasta(matched || { id: '', producto: prodText, cantidad: cant, unidad: unid }));
+                            count++;
                         }
                     }
                     if (count === 0) {
-                        modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
+                        modalTbodyCanasta.appendChild(crearFilaCanasta(null));
                     }
                 } else if (modalTbodyCanasta) {
-                    modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
+                    modalTbodyCanasta.appendChild(crearFilaCanasta(null));
                 }
             } catch (e) {
                 if (modalTbodyCanasta) {
                     modalTbodyCanasta.innerHTML = '';
-                    modalTbodyCanasta.appendChild(crearFilaCanasta(null, 1));
+                    modalTbodyCanasta.appendChild(crearFilaCanasta(null));
                 }
             }
+
+            actualizarContadorModal();
         });
     }
 
+    // Botón Agregar Producto desde el desplegable dentro del Modal
+    if (modalBtnAgregarProd) {
+        modalBtnAgregarProd.addEventListener('click', () => {
+            const prodId = modalSelectNuevoProd ? modalSelectNuevoProd.value : '';
+            if (!prodId) {
+                alert("Por favor selecciona un producto disponible del catálogo.");
+                return;
+            }
 
+            const itemCatalogo = itemsCatalogoGlobal.find(it => it.id === prodId);
+            if (!itemCatalogo) {
+                alert("Producto no encontrado en el catálogo.");
+                return;
+            }
+
+            if (modalTbodyCanasta) {
+                const nuevaFila = crearFilaCanasta(itemCatalogo);
+                nuevaFila.classList.add('row-added-highlight');
+                modalTbodyCanasta.appendChild(nuevaFila);
+                actualizarContadorModal();
+                nuevaFila.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            if (modalSelectNuevoProd) modalSelectNuevoProd.value = '';
+        });
+    }
+
+    // Botón Añadir fila vacía en el Modal
+    if (btnAddEmptyRow) {
+        btnAddEmptyRow.addEventListener('click', () => {
+            if (modalTbodyCanasta) {
+                const filaVacia = crearFilaCanasta(null);
+                filaVacia.classList.add('row-added-highlight');
+                modalTbodyCanasta.appendChild(filaVacia);
+                actualizarContadorModal();
+                filaVacia.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+    }
 
     if (btnCerrarEditarModal) {
         btnCerrarEditarModal.addEventListener('click', () => {
@@ -401,17 +654,24 @@ document.addEventListener('DOMContentLoaded', () => {
         btnGuardarLista.addEventListener('click', async () => {
             if (!modalTbodyCanasta) return;
             const rows = modalTbodyCanasta.querySelectorAll('tr');
-            let contenido = "producto,cantidad,unidad,unidades\n";
+            let contenido = "producto,cantidad,unidad\n";
             let validCount = 0;
+            const nuevaCanasta = [];
 
             rows.forEach(r => {
                 const selProd = r.querySelector('.modal-select-prod');
-                const unidadesInput = r.querySelector('.modal-input-unid-compra');
                 if (selProd && selProd.value) {
                     const item = itemsCatalogoGlobal.find(it => it.id === selProd.value);
-                    const unidades = parseInt(unidadesInput ? unidadesInput.value : '1', 10) || 1;
                     if (item) {
-                        contenido += `${item.producto},${item.cantidad},${item.unidad},${unidades}\n`;
+                        contenido += `${item.producto},${item.cantidad},${item.unidad}\n`;
+                        nuevaCanasta.push({
+                            id: item.id,
+                            producto: item.producto,
+                            nombre_completo: item.nombre_completo,
+                            cantidad: item.cantidad,
+                            unidad: item.unidad,
+                            categoria: item.categoria
+                        });
                         validCount++;
                     }
                 }
@@ -430,8 +690,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const data = await response.json();
                 if (data.success) {
+                    canastaActual = nuevaCanasta;
+                    renderizarListaSimpleCanasta();
                     editarModal.classList.remove('active');
-                    addLog("✓ Lista mensual guardada exitosamente y validada con el catálogo cerrado.");
+                    addLog(`✓ Canasta guardada exitosamente (${validCount} productos únicos configurados).`);
                 } else {
                     alert(`Error al guardar: ${data.message}`);
                 }
@@ -440,7 +702,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
 
     // Kill-switch: botón de aborto visible en la interfaz
     if (btnAbort) {
@@ -456,8 +717,6 @@ document.addEventListener('DOMContentLoaded', () => {
             setRunningState(false);
         });
     }
-
-
 
     // Kill-switch: Si el usuario cierra el frontend en el navegador, abortar la búsqueda inmediatamente
     window.addEventListener('beforeunload', () => {

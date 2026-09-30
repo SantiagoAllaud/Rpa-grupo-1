@@ -1,11 +1,4 @@
-producto,cantidad,unidad,unidades
-Coca Cola,2.25,L,2
-Arroz Gallo,1,kg,1
-Fideos Matarazzo,500,g,2
-Aceite Cocinero,1.5,L,1
-Yerba Playadito,1,kg,1
-Leche La Serenísima,1,L,4
-Secco,2.25,L,2
-Galletitas Oreo,118,g,2
-Detergente Magistral,500,ml,1
-Papel Higiénico Higienol,4,un,2
+producto,cantidad,unidad
+Manaos Cola,2.25,L
+Manaos Naranja,2.25,L
+Manaos Lima Limón,2.25,L

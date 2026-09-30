@@ -61,13 +61,12 @@ runTest('Búsqueda por subcadena "arroz" obtiene todos los arroces del catálogo
     assert.ok(res.every(r => r.subcadenasCoincidentes.includes('arroz')), 'Todos deben coincidir en "arroz"');
 });
 
-runTest('Búsqueda por subcadena "gaseosa" obtiene todas las gaseosas del catálogo (4/4)', () => {
+runTest('Búsqueda por subcadena "gaseosa" obtiene todas las gaseosas del catálogo (5/5)', () => {
     const res = catalogo.buscarPorSubcadenas('gaseosa');
-    assert.strictEqual(res.length, 4, 'Deben encontrarse las 4 gaseosas del catálogo');
+    assert.strictEqual(res.length, 5, 'Deben encontrarse las 5 gaseosas del catálogo');
     const marcas = res.map(r => r.item.marca);
     assert.ok(marcas.includes('Coca Cola'), 'Debe incluir Coca Cola');
     assert.ok(marcas.includes('Sprite'), 'Debe incluir Sprite');
-    assert.ok(marcas.includes('Secco'), 'Debe incluir Secco');
     assert.ok(marcas.includes('Manaos'), 'Debe incluir Manaos');
 });
 

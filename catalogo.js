@@ -103,12 +103,56 @@ function esPresentacionEquivalente(cantA, unidA, cantB, unidB) {
     return Math.abs(pA.valorBase - pB.valorBase) < 0.001;
 }
 
-// Parsea un string que contiene texto y posible presentación (ej: "Coca Cola 2.25L", "Arroz Gallo 1kg")
+// Parsea un string que contiene texto y posible presentación (ej: "Coca Cola 2.25L", "Arroz Gallo 1kg", "Criollitas 100 g. x 3 uni", "3x 100gramos")
 function parsearStringProducto(str) {
     if (!str || typeof str !== 'string') return { texto: '', cantidad: null, unidad: '' };
     const raw = str.trim();
 
-    // Detectar volumen
+    // 1. Multipack previo de peso: "3x 100gramos", "3 x 100g", "pack 3 x 100g", "pack x 3 de 100 g"
+    const mMultiPesoPrev = raw.match(/(?:pack\s*(?:x\s*)?|x\s*)?(\d+)\s*(?:x|\*|de)\s*(\d+(?:[.,]\d+)?)\s*(kilos?|kilogramos?|kgs?|kg|k|gramos?|grs?|gr|g)\b/i);
+    if (mMultiPesoPrev) {
+        const count = parseInt(mMultiPesoPrev[1], 10);
+        const uVal = parseFloat(mMultiPesoPrev[2].replace(',', '.'));
+        const isG = mMultiPesoPrev[3].toLowerCase().startsWith('g');
+        const total = (isG ? uVal : uVal * 1000) * count;
+        const texto = raw.replace(mMultiPesoPrev[0], '').replace(/\s+/g, ' ').trim();
+        return { texto, cantidad: isG ? total : total / 1000, unidad: isG ? 'g' : 'kg' };
+    }
+
+    // 2. Multipack posterior de peso: "100 g. x 3 uni", "100g x 3", "100 grs x 3", "100 g x 3 u"
+    const mMultiPesoPost = raw.match(/(\d+(?:[.,]\d+)?)\s*(kilos?|kilogramos?|kgs?|kg|k|gramos?|grs?|gr|g)\b(?:\s*\.?)?\s*(?:x|\*)\s*(\d+)\s*(?:unidades?|unids?|unid|uni|un|u|paquetes?|paqs?|sobres?)?\b/i);
+    if (mMultiPesoPost) {
+        const uValP = parseFloat(mMultiPesoPost[1].replace(',', '.'));
+        const isGP = mMultiPesoPost[2].toLowerCase().startsWith('g');
+        const countP = parseInt(mMultiPesoPost[3], 10);
+        const totalP = (isGP ? uValP : uValP * 1000) * countP;
+        const texto = raw.replace(mMultiPesoPost[0], '').replace(/\s+/g, ' ').trim();
+        return { texto, cantidad: isGP ? totalP : totalP / 1000, unidad: isGP ? 'g' : 'kg' };
+    }
+
+    // 3. Multipack previo de volumen: "6 x 500 ml", "pack x 2 de 1.5 l"
+    const mMultiVolPrev = raw.match(/(?:pack\s*(?:x\s*)?|x\s*)?(\d+)\s*(?:x|\*|de)\s*(\d+(?:[.,]\d+)?)\s*(litros?|lts?|lt|l|mililitros?|mls?|ml|cc)\b/i);
+    if (mMultiVolPrev) {
+        const countV = parseInt(mMultiVolPrev[1], 10);
+        const uValV = parseFloat(mMultiVolPrev[2].replace(',', '.'));
+        const isMl = mMultiVolPrev[3].toLowerCase().startsWith('m') || mMultiVolPrev[3].toLowerCase() === 'cc';
+        const totalV = (isMl ? uValV : uValV * 1000) * countV;
+        const texto = raw.replace(mMultiVolPrev[0], '').replace(/\s+/g, ' ').trim();
+        return { texto, cantidad: isMl ? totalV : totalV / 1000, unidad: isMl ? 'ml' : 'L' };
+    }
+
+    // 4. Multipack posterior de volumen: "500 ml x 6 uni", "1.5 l x 2"
+    const mMultiVolPost = raw.match(/(\d+(?:[.,]\d+)?)\s*(litros?|lts?|lt|l|mililitros?|mls?|ml|cc)\b(?:\s*\.?)?\s*(?:x|\*)\s*(\d+)\s*(?:unidades?|unids?|unid|uni|un|u|botellas?|latas?|packs?)?\b/i);
+    if (mMultiVolPost) {
+        const uValVP = parseFloat(mMultiVolPost[1].replace(',', '.'));
+        const isMlP = mMultiVolPost[2].toLowerCase().startsWith('m') || mMultiVolPost[2].toLowerCase() === 'cc';
+        const countVP = parseInt(mMultiVolPost[3], 10);
+        const totalVP = (isMlP ? uValVP : uValVP * 1000) * countVP;
+        const texto = raw.replace(mMultiVolPost[0], '').replace(/\s+/g, ' ').trim();
+        return { texto, cantidad: isMlP ? totalVP : totalVP / 1000, unidad: isMlP ? 'ml' : 'L' };
+    }
+
+    // Detectar volumen simple
     const mVol = raw.match(/(\d+(?:[.,]\d+)?)\s*(litros?|lts?|lt|l|mililitros?|mls?|ml|cc)\b/i);
     if (mVol) {
         const c = parseFloat(mVol[1].replace(',', '.'));
@@ -117,7 +161,7 @@ function parsearStringProducto(str) {
         return { texto, cantidad: c, unidad: u };
     }
 
-    // Detectar peso
+    // Detectar peso simple
     const mPeso = raw.match(/(\d+(?:[.,]\d+)?)\s*(kilos?|kilogramos?|kgs?|kg|k|gramos?|grs?|gr|g)\b/i);
     if (mPeso) {
         const c = parseFloat(mPeso[1].replace(',', '.'));
@@ -127,7 +171,7 @@ function parsearStringProducto(str) {
     }
 
     // Detectar unidades
-    const mUn = raw.match(/(?:pack\s*x?\s*|x\s*)?(\d+)\s*(?:unidades?|unids?|unid|un|rollos?|u)\b/i);
+    const mUn = raw.match(/(?:pack\s*x?\s*|x\s*)?(\d+)\s*(?:unidades?|unids?|unid|uni|uds?|ud|un|rollos?|u)\b/i);
     if (mUn) {
         const c = parseInt(mUn[1], 10);
         const texto = raw.replace(mUn[0], '').trim();
@@ -446,7 +490,12 @@ function buscarPorDiccionarioSupermercado(texto) {
         const nombresNorm = item._normNombresSupermercados || [];
         for (let i = 0; i < nombresNorm.length; i++) {
             const nNorm = nombresNorm[i];
-            if (nNorm.length >= 6 && (tNorm.includes(nNorm) || nNorm.includes(tNorm))) {
+            const tokensT = tNorm.split(/\s+/).filter(Boolean);
+            const coincideMarcaEnT = item._normMarca && (tNorm.includes(item._normMarca) || item._normMarca.includes(tNorm));
+            const coincideProdEnT = item._normProducto && (tNorm.includes(item._normProducto) || item._normProducto.includes(tNorm));
+            const contencionValida = tNorm.includes(nNorm) || (tokensT.length >= 2 && nNorm.includes(tNorm) && (coincideMarcaEnT || coincideProdEnT));
+
+            if (nNorm.length >= 6 && contencionValida) {
                 if (nNorm.length > maxLen) {
                     maxLen = nNorm.length;
                     mejorMatch = {
@@ -512,7 +561,7 @@ function buscarEnCatalogo(queryOAtributos) {
             const byId = items.find(it => it.id === queryOAtributos.id);
             if (byId) return byId;
         }
-        const strBase = (queryOAtributos.producto || queryOAtributos.marca || '') + ' ' + (queryOAtributos.variante || '');
+        const strBase = (queryOAtributos.nombre_completo || queryOAtributos.producto || queryOAtributos.marca || '') + ' ' + (queryOAtributos.variante || '');
         const parsed = parsearStringProducto(strBase);
         targetTexto = normalizarTexto(parsed.texto || strBase);
         targetCant = queryOAtributos.cantidad !== undefined ? queryOAtributos.cantidad : parsed.cantidad;
@@ -544,11 +593,11 @@ function buscarEnCatalogo(queryOAtributos) {
     }
 
     // 2. Coincidencia estricta por marca y/o producto con presentación
-    const VARIANTES_CONOCIDAS = ['pomelo', 'naranja', 'limon', 'cola', 'manzana', 'frambuesa', 'vainilla', 'chocolate', 'original', 'zero', 'light', 'diet', 'largo fino', 'doble carolina', 'parboil', 'tallarines', 'tirabuzon', 'entera', 'descremada', 'girasol', 'oliva', 'maiz', 'tradicional', 'con palo', 'despalada', 'sin gas', 'con gas', 'restauracion', 'limpieza'];
+    const VARIANTES_CONOCIDAS = ['pomelo', 'naranja', 'limon', 'cola', 'manzana', 'frambuesa', 'vainilla', 'chocolate', 'original', 'zero', 'light', 'diet', 'largo fino', 'doble carolina', 'parboil', 'tallarin', 'tallarines', 'tirabuzon', 'entera', 'descremada', 'girasol', 'oliva', 'maiz', 'tradicional', 'con palo', 'despalada', 'sin gas', 'con gas', 'restauracion', 'limpieza'];
 
     for (const item of items) {
         const palabrasTarget = targetTexto.split(' ');
-        const tieneMarca = palabrasTarget.includes(item._normMarca) || targetTexto.includes(item._normMarca) || targetTexto.includes(item._normProducto);
+        const tieneMarca = palabrasTarget.includes(item._normMarca) || targetTexto.includes(item._normMarca) || targetTexto.includes(item._normProducto) || ((item._normMarca === 'lucchetti' || item._normMarca === 'luchetti') && (targetTexto.includes('lucchetti') || targetTexto.includes('luchetti')));
         if (!tieneMarca) continue;
 
         // Si targetTexto menciona alguna variante conocida, debe estar presente en item._normVariante
@@ -557,6 +606,9 @@ function buscarEnCatalogo(queryOAtributos) {
             for (const v of VARIANTES_CONOCIDAS) {
                 if (item._normMarca.includes(v)) continue;
                 if (targetTexto.includes(v) && !item._normVariante.includes(v)) {
+                    if ((v === 'tallarin' || v === 'tallarines') && (item._normVariante.includes('tallarin') || item._normVariante.includes('tallarines'))) {
+                        continue;
+                    }
                     contradiceVariante = true;
                     break;
                 }
@@ -567,7 +619,8 @@ function buscarEnCatalogo(queryOAtributos) {
         // Si se especificó variante en el objeto de consulta, verificarla
         if (typeof queryOAtributos === 'object' && queryOAtributos.variante) {
             const vBuscada = normalizarTexto(queryOAtributos.variante);
-            if (item._normVariante && !item._normVariante.includes(vBuscada) && !vBuscada.includes(item._normVariante)) {
+            const esEquivTallarin = (vBuscada.includes('tallarin') || vBuscada.includes('tallarines')) && (item._normVariante.includes('tallarin') || item._normVariante.includes('tallarines'));
+            if (!esEquivTallarin && item._normVariante && !item._normVariante.includes(vBuscada) && !vBuscada.includes(item._normVariante)) {
                 continue;
             }
         }

@@ -345,8 +345,8 @@ app.post('/api/buscar-individual', async (req, res) => {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
-    const { producto, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
-    if (!producto || !producto.trim()) {
+    const { id, producto, variante, nombre_completo, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+    if ((!producto || !producto.trim()) && !id && !nombre_completo) {
         return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
     }
 
@@ -354,11 +354,12 @@ app.post('/api/buscar-individual', async (req, res) => {
 
     // Validación estricta previa contra el catálogo cerrado
     const catEngine = getCatalogo();
-    const valCat = catEngine.validarEntrada({ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() });
+    const queryValidar = id ? { id, cantidad: cantNum, unidad: String(unidad).trim() } : { id, producto: (producto || nombre_completo || '').trim(), nombre_completo, variante, cantidad: cantNum, unidad: String(unidad).trim() };
+    const valCat = catEngine.validarEntrada(queryValidar);
     if (!valCat.valido) {
         return res.status(400).json({
             success: false,
-            message: `El producto "${producto}" no pertenece al catálogo cerrado.`,
+            message: `El producto "${producto || nombre_completo || id}" no pertenece al catálogo cerrado.`,
             opciones: valCat.opciones ? valCat.opciones.slice(0, 10) : [],
             coincidencias: valCat.coincidencias ? valCat.coincidencias.slice(0, 10) : [],
             totalCoincidencias: valCat.totalCoincidencias || 0
@@ -366,9 +367,9 @@ app.post('/api/buscar-individual', async (req, res) => {
     }
 
     // Usar término oficial del catálogo
-    const prodOficial = valCat.item ? valCat.item.producto : producto.trim();
+    const prodOficial = valCat.item ? (valCat.item.nombre_completo || valCat.item.producto) : (producto || nombre_completo || '').trim();
     const cantOficial = valCat.item ? valCat.item.cantidad : cantNum;
-    const unidOficial = valCat.item ? valCat.item.unidad : unidad.trim();
+    const unidOficial = valCat.item ? valCat.item.unidad : String(unidad).trim();
     const termOficial = (terminoBusqueda || (valCat.item ? valCat.item.termino_busqueda : ''));
 
     isRpaRunning = true;
@@ -389,7 +390,10 @@ app.post('/api/buscar-individual', async (req, res) => {
         const resultados = await getRpaRunner().runRPA({
             modo: 'individual',
             items: [{
+                id: valCat.item ? valCat.item.id : id,
                 producto: prodOficial,
+                variante: valCat.item ? valCat.item.variante : variante,
+                marca: valCat.item ? valCat.item.marca : undefined,
                 terminoBusqueda: termOficial,
                 cantidad: cantOficial,
                 unidad: unidOficial
@@ -417,14 +421,15 @@ app.post('/api/buscar-individual', async (req, res) => {
         });
 
         ultimoProcesoData = {
-            producto: producto.trim(),
-            cantidad: cantNum,
-            unidad: unidad.trim(),
+            id: valCat.item ? valCat.item.id : id,
+            producto: prodOficial,
+            cantidad: cantOficial,
+            unidad: unidOficial,
             items: resultados
         };
 
         // Reporte en consola y actualización de Excel
-        await runCommand(`node validador.js --reporte-individual "${producto}"`);
+        await runCommand(`node validador.js --reporte-individual "${prodOficial}"`);
         try {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
         } catch (eKill) {}

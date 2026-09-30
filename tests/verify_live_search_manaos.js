@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 async function testLiveSearch() {
-    console.log('--- INICIANDO TEST: BÚSQUEDA INDIVIDUAL GASEOSA SECCO POMELO ---');
+    console.log('--- INICIANDO TEST: BÚSQUEDA INDIVIDUAL GASEOSA MANAOS COLA ---');
 
     // Iniciar un navegador para simular al usuario que entra al frontend http://localhost:3000
     const userBrowser = await puppeteer.launch({
@@ -22,12 +22,11 @@ async function testLiveSearch() {
     // Verificar que el WebSocket se conectó
     await new Promise(r => setTimeout(r, 1000));
 
-    // Escribir "Gaseosa Secco Pomelo" en el input
-    console.log('[User] Escribiendo "Gaseosa Secco Pomelo" en el campo de búsqueda...');
-    await page.type('#input-producto', 'Gaseosa Secco Pomelo', { delay: 50 });
+    // Escribir "Manaos Cola 2.25 L" en el input
+    console.log('[User] Escribiendo "Manaos Cola 2.25 L" en el campo de búsqueda...');
+    await page.type('#input-producto', 'Manaos Cola 2.25 L', { delay: 50 });
 
-    // Capturar pantalla previa al clic
-    const artifactDir = 'C:\\Users\\Santi\\.gemini\\antigravity-ide\\brain\\c9b0791c-37a6-41e6-a587-79b4fa0291d2';
+    const artifactDir = 'C:\\Users\\alex1\\.gemini\\antigravity-ide\\brain\\85cd4321-22e2-425e-a22d-928db9b7ad0a';
     
     // Clic en Buscar Producto
     console.log('[User] Haciendo clic en "Buscar Producto"...');
@@ -78,15 +77,15 @@ async function testLiveSearch() {
     await userBrowser.close();
 
     // Verificar archivos resultantes en disco
-    const csvExists = fs.existsSync(path.join(__dirname, 'resultados.csv'));
-    const xlsxExists = fs.existsSync(path.join(__dirname, 'reporte_supermercados.xlsx'));
+    const csvExists = fs.existsSync(path.join(__dirname, '..', 'resultados.csv'));
+    const xlsxExists = fs.existsSync(path.join(__dirname, '..', 'reporte_supermercados.xlsx'));
 
     console.log('Verificación de archivos:');
     console.log('- resultados.csv existe:', csvExists);
     console.log('- reporte_supermercados.xlsx existe:', xlsxExists);
 
     if (csvExists) {
-        const csvContent = fs.readFileSync(path.join(__dirname, 'resultados.csv'), 'utf8');
+        const csvContent = fs.readFileSync(path.join(__dirname, '..', 'resultados.csv'), 'utf8');
         const lines = csvContent.trim().split('\n');
         console.log(`- resultados.csv tiene ${lines.length} líneas.`);
         console.log('Últimas 3 líneas de resultados.csv:');
@@ -94,7 +93,7 @@ async function testLiveSearch() {
     }
 
     if (xlsxExists) {
-        const stats = fs.statSync(path.join(__dirname, 'reporte_supermercados.xlsx'));
+        const stats = fs.statSync(path.join(__dirname, '..', 'reporte_supermercados.xlsx'));
         console.log(`- reporte_supermercados.xlsx tamaño: ${stats.size} bytes (Excel real de ExcelJS)`);
     }
 
