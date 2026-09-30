@@ -353,15 +353,17 @@ function cerrarNavegadorTagUI() {
     // 1. Cerrar pestañas abiertas en el puerto 9222 vía CDP
     try {
         const http = require('http');
-        const req = http.get('http://127.0.0.1:9222/json/list', (res) => {
+        const req = http.get('http://127.0.0.1:9222/json', (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
                     const tabs = JSON.parse(data);
-                    for (const tab of tabs) {
-                        if (tab && tab.id) {
-                            http.get(`http://127.0.0.1:9222/json/close/${tab.id}`, () => {}).on('error', () => {});
+                    if (Array.isArray(tabs)) {
+                        for (const tab of tabs) {
+                            if (tab && tab.id) {
+                                http.get(`http://127.0.0.1:9222/json/close/${tab.id}`, () => {}).on('error', () => {});
+                            }
                         }
                     }
                 } catch(e) {}
@@ -371,11 +373,20 @@ function cerrarNavegadorTagUI() {
         req.setTimeout(800, () => req.destroy());
     } catch(e) {}
 
-    // 2. Terminar procesos de Chrome iniciados por TagUI (filtrando por remote-debugging-port o tagui)
+    // 2. Terminar procesos iniciados por TagUI (filtrando estrictamente por tagui en la línea de comandos)
     try {
         const { spawnSync } = require('child_process');
-        const psScript = "Get-CimInstance Win32_Process -Filter \"Name = 'chrome.exe'\" | Where-Object { $_.CommandLine -like '*remote-debugging-port=9222*' -or $_.CommandLine -like '*tagui*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
-        spawnSync('powershell', ['-NoProfile', '-Command', psScript], { windowsHide: true });
+        const res = spawnSync('powershell', [
+            '-NoProfile',
+            '-Command',
+            "(Get-CimInstance Win32_Process -Filter \"CommandLine LIKE '%tagui%'\").ProcessId"
+        ]);
+        const pids = res.stdout.toString().split(/\r?\n/).map(s => s.trim()).filter(s => /^\d+$/.test(s));
+        for (const pid of pids) {
+            try {
+                process.kill(parseInt(pid, 10), 'SIGKILL');
+            } catch (eKill) {}
+        }
     } catch (e) {}
 }
 

@@ -58,9 +58,9 @@ if present('Aceptar todo')
 
 echo [SUPERMERCADO 1] Localizando buscador y escribiendo producto: `query_term`...
 if present('input.vtex-styleguide-9-x-input')
-    type input.vtex-styleguide-9-x-input as `query_term`[enter]
+    type input.vtex-styleguide-9-x-input as [clear]`query_term`[enter]
 else if present('input[placeholder*="buscando"]')
-    type input[placeholder*="buscando"] as `query_term`[enter]
+    type input[placeholder*="buscando"] as [clear]`query_term`[enter]
 wait 2
 if present('button[aria-label="Buscar Productos"]')
     click button[aria-label="Buscar Productos"]
@@ -199,8 +199,10 @@ echo [SUPERMERCADO 2] Navegando a https://www.coto.com.ar...
 https://www.coto.com.ar
 wait 3
 
-echo [SUPERMERCADO 2] Localizando buscador y escribiendo producto: `query_term`...
-type input#cio-autocomplete-0-input as `query_term`[enter]
+if present('input#cio-autocomplete-0-input')
+    type input#cio-autocomplete-0-input as [clear]`query_term`[enter]
+else if present('input[placeholder*="busc"]')
+    type input[placeholder*="busc"] as [clear]`query_term`[enter]
 wait 4
 
 echo [SUPERMERCADO 2] Extrayendo resultados...
@@ -341,11 +343,11 @@ if present('Aceptar')
 
 echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_term`...
 if present('input#downshift-0-input')
-    type input#downshift-0-input as `query_term`
+    type input#downshift-0-input as [clear]`query_term`
 else if present('input[placeholder*="busc"]')
-    type input[placeholder*="busc"] as `query_term`
+    type input[placeholder*="busc"] as [clear]`query_term`
 else if present('input.vtex-styleguide-9-x-input')
-    type input.vtex-styleguide-9-x-input as `query_term`
+    type input.vtex-styleguide-9-x-input as [clear]`query_term`
 wait 2
 
 echo [SUPERMERCADO 3] Seleccionando 'Ver todos los productos' mediante TagUI...
@@ -355,27 +357,10 @@ else if present('//*[contains(text(), "Ver todos los productos")]')
     click //*[contains(text(), "Ver todos los productos")]
 else if present('button[aria-label="Buscar Productos"]')
     click button[aria-label="Buscar Productos"]
-else if present('button[type="submit"]')
-    click button[type="submit"]
 wait 2
 
-// Fallback DOM para asegurar click en 'Ver todos los productos' o navegación al catálogo
-dom begin
-var clicked = false;
-var allEl = Array.from(document.querySelectorAll('a, button, div, span, p'));
-for (var i = 0; i < allEl.length; i++) {
-    var txt = (allEl[i].innerText || '').trim().toLowerCase();
-    if (txt === 'ver todos los productos' || txt.indexOf('ver todos los productos') > -1) {
-        allEl[i].click();
-        clicked = true;
-        break;
-    }
-}
-if (!clicked && window.location.href.indexOf('_q=') === -1 && window.location.href.indexOf('map=ft') === -1) {
-    var q = encodeURIComponent("`query_term`");
-    window.location.href = "https://diaonline.supermercadosdia.com.ar/" + q + "?_q=" + q + "&map=ft";
-}
-dom finish
+// Carga directa del catálogo de resultados de Día % según query_term
+js chrome_step('Page.navigate', {url: 'https://diaonline.supermercadosdia.com.ar/' + encodeURIComponent(query_term) + '?map=ft&_q=' + encodeURIComponent(query_term)});
 wait 4
 
 echo [SUPERMERCADO 3] Extrayendo resultados...

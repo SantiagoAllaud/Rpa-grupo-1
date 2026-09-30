@@ -2061,9 +2061,53 @@ if (require.main === module) {
             console.log((idx + 1) + '. ' + nom + ' [Score: ' + r.score + ' | Coincidencias: ' + r.cantidadCoincidencias + ']');
             console.log('   • Subcadenas coincidentes: ' + r.subcadenasCoincidentes.join(', '));
         });
+    } else if (args[0] === '--cerrar-tagui') {
+        cerrarNavegadorTagUI();
+        console.log('[INFO] Navegador TagUI cerrado correctamente.');
     } else {
-        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--subcadenas "texto"] | [--limpiar 1|2|3] | [--crear-temp "producto"] | [--test|--diagnostico]');
+        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--subcadenas "texto"] | [--limpiar 1|2|3] | [--crear-temp "producto"] | [--cerrar-tagui] | [--test|--diagnostico]');
     }
+}
+
+// Cierra exclusivamente las ventanas y procesos abiertos por TagUI (puerto 9222 y perfil tagui)
+// de modo que NUNCA afecte al frontend (http://localhost:3000) ni al navegador personal del usuario.
+function cerrarNavegadorTagUI() {
+    try {
+        const http = require('http');
+        const req = http.get('http://127.0.0.1:9222/json', (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const tabs = JSON.parse(data);
+                    if (Array.isArray(tabs)) {
+                        for (const tab of tabs) {
+                            if (tab && tab.id) {
+                                http.get(`http://127.0.0.1:9222/json/close/${tab.id}`, () => {}).on('error', () => {});
+                            }
+                        }
+                    }
+                } catch(e) {}
+            });
+        });
+        req.on('error', () => {});
+        req.setTimeout(800, () => req.destroy());
+    } catch(e) {}
+
+    try {
+        const { spawnSync } = require('child_process');
+        const res = spawnSync('powershell', [
+            '-NoProfile',
+            '-Command',
+            "(Get-CimInstance Win32_Process -Filter \"CommandLine LIKE '%tagui%'\").ProcessId"
+        ]);
+        const pids = res.stdout.toString().split(/\r?\n/).map(s => s.trim()).filter(s => /^\d+$/.test(s));
+        for (const pid of pids) {
+            try {
+                process.kill(parseInt(pid, 10), 'SIGKILL');
+            } catch (eKill) {}
+        }
+    } catch (e) {}
 }
 
 // Adapta el separador decimal de cualquier número en el término de búsqueda según el supermercado.
@@ -2113,6 +2157,7 @@ module.exports = {
     mostrarReporteIndividual: mostrarReporteIndividual,
     limpiarResultados: limpiarResultados,
     crearTempInput: crearTempInput,
+    cerrarNavegadorTagUI: cerrarNavegadorTagUI,
     MARCAS_CONOCIDAS: MARCAS_CONOCIDAS,
     DEFINICION_CATEGORIAS: DEFINICION_CATEGORIAS,
     CATEGORIAS_PRODUCTO: CATEGORIAS_PRODUCTO,
