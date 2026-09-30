@@ -30,7 +30,7 @@ js unidades_compra = 1; try { if (typeof unidades !== 'undefined' && unidades &&
 // Codificamos el término de búsqueda validado por el catálogo
 js prod_clean = producto.replace(/"/g, '').replace(/'/g, '').trim();
 js query_term = prod_clean;
-js if (cant_actual && unid_actual && !prod_clean.toLowerCase().includes(unid_actual.toLowerCase())) { query_term = prod_clean + ' ' + cant_actual + unid_actual; }
+js if (cant_actual && unid_actual && prod_clean.toLowerCase().indexOf(unid_actual.toLowerCase()) === -1) { query_term = prod_clean + ' ' + cant_actual + unid_actual; }
 js prod_url = encodeURIComponent(query_term.replace(/,/g, ' ').replace(/\s+/g, ' '));
 
 

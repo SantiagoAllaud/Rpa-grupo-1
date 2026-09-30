@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function connectStream() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/rpa-stream`;
-        
+
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setRunningState(isRunning) {
         const btns = document.querySelectorAll('button:not(#btn-cerrar-modal):not(#btn-abort):not(#btn-toggle-screen)');
         btns.forEach(btn => btn.disabled = isRunning);
-        
+
         if (isRunning) {
             statusIndicator.textContent = "Procesando...";
             statusIndicator.className = "indicator running";
@@ -170,17 +170,17 @@ document.addEventListener('DOMContentLoaded', () => {
             mouseDuration: 600,
             headless: true
         });
-        
+
         try {
             const options = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             };
-            
+
             const response = await fetch(endpoint, options);
             const data = await response.json();
-            
+
             if (data.success) {
                 addLog(`✓ ${data.message}`);
             } else {
@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (!prodText) continue;
 
-                    const matched = itemsCatalogoGlobal.find(it => 
+                    const matched = itemsCatalogoGlobal.find(it =>
                         it.id === prodText ||
                         it.producto.toLowerCase() === prodText.toLowerCase() ||
                         it.nombre_completo.toLowerCase() === prodText.toLowerCase() ||
@@ -510,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function crearFilaCanasta(prodItem = null) {
         const tr = document.createElement('tr');
-        
+
         const tdProd = document.createElement('td');
         const select = document.createElement('select');
         select.className = 'modal-input modal-select-prod';
@@ -559,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const cant = parts[1] ? (parseFloat(parts[1]) || 1) : 1;
                         const unid = parts[2] || '';
 
-                        const matched = itemsCatalogoGlobal.find(it => 
+                        const matched = itemsCatalogoGlobal.find(it =>
                             it.id === prodText ||
                             it.producto.toLowerCase() === prodText.toLowerCase() ||
                             it.nombre_completo.toLowerCase() === prodText.toLowerCase() ||
@@ -709,10 +709,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Kill-switch: Si el usuario cierra el frontend en el navegador, abortar la búsqueda inmediatamente
-    window.addEventListener('beforeunload', () => {
-        try {
-            navigator.sendBeacon('/api/abort');
-        } catch (e) {}
-    });
 });

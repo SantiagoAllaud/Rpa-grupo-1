@@ -1,28 +1,21 @@
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
-const { exec, execSync } = require('child_process');
+const { exec, execSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 function getValidador() {
     try {
         delete require.cache[require.resolve('./validador.js')];
-    } catch(e) {}
+    } catch (e) { }
     return require('./validador.js');
 }
 
 function getCatalogo() {
     try {
         delete require.cache[require.resolve('./catalogo.js')];
-    } catch(e) {}
+    } catch (e) { }
     return require('./catalogo.js');
-}
-
-function getRpaRunner() {
-    try {
-        delete require.cache[require.resolve('./rpa_runner.js')];
-    } catch(e) {}
-    return require('./rpa_runner.js');
 }
 
 process.on('uncaughtException', (err) => {
@@ -51,6 +44,73 @@ wss.on('error', (err) => {
 // Control de concurrencia: máximo 1 ejecución simultánea
 let isRpaRunning = false;
 let ultimoProcesoData = null;
+let activeTaguiProcess = null;
+
+function csvEscape(value) {
+    const text = value === undefined || value === null ? '' : String(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function abortTaguiProcess() {
+    if (!activeTaguiProcess || !activeTaguiProcess.pid) return;
+    try {
+        execSync(`taskkill /F /T /PID ${activeTaguiProcess.pid}`, { windowsHide: true, stdio: 'ignore' });
+    } catch (e) { }
+    activeTaguiProcess = null;
+}
+
+function getTaguiCommand() {
+    const candidates = [
+        process.env.TAGUI_PATH,
+        path.join(process.env.USERPROFILE || '', 'tagui', 'src', 'tagui.cmd'),
+        'C:\\tagui\\src\\tagui.cmd',
+        path.join(process.env.LOCALAPPDATA || '', 'tagui', 'src', 'tagui.cmd')
+    ].filter(Boolean);
+    return candidates.find(candidate => fs.existsSync(candidate)) || 'tagui';
+}
+
+function runTagui(inputFile) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(getTaguiCommand(), ['supermercados.tag', inputFile], {
+            cwd: __dirname,
+            shell: true,
+            windowsHide: false
+        });
+        activeTaguiProcess = child;
+        let settled = false;
+        let outputBuffer = '';
+
+        const emitOutput = (chunk) => {
+            outputBuffer += chunk.toString();
+            const lines = outputBuffer.split(/\r?\n/);
+            outputBuffer = lines.pop() || '';
+            lines.filter(Boolean).forEach((line) => {
+                broadcast({ type: 'log', message: `[TagUI] ${line}` });
+                if (line.includes('Abriendo navegador')) {
+                    broadcast({ type: 'status', state: 'live', message: 'TagUI ejecutando automatización visible' });
+                }
+            });
+        };
+
+        child.stdout.on('data', emitOutput);
+        child.stderr.on('data', emitOutput);
+        child.once('error', (error) => {
+            activeTaguiProcess = null;
+            if (!settled) {
+                settled = true;
+                reject(error);
+            }
+        });
+        child.once('close', (code) => {
+            activeTaguiProcess = null;
+            if (outputBuffer.trim()) emitOutput('\n');
+            if (settled) return;
+            settled = true;
+            if (code === 0) resolve({ code, output: outputBuffer });
+            else reject(new Error(`TagUI finalizó con código ${code}.`));
+        });
+    });
+}
 
 wss.on('connection', (ws) => {
     wsClients.add(ws);
@@ -66,9 +126,7 @@ wss.on('connection', (ws) => {
         // Si el usuario cierra la pestaña o ventana del frontend mientras corre el RPA, abortar de inmediato
         if (wsClients.size === 0 && isRpaRunning) {
             console.log('[WS] Frontend desconectado. Abortando RPA inmediatamente...');
-            try {
-                getRpaRunner().abortCurrentRun();
-            } catch (e) {}
+            abortTaguiProcess();
             isRpaRunning = false;
         }
     });
@@ -84,7 +142,7 @@ function broadcast(msgObj) {
         if (ws.readyState === ws.OPEN) {
             try {
                 ws.send(payload);
-            } catch (e) {}
+            } catch (e) { }
         }
     }
 }
@@ -128,7 +186,7 @@ app.get('/api/datos-completos', (req, res) => {
             it.intencion = v.intencion;
         });
         res.json({ success: true, items, ultimoProceso: ultimoProcesoData });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -145,7 +203,7 @@ app.get('/api/catalogo', (req, res) => {
             coincidencias = catEngine.buscarPorSubcadenas(q.trim());
         }
         res.json({ success: true, catalogo: catData, items, categorias, coincidencias });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -157,7 +215,7 @@ app.get('/api/buscar-subcadenas', (req, res) => {
         const catEngine = getCatalogo();
         const coincidencias = catEngine.buscarPorSubcadenas(q);
         res.json({ success: true, query: q, total: coincidencias.length, coincidencias });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -192,7 +250,7 @@ app.get('/api/csv-raw', (req, res) => {
         } else {
             res.json({ success: true, csv: '' });
         }
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -221,13 +279,13 @@ app.post('/api/compra-mes', async (req, res) => {
         // Cerrar Excel obligatoriamente si el usuario lo tiene abierto para evitar bloqueos EBUSY
         try {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
-        } catch (eKill) {}
+        } catch (eKill) { }
 
         // Limpiar registros de compra del mes anteriores para iniciar con datos frescos
         getValidador().limpiarResultados('1');
 
         console.log("Iniciando compra del mes...");
-        
+
         // Leer input.csv validado
         let itemsCanasta = [];
         if (fs.existsSync('input.csv')) {
@@ -256,32 +314,11 @@ app.post('/api/compra-mes', async (req, res) => {
 
         broadcast({ type: 'log', message: `Iniciando compra mensual para ${itemsCanasta.length} productos...` });
 
-        const { demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
-
-        const resultados = await getRpaRunner().runRPA({
-            modo: 'compra_mes',
-            items: itemsCanasta,
-            demoMode,
-            typingDelay,
-            mouseDuration,
-            onStatus: (st) => {
-                if (st.type === 'log') {
-                    broadcast({ type: 'log', message: st.message });
-                } else if (st.type === 'progress') {
-                    broadcast({ type: 'progress', percent: st.percent, message: st.message });
-                    broadcast({ type: 'log', message: st.message });
-                } else if (st.type === 'connected') {
-                    broadcast({ type: 'status', state: 'live', message: st.message });
-                } else if (st.type === 'finished') {
-                    broadcast({ type: 'status', state: 'finished', message: st.message });
-                } else if (st.type === 'nav') {
-                    broadcast(st);
-                } else if (st.type === 'error') {
-                    broadcast({ type: 'status', state: st.state || 'error', message: st.message });
-                    broadcast({ type: 'log', message: st.message });
-                }
-            }
-        });
+        broadcast({ type: 'status', state: 'live', message: 'TagUI ejecutando automatización visible' });
+        await runTagui('input.csv');
+        const resultados = getValidador().leerResultadosCSV(path.join(__dirname, 'resultados.csv'));
+        broadcast({ type: 'progress', percent: 100, message: 'TagUI finalizó los tres supermercados.' });
+        broadcast({ type: 'status', state: 'finished', message: 'TagUI finalizó correctamente.' });
 
         ultimoProcesoData = {
             producto: 'Compra del Mes',
@@ -293,7 +330,7 @@ app.post('/api/compra-mes', async (req, res) => {
         // Generar Excel consolidado
         try {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
-        } catch (eKill) {}
+        } catch (eKill) { }
         await runCommand('node generar_excel.js');
 
         // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda
@@ -371,6 +408,7 @@ app.post('/api/buscar-individual', async (req, res) => {
     const cantOficial = valCat.item ? valCat.item.cantidad : cantNum;
     const unidOficial = valCat.item ? valCat.item.unidad : String(unidad).trim();
     const termOficial = (terminoBusqueda || (valCat.item ? valCat.item.termino_busqueda : ''));
+    const taguiInputPath = path.join(__dirname, 'tagui_individual_input.csv');
 
     isRpaRunning = true;
     broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
@@ -379,46 +417,23 @@ app.post('/api/buscar-individual', async (req, res) => {
         // Cerrar Excel obligatoriamente si el usuario lo tiene abierto para evitar bloqueos EBUSY
         try {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
-        } catch (eKill) {}
+        } catch (eKill) { }
 
-        console.log(`Iniciando búsqueda para: ${prodOficial} (x${cantOficial} ${unidOficial}) [Demo: ${demoMode}]`);
+        fs.writeFileSync(taguiInputPath, [
+            'producto,cantidad,unidad',
+            [prodOficial, cantOficial, unidOficial].map(csvEscape).join(',')
+        ].join('\n') + '\n', 'utf8');
+
+        console.log(`Iniciando búsqueda TagUI para: ${prodOficial} (x${cantOficial} ${unidOficial})`);
         broadcast({ type: 'log', message: `Búsqueda individual: "${prodOficial}" (Cantidad: ${cantOficial}, Unidad: ${unidOficial || 'Automática'})` });
 
         // Limpieza de consulta previa
         getValidador().limpiarResultados('2');
 
-        const resultados = await getRpaRunner().runRPA({
-            modo: 'individual',
-            items: [{
-                id: valCat.item ? valCat.item.id : id,
-                producto: prodOficial,
-                variante: valCat.item ? valCat.item.variante : variante,
-                marca: valCat.item ? valCat.item.marca : undefined,
-                terminoBusqueda: termOficial,
-                cantidad: cantOficial,
-                unidad: unidOficial
-            }],
-            demoMode,
-            typingDelay,
-            mouseDuration,
-            onStatus: (st) => {
-                if (st.type === 'log') {
-                    broadcast({ type: 'log', message: st.message });
-                } else if (st.type === 'progress') {
-                    broadcast({ type: 'progress', percent: st.percent, message: st.message });
-                    broadcast({ type: 'log', message: st.message });
-                } else if (st.type === 'connected') {
-                    broadcast({ type: 'status', state: 'live', message: st.message });
-                } else if (st.type === 'finished') {
-                    broadcast({ type: 'status', state: 'finished', message: st.message });
-                } else if (st.type === 'nav') {
-                    broadcast(st);
-                } else if (st.type === 'error') {
-                    broadcast({ type: 'status', state: st.state || 'error', message: st.message });
-                    broadcast({ type: 'log', message: st.message });
-                }
-            }
-        });
+        await runTagui('tagui_individual_input.csv');
+        const resultados = getValidador().leerResultadosCSV(path.join(__dirname, 'resultados.csv'));
+        broadcast({ type: 'progress', percent: 100, message: 'TagUI finalizó la búsqueda individual.' });
+        broadcast({ type: 'status', state: 'finished', message: 'TagUI finalizó correctamente.' });
 
         ultimoProcesoData = {
             id: valCat.item ? valCat.item.id : id,
@@ -432,8 +447,9 @@ app.post('/api/buscar-individual', async (req, res) => {
         await runCommand(`node validador.js --reporte-individual "${prodOficial}"`);
         try {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
-        } catch (eKill) {}
+        } catch (eKill) { }
         await runCommand('node generar_excel.js');
+        try { fs.unlinkSync(taguiInputPath); } catch (eCleanup) { }
 
         // Abrir automáticamente el archivo Excel con los resultados al terminar la búsqueda
         try {
@@ -451,6 +467,7 @@ app.post('/api/buscar-individual', async (req, res) => {
         }
     } catch (e) {
         console.error("Error en búsqueda individual:", e);
+        try { fs.unlinkSync(taguiInputPath); } catch (eCleanup) { }
         const isFailsafe = e.message && e.message.includes('USER_MOUSE_INTERVENTION');
         const isAborted = e.message && e.message.includes('RPA_ABORTED_BY_USER');
 
@@ -495,9 +512,7 @@ app.post('/api/abrir-excel', async (req, res) => {
 // Endpoint Kill-Switch para abortar la búsqueda inmediatamente
 app.all('/api/abort', (req, res) => {
     console.log('[API] Solicitud de abortar RPA recibida.');
-    try {
-        getRpaRunner().abortCurrentRun();
-    } catch (e) {}
+    abortTaguiProcess();
     isRpaRunning = false;
     broadcast({ type: 'status', state: 'idle', message: 'RPA detenido inmediatamente por el usuario.' });
     res.json({ success: true, message: 'RPA abortado exitosamente.' });

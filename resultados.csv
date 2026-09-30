@@ -1,13 +1,7 @@
 modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad,unidad
-individual,Galletitas Criollitas Clásicas 300 g,Galletitas original Criollitas 100 g. x 3 uni,"$ 1.979,00",Carrefour,https://www.carrefour.com.ar/galletitas-original-criollitas-100-g-x-3-uni/p,2026-09-29,DISPONIBLE,300,g
-individual,Galletitas Criollitas Clásicas 300 g,Galletitas Crackers CRIOLLITAS 300g,"$1.401,39",COTO,https://www.coto.com.ar/productos/galletitas-crackers-criollitas-300g-/_/R-00099168-00099168-200,2026-09-29,DISPONIBLE,300,g
-individual,Galletitas Criollitas Clásicas 300 g,Crackers Criollitas 300 Gr.,$ 1.979,Día %,https://diaonline.supermercadosdia.com.ar/crackers-criollitas-300-gr-308625/p,2026-09-29,DISPONIBLE,300,g
-"compra_mes","Manaos Cola","Gaseosa cola Manaos 2,25 lts","$ 2.420,00","Carrefour","https://www.carrefour.com.ar/gaseosa-cola-manaos-225-lts-530768/p","2026-09-29","DISPONIBLE","2.25","L"
-"compra_mes","Manaos Naranja","No encontrado","N/D","Carrefour","https://www.carrefour.com.ar/manaos?_q=manaos&map=ft","2026-09-29","NO ENCONTRADO","2.25","L"
-"compra_mes","Manaos Lima Limón","Gaseosa lima limón Manaos 2,25 lts","$ 2.420,00","Carrefour","https://www.carrefour.com.ar/gaseosa-lima-limon-manaos-225-lts-530791/p","2026-09-29","DISPONIBLE","2.25","L"
-"compra_mes","Manaos Cola","Gaseosa Cola Manaos 2.25l","$1.815,00","COTO","https://www.coto.com.ar/productos/gaseosa-cola-manaos-2-25l-/_/R-00617697-00617697-200","2026-09-29","DISPONIBLE","2.25","L"
-"compra_mes","Manaos Naranja","Gaseosa Naranja Manaos 2.25l","$1.815,00","COTO","https://www.coto.com.ar/productos/gaseosa-naranja-manaos-2-25l-/_/R-00617704-00617704-200","2026-09-29","DISPONIBLE","2.25","L"
-"compra_mes","Manaos Lima Limón","Gaseosa Lima Limón Manaos 2.25l","$1.815,00","COTO","https://www.coto.com.ar/productos/gaseosa-lima-limon-manaos-2-25l-/_/R-00617703-00617703-200","2026-09-29","DISPONIBLE","2.25","L"
-"compra_mes","Manaos Cola","Gaseosa Manaos Cola 2,25 Lts.","$ 2.400","Día %","https://diaonline.supermercadosdia.com.ar/gaseosa-manaos-cola-225-lts-240198/p","2026-09-29","DISPONIBLE","2.25","L"
-"compra_mes","Manaos Naranja","Gaseosa Manaos Naranja 2,25 Lts.","$ 2.400","Día %","https://diaonline.supermercadosdia.com.ar/gaseosa-manaos-naranja-225-lts-240196/p","2026-09-29","DISPONIBLE","2.25","L"
-"compra_mes","Manaos Lima Limón","Gaseosa Manaos Lima Limón 2,25 Lts.","$ 2.400","Día %","https://diaonline.supermercadosdia.com.ar/gaseosa-manaos-lima-limon-225-lts-240197/p","2026-09-29","DISPONIBLE","2.25","L"
+individual,Manaos Lima Limón 2.25 L,No encontrado,N/D,Carrefour,https://www.carrefour.com.ar/,2026-09-30,NO ENCONTRADO,2.25,L
+individual,Manaos Lima Limón 2.25 L,No encontrado,N/D,COTO,https://www.coto.com.ar/productos/manaos,2026-09-30,NO ENCONTRADO,2.25,L
+individual,Manaos Lima Limón 2.25 L,"Gaseosa Manaos Lima Limón 2,25 Lts.",$ 1.800,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-manaos-lima-limon-225-lts-240197/p,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Fideos Matarazzo,Fideos tallarin N5 Lucchetti 500 g.,"$ 1.749,00",Carrefour,https://www.carrefour.com.ar/fideos-tallarin-n5-lucchetti-500-g-726311/p,2026-09-30,DISPONIBLE,500,g
+compra_mes,Fideos Matarazzo,Fideos Spaghetti MATARAZZO 500g,"$2.100,00",COTO,https://www.coto.com.ar/productos/fideos-spaghetti-matarazzo-500g-/_/R-00573911-00573911-200,2026-09-30,DISPONIBLE,500,g
+compra_mes,Fideos Matarazzo,Fideos tirabuzon integral n28 Matarazzo 500 Gr.,$ 1.900,Día %,https://diaonline.supermercadosdia.com.ar/fideos-tirabuzon-integral-n28-matarazzo-500-gr-313870/p,2026-09-30,DISPONIBLE,500,g
