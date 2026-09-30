@@ -1548,6 +1548,342 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 /* ==========================================================================
+   11.5. COMPONENTES DE CANASTA PERSONALIZABLE (DESPLEGABLE Y CHIPS)
+   ========================================================================== */
+
+.badge-canasta-status {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    font-size: 0.72rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.canasta-quick-add-panel {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.field-label-micro {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.45rem;
+}
+
+.quick-add-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.quick-add-select-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.canasta-dropdown {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    background: rgba(10, 15, 28, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    color: #ffffff;
+    font-size: 0.83rem;
+    outline: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.canasta-dropdown:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
+.canasta-dropdown optgroup {
+    background: #0f172a;
+    color: #818cf8;
+    font-weight: 700;
+    padding: 0.3rem 0;
+}
+
+.canasta-dropdown option {
+    background: #0f172a;
+    color: #f1f5f9;
+    padding: 0.4rem 0.6rem;
+    font-weight: 400;
+}
+
+.quick-add-qty-wrap {
+    width: 75px;
+    flex-shrink: 0;
+}
+
+.canasta-qty-input {
+    width: 100%;
+    padding: 0.6rem 0.5rem;
+    background: rgba(10, 15, 28, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    color: #ffffff;
+    font-size: 0.83rem;
+    text-align: center;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.canasta-qty-input:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
+.btn-action-add {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 9px;
+    padding: 0.6rem 1rem;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 12px rgba(99, 102, 241, 0.35);
+}
+
+.btn-action-add:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 18px rgba(99, 102, 241, 0.45);
+}
+
+.btn-action-add:active {
+    transform: translateY(0);
+}
+
+/* Lista simple y limpia en la tarjeta de Compra del Mes (sin mayor decoración) */
+.canasta-lista-simple-wrap {
+    margin-top: 0.85rem;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.75rem;
+}
+
+.canasta-lista-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.canasta-lista-scroll {
+    max-height: 190px;
+    overflow-y: auto;
+    background: rgba(10, 15, 28, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9px;
+    padding: 0.25rem 0.4rem;
+}
+
+.canasta-simple-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.canasta-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.83rem;
+    color: #f1f5f9;
+    gap: 0.75rem;
+    transition: background 0.15s ease;
+}
+
+.canasta-item-row:last-child {
+    border-bottom: none;
+}
+
+.canasta-item-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.canasta-item-info {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.canasta-item-num {
+    color: #818cf8;
+    font-size: 0.75rem;
+    font-weight: 700;
+    width: 22px;
+    flex-shrink: 0;
+}
+
+.canasta-item-name {
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.btn-item-del {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    color: #f87171;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all 0.18s ease;
+    flex-shrink: 0;
+}
+
+.btn-item-del:hover {
+    color: #ffffff;
+    background: #ef4444;
+    border-color: #dc2626;
+    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-item-del:active {
+    transform: translateY(0);
+}
+
+/* Panel de Agregar Producto en el Modal */
+.modal-add-box {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.modal-add-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+
+.modal-add-controls {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+}
+
+.modal-add-select-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.modal-select-dropdown {
+    width: 100%;
+    cursor: pointer;
+}
+
+.modal-select-dropdown optgroup {
+    background: #0f172a;
+    color: #818cf8;
+    font-weight: 700;
+}
+
+.modal-select-dropdown option {
+    background: #0f172a;
+    color: #f1f5f9;
+}
+
+.modal-add-qty-wrap {
+    width: 80px;
+    flex-shrink: 0;
+}
+
+.btn-modal-add {
+    white-space: nowrap;
+    padding: 0.55rem 1.15rem;
+    font-size: 0.83rem;
+}
+
+.modal-table-header-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.45rem;
+    padding: 0 0.2rem;
+}
+
+.btn-link-action {
+    background: none;
+    border: none;
+    color: #38bdf8;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+}
+
+.btn-link-action:hover {
+    color: #7dd3fc;
+    background: rgba(56, 189, 248, 0.12);
+}
+
+.row-added-highlight {
+    animation: rowHighlight 1.5s ease-out;
+}
+
+@keyframes rowHighlight {
+    0% {
+        background-color: rgba(99, 102, 241, 0.35);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* ==========================================================================
    12. REGLAS RESPONSIVE (MÓVIL, TABLET Y PANTALLAS ANCHAS)
    ========================================================================== */
 

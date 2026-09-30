@@ -95,7 +95,9 @@ console.log('\n🚪 3. Validación de Entrada Previa (Gatekeeper del Catálogo).
 runTest('Acepta búsquedas que coinciden exactamente con productos del catálogo', () => {
     assert.strictEqual(catalogo.validarEntrada('Coca Cola 2.25L').valido, true);
     assert.strictEqual(catalogo.validarEntrada('Sprite 2.25L').valido, true);
-    assert.strictEqual(catalogo.validarEntrada('Secco Pomelo 2.25L').valido, true);
+    assert.strictEqual(catalogo.validarEntrada('Manaos Cola 2.25L').valido, true);
+    assert.strictEqual(catalogo.validarEntrada('Manaos Naranja 2.25L').valido, true);
+    assert.strictEqual(catalogo.validarEntrada('Manaos Lima Limon 2.25L').valido, true);
     assert.strictEqual(catalogo.validarEntrada('Arroz Gallo 1kg').valido, true);
     assert.strictEqual(catalogo.validarEntrada('Leche La Serenisima 1L').valido, true);
 });
@@ -145,36 +147,36 @@ runTest('Coincidencia válida: Sprite 2.25 L', () => {
     assert.strictEqual(res.valido, true);
 });
 
-runTest('Coincidencia válida: Secco Pomelo 2.25 L', () => {
-    const res = validador.validarCoincidencia('Secco Pomelo 2.25L', {
-        nombre: 'Gaseosa Secco Pomelo 2.25 L',
+runTest('Coincidencia válida: Manaos Cola 2.25 L', () => {
+    const res = validador.validarCoincidencia('Manaos Cola 2.25L', {
+        nombre: 'Gaseosa cola Manaos 2,25 lts',
         precio: 1500
     });
     assert.strictEqual(res.estado, 'VALIDADA');
     assert.strictEqual(res.valido, true);
 });
 
-runTest('Rechazo por marca distinta: Secco Pomelo 2.25L vs Manaos Pomelo 2.25L', () => {
-    const res = validador.validarCoincidencia('Secco Pomelo 2.25L', {
-        nombre: 'Gaseosa Manaos Pomelo 2.25 L',
+runTest('Rechazo por marca distinta: Manaos Cola 2.25L vs Pepsi Cola 2.25L', () => {
+    const res = validador.validarCoincidencia('Manaos Cola 2.25L', {
+        nombre: 'Gaseosa Pepsi Cola 2.25 L',
         precio: 1200
     });
     assert.strictEqual(res.estado, 'COINCIDENCIA NO VÁLIDA');
     assert.strictEqual(res.valido, false);
 });
 
-runTest('Rechazo por variante distinta: Secco Pomelo 2.25L vs Secco Cola 2.25L', () => {
-    const res = validador.validarCoincidencia('Secco Pomelo 2.25L', {
-        nombre: 'Gaseosa Secco Cola 2.25 L',
+runTest('Rechazo por variante distinta: Manaos Cola 2.25L vs Manaos Naranja 2.25L', () => {
+    const res = validador.validarCoincidencia('Manaos Cola 2.25L', {
+        nombre: 'Gaseosa Naranja Manaos 2.25l',
         precio: 1500
     });
     assert.strictEqual(res.estado, 'COINCIDENCIA NO VÁLIDA');
     assert.strictEqual(res.valido, false);
 });
 
-runTest('Rechazo por presentación distinta: Secco Pomelo 2.25L vs Secco Pomelo 1.5L', () => {
-    const res = validador.validarCoincidencia('Secco Pomelo 2.25L', {
-        nombre: 'Gaseosa Secco Pomelo 1.5 L',
+runTest('Rechazo por presentación distinta: Manaos Cola 2.25L vs Manaos Cola 1.5L', () => {
+    const res = validador.validarCoincidencia('Manaos Cola 2.25L', {
+        nombre: 'Gaseosa Cola Manaos 1.5 L',
         precio: 1100
     });
     assert.strictEqual(res.estado, 'COINCIDENCIA NO VÁLIDA');
@@ -197,8 +199,8 @@ console.log('\n🛒 5. Regla Obligatoria de los 3 Supermercados...');
 
 runTest('Rechaza comparación si falta un supermercado (Día % sin stock o no encontrado)', () => {
     const items = [
-        { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-        { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
+        { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25L' },
+        { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25L' },
         { supermercado: 'Día %', valido: false, precio: null, stock_status: 'NO ENCONTRADO', nombre: 'No encontrado' }
     ];
     const comp = validador.validarComparacion3Supermercados(items);
@@ -209,9 +211,9 @@ runTest('Rechaza comparación si falta un supermercado (Día % sin stock o no en
 
 runTest('Rechaza comparación si un supermercado devolvió una presentación distinta', () => {
     const items = [
-        { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-        { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-        { supermercado: 'Día %', valido: true, precio: 1100, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 1.5L' }
+        { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25L' },
+        { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25L' },
+        { supermercado: 'Día %', valido: true, precio: 1100, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 1.5L' }
     ];
     const comp = validador.validarComparacion3Supermercados(items);
     assert.strictEqual(comp.comparable, false);
@@ -220,9 +222,9 @@ runTest('Rechaza comparación si un supermercado devolvió una presentación dis
 
 runTest('Acepta comparación si el producto es idéntico y disponible en los 3 supermercados', () => {
     const items = [
-        { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-        { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-        { supermercado: 'Día %', valido: true, precio: 1480, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' }
+        { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25L' },
+        { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25L' },
+        { supermercado: 'Día %', valido: true, precio: 1480, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25L' }
     ];
     const comp = validador.validarComparacion3Supermercados(items);
     assert.strictEqual(comp.comparable, true);
@@ -240,7 +242,7 @@ runTest('El archivo input.csv actual cumple 100% con el catálogo cerrado', () =
     const csvPath = path.join(__dirname, '..', 'input.csv');
     const res = catalogo.validarArchivoCSV(csvPath);
     assert.strictEqual(res.valido, true, `input.csv tiene filas inválidas: ${JSON.stringify(res.filasInvalidas)}`);
-    assert.ok(res.totalFilas >= 8, 'input.csv debe contener al menos 8 productos de canasta');
+    assert.ok(res.totalFilas >= 1, 'input.csv debe contener al menos 1 producto de canasta');
 });
 
 // ----------------------------------------------------------------------

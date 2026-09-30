@@ -55,23 +55,54 @@
             <section class="grid-column left-column">
                 
                 <!-- Tarjeta 1: Compra del Mes -->
-                <div class="glass-card card-action">
+                <div class="glass-card card-action" id="card-compra-mes">
                     <div class="card-header">
                         <div class="card-header-icon icon-primary">
                             <i class="fa-solid fa-basket-shopping"></i>
                         </div>
                         <div>
-                            <h3>Compra del Mes</h3>
-                            <p class="card-desc">Procesa la canasta completa de productos (<code>input.csv</code>) comparando precios en los 3 supermercados.</p>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                <h3>Compra del Mes</h3>
+                                <span id="badge-canasta-count" class="super-tag badge-canasta-status">
+                                    <i class="fa-solid fa-basket-shopping" style="margin-right: 4px;"></i> <span id="count-prods-canasta">0</span> productos
+                                </span>
+                            </div>
+                            <p class="card-desc">Procesa la canasta personalizada de productos (<code>input.csv</code>) comparando precios en los 3 supermercados.</p>
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="btn-group-primary">
-                            <button id="btn-compra-mes" class="btn btn-primary">
+                        <!-- Sección de Selección y Lista de Productos de la Canasta -->
+                        <div class="canasta-quick-add-panel">
+                            <label class="field-label-micro">
+                                <i class="fa-solid fa-plus-circle" style="color: #818cf8;"></i> Agregar producto a la canasta:
+                            </label>
+                            <div class="quick-add-row">
+                                <div class="quick-add-select-wrap">
+                                    <select id="quick-select-canasta" class="form-control-select canasta-dropdown">
+                                        <option value="">-- Selecciona producto para agregar a la lista --</option>
+                                    </select>
+                                </div>
+                                <button type="button" id="btn-quick-add-prod" class="btn btn-action-add" title="Agregar producto seleccionado a la canasta">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </div>
+
+                            <!-- Lista limpia de productos seleccionados en ese mismo lugar, sin mayor decoración -->
+                            <div class="canasta-lista-simple-wrap">
+                                <div class="canasta-lista-header">
+                                    <span><i class="fa-solid fa-list-ul"></i> Productos en la canasta (<strong id="preview-count-text">0</strong>):</span>
+                                </div>
+                                <div class="canasta-lista-scroll">
+                                    <ul id="canasta-simple-lista" class="canasta-simple-lista">
+                                        <!-- Filas limpias generadas dinámicamente -->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="btn-group-primary" style="margin-top: 1.1rem;">
+                            <button id="btn-compra-mes" class="btn btn-primary" style="width: 100%;">
                                 <i class="fa-solid fa-play"></i> Iniciar Proceso Completo
-                            </button>
-                            <button id="btn-editar-lista" class="btn btn-secondary">
-                                <i class="fa-solid fa-pen-to-square"></i> Editar Canasta
                             </button>
                         </div>
                     </div>
@@ -230,22 +261,46 @@
                         <i class="fa-solid fa-list-check"></i>
                     </div>
                     <div>
-                        <h2>Configurar Canasta Mensual</h2>
+                        <h2>Configurar Canasta de Productos</h2>
                         <p class="modal-subtitle">
-                            Selecciona cada producto del catálogo y especifica la <strong>cantidad a comprar</strong>.
+                            Modifica los productos a buscar en los 3 supermercados. Cada producto se buscará individualmente como producto único (1 unidad).
                         </p>
                     </div>
                 </div>
                 <button type="button" class="btn-modal-close" id="btn-cerrar-x-modal" title="Cerrar">&times;</button>
             </div>
 
+            <!-- Panel de Agregar Producto en el Modal -->
+            <div class="modal-add-box">
+                <div class="modal-add-label">
+                    <i class="fa-solid fa-plus-circle" style="color: #818cf8;"></i>
+                    <span>Agregar producto a la canasta:</span>
+                </div>
+                <div class="modal-add-controls">
+                    <div class="modal-add-select-wrap">
+                        <select id="modal-select-nuevo-prod" class="modal-input modal-select-dropdown">
+                            <option value="">-- Selecciona producto disponible del catálogo --</option>
+                        </select>
+                    </div>
+                    <button type="button" id="modal-btn-agregar-prod" class="btn btn-primary btn-modal-add">
+                        <i class="fa-solid fa-plus"></i> Agregar
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-table-header-info">
+                <span><i class="fa-solid fa-table-list"></i> Productos configurados (<strong id="modal-total-count">0</strong>):</span>
+                <button type="button" id="btn-add-empty-row" class="btn-link-action">
+                    <i class="fa-solid fa-plus"></i> Añadir fila vacía
+                </button>
+            </div>
+
             <div class="modal-table-container">
                 <table class="modal-table" id="modal-table-canasta">
                     <thead>
                         <tr>
-                            <th style="width: 70%;">Producto</th>
-                            <th style="width: 22%;">Cantidad</th>
-                            <th style="width: 8%; text-align: center;"></th>
+                            <th style="width: 85%;">Producto del Catálogo</th>
+                            <th style="width: 15%; text-align: center;">Acción</th>
                         </tr>
                     </thead>
                     <tbody id="modal-tbody-canasta">

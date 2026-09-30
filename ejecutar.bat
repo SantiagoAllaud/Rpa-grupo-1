@@ -93,7 +93,7 @@ if not exist "input.csv" (
     (echo producto,modo& echo leche,compra_mes& echo arroz,compra_mes& echo fideos,compra_mes& echo aceite,compra_mes& echo yerba,compra_mes& echo azucar,compra_mes& echo cafe,compra_mes& echo galletitas,compra_mes& echo papel higienico,compra_mes) > input.csv
 )
 
-:: 5. Argumentos directos por línea de comandos (ej: ejecutar.bat "gaseosa secco pomelo")
+:: 5. Argumentos directos por línea de comandos (ej: ejecutar.bat "manaos cola 2.25l")
 if not "%~1"=="" (
     set "ARG1=%~1"
     goto :evaluar_arg
@@ -170,7 +170,7 @@ goto :menu
 :pedir_individual
 echo.
 set "PROD_MANUAL="
-set /p "PROD_MANUAL=Ingresa el producto a buscar (ej: Gaseosa Secco Pomelo, Coca Cola 2.25L): "
+set /p "PROD_MANUAL=Ingresa el producto a buscar (ej: Manaos Cola 2.25L, Coca Cola 2.25L): "
 if "%PROD_MANUAL%"=="" (
     echo [ERROR] No se ingresó ningún producto.
     ping 127.0.0.1 -n 3 >nul 2>&1

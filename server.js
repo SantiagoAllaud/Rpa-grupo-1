@@ -133,13 +133,30 @@ app.get('/api/datos-completos', (req, res) => {
     }
 });
 
-// Endpoint para obtener el catálogo cerrado estructurado
+// Endpoint para obtener el catálogo cerrado estructurado o filtrar por subcadenas
 app.get('/api/catalogo', (req, res) => {
     try {
         const catEngine = getCatalogo();
         const { catalogo: catData, items } = catEngine.cargarCatalogo();
         const categorias = catEngine.listarCategorias();
-        res.json({ success: true, catalogo: catData, items, categorias });
+        const q = req.query.q || req.query.buscar || req.query.subcadena;
+        let coincidencias = null;
+        if (q && typeof q === 'string') {
+            coincidencias = catEngine.buscarPorSubcadenas(q.trim());
+        }
+        res.json({ success: true, catalogo: catData, items, categorias, coincidencias });
+    } catch(e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Endpoint para búsqueda de productos por subcadenas con máxima cantidad de coincidencias
+app.get('/api/buscar-subcadenas', (req, res) => {
+    try {
+        const q = req.query.q || req.query.buscar || '';
+        const catEngine = getCatalogo();
+        const coincidencias = catEngine.buscarPorSubcadenas(q);
+        res.json({ success: true, query: q, total: coincidencias.length, coincidencias });
     } catch(e) {
         res.status(500).json({ success: false, message: e.message });
     }
@@ -328,8 +345,8 @@ app.post('/api/buscar-individual', async (req, res) => {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
-    const { producto, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
-    if (!producto || !producto.trim()) {
+    const { id, producto, variante, nombre_completo, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+    if ((!producto || !producto.trim()) && !id && !nombre_completo) {
         return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
     }
 
@@ -337,19 +354,22 @@ app.post('/api/buscar-individual', async (req, res) => {
 
     // Validación estricta previa contra el catálogo cerrado
     const catEngine = getCatalogo();
-    const valCat = catEngine.validarEntrada({ producto: producto.trim(), cantidad: cantNum, unidad: unidad.trim() });
+    const queryValidar = id ? { id, cantidad: cantNum, unidad: String(unidad).trim() } : { id, producto: (producto || nombre_completo || '').trim(), nombre_completo, variante, cantidad: cantNum, unidad: String(unidad).trim() };
+    const valCat = catEngine.validarEntrada(queryValidar);
     if (!valCat.valido) {
         return res.status(400).json({
             success: false,
-            message: `El producto "${producto}" no pertenece al catálogo cerrado.`,
-            opciones: valCat.opciones ? valCat.opciones.slice(0, 10) : []
+            message: `El producto "${producto || nombre_completo || id}" no pertenece al catálogo cerrado.`,
+            opciones: valCat.opciones ? valCat.opciones.slice(0, 10) : [],
+            coincidencias: valCat.coincidencias ? valCat.coincidencias.slice(0, 10) : [],
+            totalCoincidencias: valCat.totalCoincidencias || 0
         });
     }
 
     // Usar término oficial del catálogo
-    const prodOficial = valCat.item ? valCat.item.producto : producto.trim();
+    const prodOficial = valCat.item ? (valCat.item.nombre_completo || valCat.item.producto) : (producto || nombre_completo || '').trim();
     const cantOficial = valCat.item ? valCat.item.cantidad : cantNum;
-    const unidOficial = valCat.item ? valCat.item.unidad : unidad.trim();
+    const unidOficial = valCat.item ? valCat.item.unidad : String(unidad).trim();
     const termOficial = (terminoBusqueda || (valCat.item ? valCat.item.termino_busqueda : ''));
 
     isRpaRunning = true;
@@ -370,7 +390,10 @@ app.post('/api/buscar-individual', async (req, res) => {
         const resultados = await getRpaRunner().runRPA({
             modo: 'individual',
             items: [{
+                id: valCat.item ? valCat.item.id : id,
                 producto: prodOficial,
+                variante: valCat.item ? valCat.item.variante : variante,
+                marca: valCat.item ? valCat.item.marca : undefined,
                 terminoBusqueda: termOficial,
                 cantidad: cantOficial,
                 unidad: unidOficial
@@ -398,14 +421,15 @@ app.post('/api/buscar-individual', async (req, res) => {
         });
 
         ultimoProcesoData = {
-            producto: producto.trim(),
-            cantidad: cantNum,
-            unidad: unidad.trim(),
+            id: valCat.item ? valCat.item.id : id,
+            producto: prodOficial,
+            cantidad: cantOficial,
+            unidad: unidOficial,
             items: resultados
         };
 
         // Reporte en consola y actualización de Excel
-        await runCommand(`node validador.js --reporte-individual "${producto}"`);
+        await runCommand(`node validador.js --reporte-individual "${prodOficial}"`);
         try {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
         } catch (eKill) {}
@@ -485,6 +509,49 @@ app.post('/api/limpiar', async (req, res) => {
         await runCommand(`node validador.js --limpiar ${tipo}`);
         await runCommand('node generar_excel.js');
         res.json({ success: true, message: "Limpieza completada y Excel actualizado." });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.toString() });
+    }
+});
+
+// Endpoints del Diccionario de Supermercados
+app.get('/api/diccionario', (req, res) => {
+    try {
+        const catEngine = getCatalogo();
+        const dicc = catEngine.obtenerDiccionarioSupermercados();
+        res.json({ success: true, diccionario: dicc });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.toString() });
+    }
+});
+
+app.get('/api/diccionario/buscar', (req, res) => {
+    try {
+        const query = req.query.q || '';
+        if (!query) {
+            return res.status(400).json({ success: false, message: 'Parámetro "q" requerido.' });
+        }
+        const catEngine = getCatalogo();
+        const match = catEngine.buscarPorDiccionarioSupermercado(query);
+        res.json({ success: true, query, match });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.toString() });
+    }
+});
+
+app.post('/api/diccionario/alias', (req, res) => {
+    try {
+        const { id, alias } = req.body;
+        if (!id || !alias) {
+            return res.status(400).json({ success: false, message: 'Se requieren "id" y "alias".' });
+        }
+        const catEngine = getCatalogo();
+        const agregado = catEngine.agregarNombreSupermercado(id, alias, true);
+        if (agregado) {
+            res.json({ success: true, message: `Alias "${alias}" agregado correctamente al producto "${id}".` });
+        } else {
+            res.status(400).json({ success: false, message: `No se pudo agregar el alias. Verifica si el producto existe o si el alias ya estaba registrado.` });
+        }
     } catch (e) {
         res.status(500).json({ success: false, message: e.toString() });
     }

@@ -1,31 +1,43 @@
 modo,producto_solicitado,nombre_encontrado,precio,supermercado,url,fecha,stock_status,cantidad,unidad
-compra_mes,Coca Cola,Gaseosa Coca-Cola sabor original 600 ml,"$ 1.733,33 c/u",Carrefour,https://www.carrefour.com.ar/gaseosa-coca-cola-sabor-original-600-ml-763994/p,2026-09-22,DISPONIBLE,2.25,L
-compra_mes,Arroz Gallo,Arroz largo fino Gallo 00000 en bolsa 1 kg,"$ 1.799,25 c/u",Carrefour,https://www.carrefour.com.ar/arroz-largo-fino-gallo-00000-en-bolsa-1-kg-718789/p,2026-09-22,DISPONIBLE,1,kg
-compra_mes,Fideos Matarazzo,Fideos tallarines N15 Matarazzo 500 g.,"$ 944,00",Carrefour,https://www.carrefour.com.ar/fideos-tallarines-n15-matarazzo-500-g-718989/p,2026-09-22,DISPONIBLE,500,g
-compra_mes,Aceite Cocinero,Aceite de girasol Cocinero 1.5 l.,"$ 5.539,00 - 20%",Carrefour,https://www.carrefour.com.ar/aceite-de-girasol-cocinero-15-l-41078/p,2026-09-22,DISPONIBLE,1.5,L
-compra_mes,Yerba Playadito,No encontrado,N/D,Carrefour,https://www.carrefour.com.ar,2026-09-22,NO ENCONTRADO,1,kg
-compra_mes,Leche La Serenísima,No encontrado,N/D,Carrefour,https://www.carrefour.com.ar,2026-09-22,NO ENCONTRADO,1,L
-compra_mes,Secco,Gaseosa pomelo Secco sin azúcar botella 2.25 l.,"$ 93,11",Carrefour,https://www.carrefour.com.ar/gaseosa-pomelo-secco-sin-azucar-botella-225-l/p,2026-09-22,DISPONIBLE,2.25,L
-compra_mes,Galletitas Oreo,Galletitas dulces Oreo rellenas con crema 118 g.,"$ 2.469,00",Carrefour,https://www.carrefour.com.ar/galletitas-dulce-oreo-rellenas-con-crema-118-g-715949/p,2026-09-22,DISPONIBLE,118,g
-compra_mes,Detergente Magistral,Detergente Magistral Ultra Limón Botella 500 ml,"$ 4.429,00",Carrefour,https://www.carrefour.com.ar/detergente-magistral-ultra-limon-en-botella-500-ml-741296/p,2026-09-22,DISPONIBLE,500,ml
-compra_mes,Papel Higiénico Higienol,Papel higiénico Higienol Max hoja simple 100 mts 4 uni,"$ 7.680,00",Carrefour,https://www.carrefour.com.ar/papel-higienico-higienol-max-hoja-simple-100-mts-4-uni-723830/p,2026-09-22,DISPONIBLE,4,un
-compra_mes,Coca Cola,"Gaseosa Coca-Cola Sabor Original 2,25 Lt","$3.933,53",COTO,https://www.coto.com.ar/productos/gaseosa-coca-cola-sabor-original-2-25-lt-/_/R-00014450-00014450-200,2026-09-22,DISPONIBLE,2.25,L
-compra_mes,Arroz Gallo,Arroz Largo Fino Gallo 1 Kg,"$2.620,00",COTO,https://www.coto.com.ar/productos/arroz-largo-fino-gallo-1-kg-/_/R-00561452-00561452-200,2026-09-22,DISPONIBLE,1,kg
-compra_mes,Fideos Matarazzo,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,500,g
-compra_mes,Aceite Cocinero,Aceite Girasol COCINERO Bot 1.5 Ltr,"$6.925,00",COTO,https://www.coto.com.ar/productos/aceite-girasol-cocinero-bot-1-5-ltr-/_/R-00011760-00011760-200,2026-09-22,DISPONIBLE,1.5,L
-compra_mes,Yerba Playadito,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,1,kg
-compra_mes,Leche La Serenísima,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,1,L
-compra_mes,Secco,No encontrado,N/D,COTO,https://www.coto.com.ar,2026-09-22,NO ENCONTRADO,2.25,L
-compra_mes,Galletitas Oreo,Galletitas OREO Rellenas Con Crema De Chocolate 118g,"$1.605,50",COTO,https://www.coto.com.ar/productos/galletitas-oreo-rellenas-con-crema-de-chocolate-118g-/_/R-00511280-00511280-200,2026-09-22,DISPONIBLE,118,g
-compra_mes,Detergente Magistral,Detergente MAGISTRAL Ultra Limón Botella 500ml,"$3.282,49",COTO,https://www.coto.com.ar/productos/detergente-magistral-ultra-limon-botella-500ml-/_/R-00584037-00584037-200,2026-09-22,DISPONIBLE,500,ml
-compra_mes,Papel Higiénico Higienol,Papel Higiénico HIGIENOL Plus Fusión Doble Hoja 30 M 4 Un,"$4.593,99",COTO,https://www.coto.com.ar/productos/papel-higienico-higienol-plus-fusion-doble-hoja-30-m-4-un-/_/R-00580544-00580544-200,2026-09-22,DISPONIBLE,4,un
-compra_mes,Coca Cola,Gaseosa Coca-Cola Sabor Original 2.25 Lt.,$ 5.900,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-sabor-original-225-lt-14837/p,2026-09-22,DISPONIBLE,2.25,L
-compra_mes,Arroz Gallo,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,1,kg
-compra_mes,Fideos Matarazzo,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,500,g
-compra_mes,Aceite Cocinero,"Aceite de Girasol Cocinero 1,5 Lt.",$ 6.925,Día %,https://diaonline.supermercadosdia.com.ar/aceite-de-girasol-cocinero-15-lt-25338/p,2026-09-22,DISPONIBLE,1.5,L
-compra_mes,Yerba Playadito,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,1,kg
-compra_mes,Leche La Serenísima,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,1,L
-compra_mes,Secco,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar,2026-09-22,NO ENCONTRADO,2.25,L
-compra_mes,Galletitas Oreo,Galletitas Oreo Rellenas con Crema Sabor Original Menos sodio 118 Gr.,$ 2.470,Día %,https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-menos-sodio-118-gr-271629/p,2026-09-22,DISPONIBLE,118,g
-compra_mes,Detergente Magistral,Detergente Magistral Ultra Limon Botella 500 Ml.,$ 4.409,Día %,https://diaonline.supermercadosdia.com.ar/detergente-magistral-ultra-limon-botella-500-ml-307689/p,2026-09-22,DISPONIBLE,500,ml
-compra_mes,Papel Higiénico Higienol,Papel Higiénico Doble Hoja Fusion Higienol 4 Ud.,$ 4.985,Día %,https://diaonline.supermercadosdia.com.ar/papel-higienico-doble-hoja-fusion-higienol-4-ud-301701/p,2026-09-22,DISPONIBLE,4,un
+compra_mes,Lavandina Ayudín,Lavandina Ayudín original 1 l.,"$ 1.279,00",Carrefour,https://www.carrefour.com.ar/lavandina-ayudin-original-1-l/p,2026-09-30,DISPONIBLE,1,L
+compra_mes,Manaos Lima Limón,"Gaseosa lima limón Manaos 2,25 lts","$ 2.420,00",Carrefour,https://www.carrefour.com.ar/gaseosa-lima-limon-manaos-225-lts-530791/p,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Leche La Serenísima,Leche La serenisima clásica 3% 1L,"$ 2.915,00",Carrefour,https://www.carrefour.com.ar/leche-la-serenisima-clasica-3-1l-720719/p,2026-09-30,DISPONIBLE,1,L
+compra_mes,Coca Cola,No encontrado,N/D,Carrefour,https://www.carrefour.com.ar/coca%20cola%202%2c25%20lts?_q=Coca%20Cola%202,25%20lts&map=ft,2026-09-30,1,2.25
+compra_mes,Sprite,"Gaseosa lima limón Sprite 2,25 lts","$ 4.425,00 c/u",Carrefour,https://www.carrefour.com.ar/gaseosa-lima-limon-sprite-225-lts-17427/p,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Manaos Naranja,No encontrado,N/D,Carrefour,https://www.carrefour.com.ar/manaos?_q=manaos&map=ft,2026-09-30,NO ENCONTRADO,2.25,L
+compra_mes,Arroz Gallo,Arroz largo fino Gallo 00000 en bolsa 1 kg,"$ 2.619,00",Carrefour,https://www.carrefour.com.ar/arroz-largo-fino-gallo-00000-en-bolsa-1-kg-718789/p,2026-09-30,DISPONIBLE,1,kg
+compra_mes,Arroz Lucchetti,Arroz largo fino 00000 Lucchetti 1 kg.,"$ 1.469,00 c/u",Carrefour,https://www.carrefour.com.ar/arroz-largo-fino-00000-lucchetti-1-kg-726297/p,2026-09-30,DISPONIBLE,1,kg
+compra_mes,Fideos Matarazzo,Fideos tallarines N15 Matarazzo 500 g.,"$ 944,00",Carrefour,https://www.carrefour.com.ar/fideos-tallarines-n15-matarazzo-500-g-718989/p,2026-09-30,DISPONIBLE,500,g
+compra_mes,Galletitas Oreo,Galletitas dulces Oreo rellenas con crema 118 g.,"$ 1.604,85 c/u",Carrefour,https://www.carrefour.com.ar/galletitas-dulce-oreo-rellenas-con-crema-118-g-715949/p,2026-09-30,DISPONIBLE,118,g
+compra_mes,Leche Tregar,Leche entera larga vida Tregar 1 l.,"$ 1.912,50 c/u",Carrefour,https://www.carrefour.com.ar/leche-entera-larga-vida-tregar-1-l/p,2026-09-30,DISPONIBLE,1,L
+compra_mes,Aceite Cocinero,Aceite de girasol Cocinero 1.5 l.,"$ 6.925,00",Carrefour,https://www.carrefour.com.ar/aceite-de-girasol-cocinero-15-l-41078/p,2026-09-30,DISPONIBLE,1.5,L
+compra_mes,Yerba Taragüí,Yerba mate Taragüi con palo origen controlado 1 kg.,"$ 5.350,00",Carrefour,https://www.carrefour.com.ar/yerba-mate-taragui-con-palo-origen-controlado-1-kg/p,2026-09-30,DISPONIBLE,1,kg
+compra_mes,Lavandina Ayudín,Lavandina Liquida AYUDÍN Botella 1 L,"$1.453,99",COTO,https://www.coto.com.ar/productos/lavandina-liquida-ayudin-botella-1-l-/_/R-00005555-00005555-200,2026-09-30,DISPONIBLE,1,L
+compra_mes,Manaos Lima Limón,Gaseosa Lima Limón Manaos 2.25l,"$2.057,00",COTO,https://www.coto.com.ar/productos/gaseosa-lima-limon-manaos-2-25l-/_/R-00617703-00617703-200,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Leche La Serenísima,Leche Larga Vida Entera Ua Clasica 3% LA SERENISIMA 1l,"$2.915,00",COTO,https://www.coto.com.ar/productos/leche-larga-vida-entera-ua-clasica-3-la-serenisima-1l-/_/R-00251875-00251875-200,2026-09-30,DISPONIBLE,1,L
+compra_mes,Coca Cola,"Gaseosa Coca-Cola Sabor Original 2,25 Lt","$5.015,00",COTO,https://www.coto.com.ar/productos/gaseosa-coca-cola-sabor-original-2-25-lt-/_/R-00014450-00014450-200,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Sprite,"Gaseosa SPRITE Lima-Limón 2,25 Lt","$5.900,00",COTO,https://www.coto.com.ar/productos/gaseosa-sprite-lima-limon-2-25-lt-/_/R-00014451-00014451-200,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Manaos Naranja,Gaseosa Naranja Manaos 2.25l,"$2.057,00",COTO,https://www.coto.com.ar/productos/gaseosa-naranja-manaos-2-25l-/_/R-00617704-00617704-200,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Arroz Gallo,Arroz Largo Fino Gallo 1 Kg,"$2.620,00",COTO,https://www.coto.com.ar/productos/arroz-largo-fino-gallo-1-kg-/_/R-00561452-00561452-200,2026-09-30,DISPONIBLE,1,kg
+compra_mes,Arroz Lucchetti,Arroz Largo Fino LUCCHETTI 1kg,"$2.135,00",COTO,https://www.coto.com.ar/productos/arroz-largo-fino-lucchetti-1kg-/_/R-00571989-00571989-200,2026-09-30,DISPONIBLE,1,kg
+compra_mes,Fideos Matarazzo,Fideos Tallarín Matarazzo 500g,"$2.100,00",COTO,https://www.coto.com.ar/productos/fideos-tallarin-matarazzo-500g-/_/R-00573920-00573920-200,2026-09-30,DISPONIBLE,500,g
+compra_mes,Galletitas Oreo,Galletitas OREO Rellenas Con Crema Sabor Original 118g,"$2.470,00",COTO,https://www.coto.com.ar/productos/galletitas-oreo-rellenas-con-crema-sabor-original-118g-/_/R-00532297-00532297-200,2026-09-30,DISPONIBLE,118,g
+compra_mes,Leche Tregar,Leche Larga Vida Entera TREGAR Ttb 1 L,"$2.559,00",COTO,https://www.coto.com.ar/productos/leche-larga-vida-entera-tregar-ttb-1-l-/_/R-00262249-00262249-200,2026-09-30,DISPONIBLE,1,L
+compra_mes,Aceite Cocinero,Aceite Girasol COCINERO Bot 1.5 Ltr,"$6.925,00",COTO,https://www.coto.com.ar/productos/aceite-girasol-cocinero-bot-1-5-ltr-/_/R-00011760-00011760-200,2026-09-30,DISPONIBLE,1.5,L
+compra_mes,Yerba Taragüí,Yerba Mate 4 Flex Taragui 1 Kg,"$5.650,00",COTO,https://www.coto.com.ar/productos/yerba-mate-4-flex-taragui-1-kg-/_/R-00499474-00499474-200,2026-09-30,DISPONIBLE,1,kg
+compra_mes,Lavandina Ayudín,Lavandina Ayudín Original 1 Lt.,$ 1.279,Día %,https://diaonline.supermercadosdia.com.ar/lavandina-ayudin-original-1-lt-15128/p,2026-09-30,DISPONIBLE,1,L
+compra_mes,Manaos Lima Limón,"Gaseosa Manaos Lima Limón 2,25 Lts.",$ 2.400,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-manaos-lima-limon-225-lts-240197/p,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Leche La Serenísima,Leche Larga Vida Clásica 3% La Serenisima 1 Lt.,$ 2.190,Día %,https://diaonline.supermercadosdia.com.ar/leche-larga-vida-clasica-3--la-serenisima-1-lt-295999/p,2026-09-30,DISPONIBLE,1,L
+compra_mes,Coca Cola,Gaseosa Coca-Cola Sabor Original 2.25 Lt.,$ 5.900,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-sabor-original-225-lt-14837/p,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Sprite,"Gaseosa Sprite Lima-Limón 2,25 Lt.",$ 5.900,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-sprite-lima-limon-225-lt-14847/p,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Manaos Naranja,"Gaseosa Manaos Naranja 2,25 Lts.",$ 1.800,Día %,https://diaonline.supermercadosdia.com.ar/gaseosa-manaos-naranja-225-lts-240196/p,2026-09-30,DISPONIBLE,2.25,L
+compra_mes,Arroz Gallo,No encontrado,N/D,Día %,https://diaonline.supermercadosdia.com.ar/arroz%20gallo%20largo%20fino%201%20kg?_q=Arroz%20Gallo%20Largo%20Fino%201%20kg&map=ft,2026-09-30,NO ENCONTRADO,1,kg
+compra_mes,Arroz Lucchetti,Arroz Largo Fino Luchetti 1 Kg.,$ 2.135,Día %,https://diaonline.supermercadosdia.com.ar/arroz-largo-fino-luchetti-1-kg-299671/p,2026-09-30,DISPONIBLE,1,kg
+compra_mes,Fideos Matarazzo,Fideos Tallarin N5 Matarazzo 500 Gr.,$ 2.099,Día %,https://diaonline.supermercadosdia.com.ar/fideos-tallarin-n5-matarazzo-500-gr-42907/p,2026-09-30,DISPONIBLE,500,g
+compra_mes,Galletitas Oreo,Galletitas Oreo Rellenas con Crema Sabor Original Menos sodio 118 Gr.,$ 2.470,Día %,https://diaonline.supermercadosdia.com.ar/galletitas-oreo-rellenas-con-crema-sabor-original-menos-sodio-118-gr-271629/p,2026-09-30,DISPONIBLE,118,g
+compra_mes,Leche Tregar,Leche Entera Tregar Larga Vida 1 Lt.,$ 2.550,Día %,https://diaonline.supermercadosdia.com.ar/leche-entera-tregar-larga-vida-1-lt-275781/p,2026-09-30,DISPONIBLE,1,L
+compra_mes,Aceite Cocinero,"Aceite de Girasol Cocinero 1,5 Lt.",$ 6.925,Día %,https://diaonline.supermercadosdia.com.ar/aceite-de-girasol-cocinero-15-lt-25338/p,2026-09-30,DISPONIBLE,1.5,L
+compra_mes,Yerba Taragüí,Yerba Mate Taragüi 4 Flex 1 Kg.,$ 5.369,Día %,https://diaonline.supermercadosdia.com.ar/yerba-mate-taragui-4-flex-1-kg-269666/p,2026-09-30,DISPONIBLE,1,kg
+"individual","Coca Cola Original 2.25 L","Gaseosa cola Coca Cola sabor original 2,25 lts","$ 5.900,00","Carrefour","https://www.carrefour.com.ar/gaseosa-cola-coca-cola-sabor-original-225-lts-30138/p","2026-09-30","DISPONIBLE","2.25","L"
+"individual","Coca Cola Original 2.25 L","Gaseosa Coca-Cola Sabor Original 2,25 Lt","$5.015,00","COTO","https://www.coto.com.ar/productos/gaseosa-coca-cola-sabor-original-2-25-lt-/_/R-00014450-00014450-200","2026-09-30","DISPONIBLE","2.25","L"
+"individual","Coca Cola Original 2.25 L","Gaseosa Coca-Cola Sabor Original 2.25 Lt.","$ 5.900","Día %","https://diaonline.supermercadosdia.com.ar/gaseosa-coca-cola-sabor-original-225-lt-14837/p","2026-09-30","DISPONIBLE","2.25","L"

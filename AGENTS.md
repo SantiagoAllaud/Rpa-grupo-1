@@ -59,7 +59,7 @@ Rpa programa/
 │   ├── capture_frontend_ui.js    # Captura de pantalla de la interfaz web
 │   ├── test_error_concurrency.js # Test de concurrencia y bloqueo de ejecuciones
 │   ├── verify_compra_mes.js      # Verificación del flujo de canasta mensual
-│   └── verify_live_search_secco.js # Verificación de validación semántica estricta
+│   └── verify_live_search_manaos.js # Verificación de validación semántica estricta
 ├── .gitignore                    # Exclusiones de Git (node_modules, xlsx temporales)
 ├── AGENTS.md                     # [ESTE ARCHIVO] Instrucciones y directivas para agentes
 ├── ejecutar.bat                  # Lanzador CLI por lotes para Windows (UTF-8 / CRLF)
@@ -189,7 +189,7 @@ tagui supermercados.tag input.csv
    ```bash
    node tests/verify_compra_mes.js
    node tests/test_error_concurrency.js
-   node tests/verify_live_search_secco.js
+   node tests/verify_live_search_manaos.js
    ```
 
 ---

@@ -441,7 +441,7 @@ function determinarUnidadDefault(producto, unidadIngresada) {
     const p = producto.toLowerCase();
     if (p.includes('arroz') || p.includes('fideos')) return '500g';
     if (p.includes('leche')) return '1L';
-    if (p.includes('coca') || p.includes('gaseosa') || p.includes('secco') || p.includes('manaos') || p.includes('pepsi')) return '2L';
+    if (p.includes('coca') || p.includes('gaseosa') || p.includes('manaos') || p.includes('pepsi')) return '2L';
     if (p.includes('aceite')) return '1.5L';
     if (p.includes('yerba')) return '500g';
     if (p.includes('azucar') || p.includes('azúcar')) return '1kg';
@@ -467,57 +467,65 @@ async function searchCarrefour(page, prodClean, options = {}) {
     const textoATipear = validador.adaptarTerminoSupermercado(baseTexto, 'Carrefour');
 
     const yaEnCarrefour = page.url().includes('carrefour.com.ar');
-    if (!yaEnCarrefour) {
-        if (onStatus) {
-            onStatus({ type: 'log', message: '[SUPERMERCADO 1] Navegando visualmente a https://www.carrefour.com.ar...' });
+    const reusarBusqueda = yaEnCarrefour && options.ultimoTerminoBuscado && (options.ultimoTerminoBuscado.toLowerCase().trim() === textoATipear.toLowerCase().trim());
+
+    if (!reusarBusqueda) {
+        if (!yaEnCarrefour) {
+            if (onStatus) {
+                onStatus({ type: 'log', message: '[SUPERMERCADO 1] Navegando visualmente a https://www.carrefour.com.ar...' });
+            }
+            // 1. Navegar por barra de direcciones
+            await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
+            await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+            await eliminarCookies(page);
+            await sleep(400);
+        } else {
+            await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+            await eliminarCookies(page);
+            await sleep(250);
         }
-        // 1. Navegar por barra de direcciones
-        await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
-        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+
+        // 2. Localizar buscador
+        if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Localizando buscador para: "${textoATipear}"...` });
+        const searchSel = 'input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input';
+        await page.waitForSelector(searchSel, { timeout: 10000 }).catch(() => {});
+
+        // 3. Escribir carácter por carácter de forma visible el término específico
+        let typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
+        if (!typedCarrefour) {
+            await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
+            await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+            await eliminarCookies(page);
+            await sleep(500);
+            typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
+        }
+        if (!typedCarrefour) {
+            throw new Error('No se encontró un buscador visible de Carrefour.');
+        }
+
+        // 4. Ejecutar búsqueda con Enter
+        await sleep(300);
+        await visibleKey('{ENTER}');
+
+        if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Esperando resultados de búsqueda...' });
+        for (let w = 0; w < 20; w++) {
+            await sleep(500);
+            const curU = page.url();
+            if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=') || curU.includes('almacen')) {
+                break;
+            }
+            if (w === 3) {
+                await visibleKey('{ENTER}');
+                await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
+            }
+        }
+        await sleep(CONFIG.PAUSE_AFTER_SEARCH);
         await eliminarCookies(page);
-        await sleep(400);
     } else {
+        if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Término de catálogo idéntico al anterior ("${textoATipear}"). Reutilizando resultados en pantalla para extraer "${prodClean}"...` });
         await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-        await eliminarCookies(page);
-        await sleep(250);
+        await sleep(CONFIG.PAUSE_AFTER_SEARCH / 3);
     }
-
-    // 2. Localizar buscador
-    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 1] Localizando buscador para: "${textoATipear}"...` });
-    const searchSel = 'input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input';
-    await page.waitForSelector(searchSel, { timeout: 10000 }).catch(() => {});
-
-    // 3. Escribir carácter por carácter de forma visible el término específico
-    let typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
-    if (!typedCarrefour) {
-        await visibleNavigate(page, 'https://www.carrefour.com.ar', typingDelay);
-        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
-        await eliminarCookies(page);
-        await sleep(500);
-        typedCarrefour = await visibleType(page, searchSel, textoATipear, typingDelay, mouseDuration);
-    }
-    if (!typedCarrefour) {
-        throw new Error('No se encontró un buscador visible de Carrefour.');
-    }
-
-    // 4. Ejecutar búsqueda con Enter
-    await sleep(300);
-    await visibleKey('{ENTER}');
-
-    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Esperando resultados de búsqueda...' });
-    for (let w = 0; w < 20; w++) {
-        await sleep(500);
-        const curU = page.url();
-        if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=') || curU.includes('almacen')) {
-            break;
-        }
-        if (w === 3) {
-            await visibleKey('{ENTER}');
-            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
-        }
-    }
-    await sleep(CONFIG.PAUSE_AFTER_SEARCH);
-    await eliminarCookies(page);
 
     // 5. Extracción directa del mejor producto según relevancia de búsqueda específica
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 1] Extrayendo datos del producto seleccionado...' });
@@ -529,13 +537,14 @@ async function searchCarrefour(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        nombresSupermercados: (itemCat && itemCat.nombres_supermercados) ? itemCat.nombres_supermercados.map(n => validador.normalizar(n)) : []
     };
 
     const cData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
-            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(\d+)\s*%/g, '$1%').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -583,18 +592,48 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 if (inc) continue;
             }
 
+            // A.2) Verificación estricta de categoría láctea
+            if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                // Descartar bebidas vegetales
+                var esVegetal = ['vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas'].some(function(v) {
+                    return contienePalabra(nClean, v);
+                });
+                if (esVegetal) continue;
+
+                // Debe contener término lácteo si no coincide con diccionario oficial
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    return contienePalabra(nClean, t);
+                });
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) continue;
+            }
+
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
-                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
+                var esAliasDiccMarca = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                var tieneMarcaReq = esAliasDiccMarca || config.palabrasMarca.every(function(w) {
+                    if (w === 'lucchetti' || w === 'luchetti') {
+                        return contienePalabra(nClean, 'lucchetti') || contienePalabra(nClean, 'luchetti');
+                    }
+                    return contienePalabra(nClean, w);
+                });
                 if (!tieneMarcaReq) continue; // Descarte de marcas ajenas
 
                 // Descartar si menciona otra marca competidora
-                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var marcaBuscadaNorm = cleanText(config.marca || '');
                 var tieneMarcaComp = false;
                 if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
                     for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
-                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
-                        if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
+                        var mOtra = cleanText(config.marcasCompetidoras[mIdx]);
+                        var esMisma = mOtra === marcaBuscadaNorm ||
+                            marcaBuscadaNorm.includes(mOtra) ||
+                            mOtra.includes(marcaBuscadaNorm) ||
+                            ((marcaBuscadaNorm === 'lucchetti' || marcaBuscadaNorm === 'luchetti') && (mOtra === 'lucchetti' || mOtra === 'luchetti'));
+                        if (!esMisma) {
                             if (contienePalabra(nClean, mOtra)) {
                                 tieneMarcaComp = true;
                                 break;
@@ -608,25 +647,110 @@ async function searchCarrefour(page, prodClean, options = {}) {
             // C) REQUISITO DE VARIANTE (si aplica, ej: Pomelo vs Cola)
             if (config.variante) {
                 var varNorm = cleanText(config.variante);
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'suave'].some(function(b) {
                     return varNorm.indexOf(b) > -1;
                 });
-                if (!esBase) {
-                    if (nClean.indexOf(varNorm) === -1) continue;
-                } else {
-                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
-                        continue;
-                    }
-                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
-                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                if (!esAliasDicc && !esBase) {
+                    if (varNorm.indexOf('lima') > -1 || varNorm.indexOf('limon') > -1) {
+                        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+                        if (['cola', 'naranja', 'pomelo', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                             continue;
                         }
+                    } else if (varNorm.indexOf('naranja') > -1) {
+                        if (nClean.indexOf('naranja') === -1) continue;
+                        if (['cola', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    } else if (varNorm.indexOf('cola') > -1) {
+                        if (nClean.indexOf('cola') === -1) continue;
+                        if (['naranja', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    } else if (varNorm.indexOf('tallarin') > -1) {
+                        if (nClean.indexOf('tallarin') === -1 && nClean.indexOf('tallarines') === -1) continue;
+                    } else if (nClean.indexOf(varNorm) === -1) {
+                        continue;
+                    }
+                } else if (!esAliasDicc) {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                        continue;
+                    }
+                    if (varNorm.indexOf('cola') > -1) {
+                        if (['naranja', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (varNorm.indexOf('lima') > -1 || varNorm.indexOf('limon') > -1) {
+                        if (['cola', 'naranja', 'pomelo', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (varNorm.indexOf('naranja') > -1) {
+                        if (['cola', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'protein', 'proteina', 'proteinas', 'extra protein', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (config.categoria === 'limpieza' || config.categoria === 'papel_higienico' || (config.queryOriginal && (config.queryOriginal.toLowerCase().indexOf('papel higienico') > -1 || config.queryOriginal.toLowerCase().indexOf('higienol') > -1))) {
+                        var qLowerC = (config.queryOriginal || '').toLowerCase();
+                        var varLowerC = (config.variante || '').toLowerCase();
+                        var pideMaxC = qLowerC.indexOf('max') > -1 || varLowerC.indexOf('max') > -1 || qLowerC.indexOf('100') > -1 || varLowerC.indexOf('100') > -1;
+                        var esMaxC = contienePalabra(nClean, 'max') || nClean.indexOf('100 mts') > -1 || nClean.indexOf('100 m') > -1 || nClean.indexOf('100m') > -1 || nClean.indexOf('mega') > -1;
+
+                        if (!pideMaxC && esMaxC) continue;
+                        if (pideMaxC && !esMaxC) continue;
                     }
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
+            // D) SCORING COMPLETO Y EXHAUSTIVO
             var score = 50;
+
+            // Coincidencia con diccionario oficial de supermercados (máxima prioridad)
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean) {
+                        score += 250;
+                        break;
+                    } else if (nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 180;
+                        break;
+                    }
+                }
+            }
+
+            // Coincidencia de variante solicitada (ej: "clasica", "entera", "3%")
+            if (config.variante) {
+                var vNorm = cleanText(config.variante);
+                if (vNorm.indexOf('clasica') > -1 || vNorm.indexOf('entera') > -1) {
+                    if (nClean.indexOf('clasica') > -1 || nClean.indexOf('clasico') > -1) score += 70;
+                    if (nClean.indexOf('entera') > -1) score += 60;
+                    if (nClean.indexOf('3%') > -1 || nClean.indexOf('3 %') > -1) score += 70;
+                } else if (vNorm.indexOf('original') > -1) {
+                    if (nClean.indexOf('original') > -1) score += 70;
+                } else if (vNorm.indexOf('largo fino') > -1) {
+                    if (nClean.indexOf('largo fino') > -1) score += 70;
+                } else if (vNorm.indexOf('tallarines') > -1 || vNorm.indexOf('tallarin') > -1) {
+                    if (nClean.indexOf('tallarin') > -1 || nClean.indexOf('tallarines') > -1) score += 70;
+                    if (nClean.indexOf('n5') > -1 || nClean.indexOf('n 5') > -1) score += 40;
+                } else if (vNorm.indexOf('cola') > -1) {
+                    if (contienePalabra(nClean, 'cola')) score += 70;
+                } else if (vNorm.indexOf('naranja') > -1) {
+                    if (contienePalabra(nClean, 'naranja')) score += 70;
+                } else if (vNorm.indexOf('lima') > -1 || vNorm.indexOf('limon') > -1) {
+                    if (contienePalabra(nClean, 'lima') || contienePalabra(nClean, 'limon')) score += 70;
+                }
+            }
+
+            // Scoring por presentación
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
@@ -649,6 +773,14 @@ async function searchCarrefour(page, prodClean, options = {}) {
                 if (config.unidad === 'g' && (nClean.indexOf(cantStr + 'g') > -1 || nClean.indexOf(cantDot + 'g') > -1 || nClean.indexOf(cantDot + ' g') > -1)) {
                     score += 50;
                 }
+                if (config.unidad === 'un' && (nClean.indexOf(cantDot + ' un') > -1 || nClean.indexOf(cantDot + ' uni') > -1 || nClean.indexOf(cantDot + ' ud') > -1 || nClean.indexOf(cantDot + ' rollos') > -1)) {
+                    score += 50;
+                }
+            }
+
+            // Término de categoría explícito
+            if (config.categoria && nClean.indexOf(cleanText(config.categoria)) > -1) {
+                score += 30;
             }
 
             if (score > bestScore) {
@@ -659,14 +791,13 @@ async function searchCarrefour(page, prodClean, options = {}) {
                     url: urlVal,
                     stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
                 };
-                if (score >= 100) break;
             }
         }
 
         return bestCandidate;
     }, queryConfig);
 
-    return cData;
+    return cData ? { ...cData, terminoBuscado: textoATipear } : { name: 'No encontrado', price: 'N/D', url: page.url(), stock: 'NO ENCONTRADO', terminoBuscado: textoATipear };
 }
 
 // ------------------------------------------------------------------------------
@@ -681,47 +812,55 @@ async function searchCoto(page, prodClean, options = {}) {
     const textoATipear = validador.adaptarTerminoSupermercado(baseTexto, 'COTO');
 
     const yaEnCoto = page.url().includes('coto.com.ar');
-    if (!yaEnCoto) {
-        if (onStatus) {
-            onStatus({ type: 'log', message: '[SUPERMERCADO 2] Navegando visualmente a https://www.coto.com.ar...' });
+    const reusarBusqueda = yaEnCoto && options.ultimoTerminoBuscado && (options.ultimoTerminoBuscado.toLowerCase().trim() === textoATipear.toLowerCase().trim());
+
+    if (!reusarBusqueda) {
+        if (!yaEnCoto) {
+            if (onStatus) {
+                onStatus({ type: 'log', message: '[SUPERMERCADO 2] Navegando visualmente a https://www.coto.com.ar...' });
+            }
+            // 1. Navegar por barra de direcciones
+            await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
+            await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+            await eliminarCookies(page);
+        } else {
+            await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+            await eliminarCookies(page);
+            await sleep(250);
         }
-        // 1. Navegar por barra de direcciones
-        await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
-        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+
+        // 2. Localizar buscador de COTO
+        if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 2] Localizando buscador para: "${textoATipear}"...` });
+        const cotoSearchSel = 'input#cio-autocomplete-0-input, input.cio-input, input[placeholder*="comprar" i], input[type="search"]';
+        await page.waitForSelector(cotoSearchSel, { visible: true, timeout: 10000 }).catch(() => {});
+
+        // 3. Tipear carácter por carácter
+        let typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
+        if (!typedOkCt) {
+            await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
+            await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+            await eliminarCookies(page);
+            typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
+        }
+        if (!typedOkCt) {
+            throw new Error('No se encontró un buscador visible de COTO.');
+        }
+
+        // 4. Ejecutar búsqueda
+        const cotoBtnSel = 'button.cio-submit-btn, button[type="submit"], .cio-search-submit';
+        const clickedBtnCt = await visibleClick(page, cotoBtnSel, mouseDuration);
+        if (!clickedBtnCt) {
+            await visibleKey('{ENTER}');
+        }
+
+        if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Esperando resultados de búsqueda...' });
+        await sleep(CONFIG.PAUSE_AFTER_SEARCH);
         await eliminarCookies(page);
     } else {
+        if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 2] Término de catálogo idéntico al anterior ("${textoATipear}"). Reutilizando resultados en pantalla para extraer "${prodClean}"...` });
         await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-        await eliminarCookies(page);
-        await sleep(250);
+        await sleep(CONFIG.PAUSE_AFTER_SEARCH / 3);
     }
-
-    // 2. Localizar buscador de COTO
-    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 2] Localizando buscador para: "${textoATipear}"...` });
-    const cotoSearchSel = 'input#cio-autocomplete-0-input, input.cio-input, input[placeholder*="comprar" i], input[type="search"]';
-    await page.waitForSelector(cotoSearchSel, { visible: true, timeout: 10000 }).catch(() => {});
-
-    // 3. Tipear carácter por carácter
-    let typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
-    if (!typedOkCt) {
-        await visibleNavigate(page, 'https://www.coto.com.ar', typingDelay);
-        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
-        await eliminarCookies(page);
-        typedOkCt = await visibleType(page, cotoSearchSel, textoATipear, typingDelay, mouseDuration);
-    }
-    if (!typedOkCt) {
-        throw new Error('No se encontró un buscador visible de COTO.');
-    }
-
-    // 4. Ejecutar búsqueda
-    const cotoBtnSel = 'button.cio-submit-btn, button[type="submit"], .cio-search-submit';
-    const clickedBtnCt = await visibleClick(page, cotoBtnSel, mouseDuration);
-    if (!clickedBtnCt) {
-        await visibleKey('{ENTER}');
-    }
-
-    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Esperando resultados de búsqueda...' });
-    await sleep(CONFIG.PAUSE_AFTER_SEARCH);
-    await eliminarCookies(page);
 
     // 5. Extracción directa del mejor producto según relevancia de búsqueda específica
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 2] Extrayendo datos del producto seleccionado...' });
@@ -733,13 +872,14 @@ async function searchCoto(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        nombresSupermercados: (itemCat && itemCat.nombres_supermercados) ? itemCat.nombres_supermercados.map(n => validador.normalizar(n)) : []
     };
 
     const ctData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
-            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(\d+)\s*%/g, '$1%').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -783,18 +923,48 @@ async function searchCoto(page, prodClean, options = {}) {
                 if (inc) continue;
             }
 
+            // A.2) Verificación estricta de categoría láctea
+            if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                // Descartar bebidas vegetales
+                var esVegetal = ['vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas'].some(function(v) {
+                    return contienePalabra(nClean, v);
+                });
+                if (esVegetal) continue;
+
+                // Debe contener término lácteo si no coincide con diccionario oficial
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    return contienePalabra(nClean, t);
+                });
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) continue;
+            }
+
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
-                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
+                var esAliasDiccMarcaCt = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                var tieneMarcaReq = esAliasDiccMarcaCt || config.palabrasMarca.every(function(w) {
+                    if (w === 'lucchetti' || w === 'luchetti') {
+                        return contienePalabra(nClean, 'lucchetti') || contienePalabra(nClean, 'luchetti');
+                    }
+                    return contienePalabra(nClean, w);
+                });
                 if (!tieneMarcaReq) continue;
 
                 // Descartar si menciona otra marca competidora
-                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var marcaBuscadaNorm = cleanText(config.marca || '');
                 var tieneMarcaComp = false;
                 if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
                     for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
-                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
-                        if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
+                        var mOtra = cleanText(config.marcasCompetidoras[mIdx]);
+                        var esMisma = mOtra === marcaBuscadaNorm ||
+                            marcaBuscadaNorm.includes(mOtra) ||
+                            mOtra.includes(marcaBuscadaNorm) ||
+                            ((marcaBuscadaNorm === 'lucchetti' || marcaBuscadaNorm === 'luchetti') && (mOtra === 'lucchetti' || mOtra === 'luchetti'));
+                        if (!esMisma) {
                             if (contienePalabra(nClean, mOtra)) {
                                 tieneMarcaComp = true;
                                 break;
@@ -808,25 +978,110 @@ async function searchCoto(page, prodClean, options = {}) {
             // C) REQUISITO DE VARIANTE
             if (config.variante) {
                 var varNorm = cleanText(config.variante);
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'suave'].some(function(b) {
                     return varNorm.indexOf(b) > -1;
                 });
-                if (!esBase) {
-                    if (nClean.indexOf(varNorm) === -1) continue;
-                } else {
-                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
-                        continue;
-                    }
-                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
-                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                if (!esAliasDicc && !esBase) {
+                    if (varNorm.indexOf('lima') > -1 || varNorm.indexOf('limon') > -1) {
+                        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+                        if (['cola', 'naranja', 'pomelo', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                             continue;
                         }
+                    } else if (varNorm.indexOf('naranja') > -1) {
+                        if (nClean.indexOf('naranja') === -1) continue;
+                        if (['cola', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    } else if (varNorm.indexOf('cola') > -1) {
+                        if (nClean.indexOf('cola') === -1) continue;
+                        if (['naranja', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    } else if (varNorm.indexOf('tallarin') > -1) {
+                        if (nClean.indexOf('tallarin') === -1 && nClean.indexOf('tallarines') === -1) continue;
+                    } else if (nClean.indexOf(varNorm) === -1) {
+                        continue;
+                    }
+                } else if (!esAliasDicc) {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                        continue;
+                    }
+                    if (varNorm.indexOf('cola') > -1) {
+                        if (['naranja', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (varNorm.indexOf('lima') > -1 || varNorm.indexOf('limon') > -1) {
+                        if (['cola', 'naranja', 'pomelo', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (varNorm.indexOf('naranja') > -1) {
+                        if (['cola', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'protein', 'proteina', 'proteinas', 'extra protein', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (config.categoria === 'limpieza' || config.categoria === 'papel_higienico' || (config.queryOriginal && (config.queryOriginal.toLowerCase().indexOf('papel higienico') > -1 || config.queryOriginal.toLowerCase().indexOf('higienol') > -1))) {
+                        var qLowerCo = (config.queryOriginal || '').toLowerCase();
+                        var varLowerCo = (config.variante || '').toLowerCase();
+                        var pideMaxCo = qLowerCo.indexOf('max') > -1 || varLowerCo.indexOf('max') > -1 || qLowerCo.indexOf('100') > -1 || varLowerCo.indexOf('100') > -1;
+                        var esMaxCo = contienePalabra(nClean, 'max') || nClean.indexOf('100 mts') > -1 || nClean.indexOf('100 m') > -1 || nClean.indexOf('100m') > -1 || nClean.indexOf('mega') > -1;
+
+                        if (!pideMaxCo && esMaxCo) continue;
+                        if (pideMaxCo && !esMaxCo) continue;
                     }
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
+            // D) SCORING COMPLETO Y EXHAUSTIVO
             var score = 50;
+
+            // Coincidencia con diccionario oficial de supermercados (máxima prioridad)
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean) {
+                        score += 250;
+                        break;
+                    } else if (nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 180;
+                        break;
+                    }
+                }
+            }
+
+            // Coincidencia de variante solicitada (ej: "clasica", "entera", "3%")
+            if (config.variante) {
+                var vNorm = cleanText(config.variante);
+                if (vNorm.indexOf('clasica') > -1 || vNorm.indexOf('entera') > -1) {
+                    if (nClean.indexOf('clasica') > -1 || nClean.indexOf('clasico') > -1) score += 70;
+                    if (nClean.indexOf('entera') > -1) score += 60;
+                    if (nClean.indexOf('3%') > -1 || nClean.indexOf('3 %') > -1) score += 70;
+                } else if (vNorm.indexOf('original') > -1) {
+                    if (nClean.indexOf('original') > -1) score += 70;
+                } else if (vNorm.indexOf('largo fino') > -1) {
+                    if (nClean.indexOf('largo fino') > -1) score += 70;
+                } else if (vNorm.indexOf('tallarines') > -1 || vNorm.indexOf('tallarin') > -1) {
+                    if (nClean.indexOf('tallarin') > -1 || nClean.indexOf('tallarines') > -1) score += 70;
+                    if (nClean.indexOf('n5') > -1 || nClean.indexOf('n 5') > -1) score += 40;
+                } else if (vNorm.indexOf('cola') > -1) {
+                    if (contienePalabra(nClean, 'cola')) score += 70;
+                } else if (vNorm.indexOf('naranja') > -1) {
+                    if (contienePalabra(nClean, 'naranja')) score += 70;
+                } else if (vNorm.indexOf('lima') > -1 || vNorm.indexOf('limon') > -1) {
+                    if (contienePalabra(nClean, 'lima') || contienePalabra(nClean, 'limon')) score += 70;
+                }
+            }
+
+            // Scoring por presentación
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
@@ -851,6 +1106,11 @@ async function searchCoto(page, prodClean, options = {}) {
                 }
             }
 
+            // Término de categoría explícito
+            if (config.categoria && nClean.indexOf(cleanText(config.categoria)) > -1) {
+                score += 30;
+            }
+
             if (score > bestScore) {
                 bestScore = score;
                 bestCandidate = {
@@ -859,14 +1119,13 @@ async function searchCoto(page, prodClean, options = {}) {
                     url: urlVal,
                     stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
                 };
-                if (score >= 100) break;
             }
         }
 
         return bestCandidate;
     }, queryConfig);
 
-    return ctData;
+    return ctData ? { ...ctData, terminoBuscado: textoATipear } : { name: 'No encontrado', price: 'N/D', url: page.url(), stock: 'NO ENCONTRADO', terminoBuscado: textoATipear };
 }
 
 // ------------------------------------------------------------------------------
@@ -881,55 +1140,63 @@ async function searchDia(page, prodClean, options = {}) {
     const textoATipear = validador.adaptarTerminoSupermercado(baseTexto, 'Día %');
 
     const yaEnDia = page.url().includes('supermercadosdia.com.ar');
-    if (!yaEnDia) {
-        if (onStatus) {
-            onStatus({ type: 'log', message: '[SUPERMERCADO 3] Navegando visualmente a https://diaonline.supermercadosdia.com.ar...' });
+    const reusarBusqueda = yaEnDia && options.ultimoTerminoBuscado && (options.ultimoTerminoBuscado.toLowerCase().trim() === textoATipear.toLowerCase().trim());
+
+    if (!reusarBusqueda) {
+        if (!yaEnDia) {
+            if (onStatus) {
+                onStatus({ type: 'log', message: '[SUPERMERCADO 3] Navegando visualmente a https://diaonline.supermercadosdia.com.ar...' });
+            }
+            // 1. Navegar por barra de direcciones
+            await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
+            await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+            await eliminarCookies(page);
+        } else {
+            await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+            await eliminarCookies(page);
+            await sleep(250);
         }
-        // 1. Navegar por barra de direcciones
-        await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
-        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+
+        // 2. Localizar buscador de Día %
+        if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Localizando buscador para: "${textoATipear}"...` });
+        const diaSearchSel = 'input[placeholder*="busc" i], input.vtex-styleguide-9-x-input';
+        await page.waitForSelector(diaSearchSel, { timeout: 10000 }).catch(() => {});
+
+        // 3. Tipear carácter por carácter de forma visible
+        let typedOkDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
+        if (!typedOkDia) {
+            await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
+            await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
+            await eliminarCookies(page);
+            typedOkDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
+        }
+        if (!typedOkDia) {
+            throw new Error('No se encontró un buscador visible de Día %.');
+        }
+
+        // 4. Ejecutar búsqueda con Enter
+        await sleep(300);
+        await visibleKey('{ENTER}');
+
+        if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Esperando resultados de búsqueda...' });
+        for (let w = 0; w < 20; w++) {
+            await sleep(500);
+            const curU = page.url();
+            if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=')) {
+                break;
+            }
+            if (w === 3) {
+                await visibleKey('{ENTER}');
+                await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
+            }
+        }
+        await sleep(CONFIG.PAUSE_AFTER_SEARCH);
         await eliminarCookies(page);
     } else {
+        if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Término de catálogo idéntico al anterior ("${textoATipear}"). Reutilizando resultados en pantalla para extraer "${prodClean}"...` });
         await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-        await eliminarCookies(page);
-        await sleep(250);
+        await sleep(CONFIG.PAUSE_AFTER_SEARCH / 3);
     }
-
-    // 2. Localizar buscador de Día %
-    if (onStatus) onStatus({ type: 'log', message: `[SUPERMERCADO 3] Localizando buscador para: "${textoATipear}"...` });
-    const diaSearchSel = 'input[placeholder*="busc" i], input.vtex-styleguide-9-x-input';
-    await page.waitForSelector(diaSearchSel, { timeout: 10000 }).catch(() => {});
-
-    // 3. Tipear carácter por carácter de forma visible
-    let typedOkDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
-    if (!typedOkDia) {
-        await visibleNavigate(page, 'https://diaonline.supermercadosdia.com.ar', typingDelay);
-        await sleep(CONFIG.PAUSE_AFTER_PAGE_LOAD);
-        await eliminarCookies(page);
-        typedOkDia = await visibleType(page, diaSearchSel, textoATipear, typingDelay, mouseDuration);
-    }
-    if (!typedOkDia) {
-        throw new Error('No se encontró un buscador visible de Día %.');
-    }
-
-    // 4. Ejecutar búsqueda con Enter
-    await sleep(300);
-    await visibleKey('{ENTER}');
-
-    if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Esperando resultados de búsqueda...' });
-    for (let w = 0; w < 20; w++) {
-        await sleep(500);
-        const curU = page.url();
-        if (curU.includes(encodeURIComponent(prodClean)) || curU.includes(encodeURIComponent(textoATipear)) || curU.includes('_q=')) {
-            break;
-        }
-        if (w === 3) {
-            await visibleKey('{ENTER}');
-            await visibleClick(page, 'button[class*="searchIcon"], button[type="submit"], [class*="search-bar"] button', mouseDuration);
-        }
-    }
-    await sleep(CONFIG.PAUSE_AFTER_SEARCH);
-    await eliminarCookies(page);
 
     // 5. Extracción directa del mejor producto según relevancia de búsqueda específica
     if (onStatus) onStatus({ type: 'log', message: '[SUPERMERCADO 3] Extrayendo datos del producto seleccionado...' });
@@ -941,13 +1208,14 @@ async function searchDia(page, prodClean, options = {}) {
         cantidad: itemCat ? itemCat.cantidad : (cantidad || null),
         unidad: itemCat ? itemCat.unidad : (unidad || null),
         palabrasMarca: (itemCat ? validador.normalizar(itemCat.marca) : (baseConfig.marca ? validador.normalizar(baseConfig.marca) : '')).split(/\s+/).filter(w => w.length >= 2 && !['la', 'el', 'los', 'las', 'de', 'del'].includes(w)),
-        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || [])
+        marcasCompetidoras: Array.from(validador.MARCAS_CONOCIDAS || []),
+        nombresSupermercados: (itemCat && itemCat.nombres_supermercados) ? itemCat.nombres_supermercados.map(n => validador.normalizar(n)) : []
     };
 
     const dData = await page.evaluate((config) => {
         function cleanText(s) {
             if (!s) return '';
-            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
+            return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(\d+)\s*%/g, '$1%').replace(/[.,;:!¡?¿()[\]"'\-_/]/g, ' ').replace(/\s+/g, ' ').trim();
         }
         function contienePalabra(texto, palabra) {
             if (!texto || !palabra) return false;
@@ -995,18 +1263,48 @@ async function searchDia(page, prodClean, options = {}) {
                 if (inc) continue;
             }
 
+            // A.2) Verificación estricta de categoría láctea
+            if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                // Descartar bebidas vegetales
+                var esVegetal = ['vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas'].some(function(v) {
+                    return contienePalabra(nClean, v);
+                });
+                if (esVegetal) continue;
+
+                // Debe contener término lácteo si no coincide con diccionario oficial
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    return contienePalabra(nClean, t);
+                });
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) continue;
+            }
+
             // B) REQUISITO ESTRICTO DE MARCA: Jamás devolver Manaos si se buscó Coca Cola
             if (config.palabrasMarca && config.palabrasMarca.length > 0) {
-                var tieneMarcaReq = config.palabrasMarca.every(function(w) { return contienePalabra(nClean, w); });
+                var esAliasDiccMarcaDia = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                var tieneMarcaReq = esAliasDiccMarcaDia || config.palabrasMarca.every(function(w) {
+                    if (w === 'lucchetti' || w === 'luchetti') {
+                        return contienePalabra(nClean, 'lucchetti') || contienePalabra(nClean, 'luchetti');
+                    }
+                    return contienePalabra(nClean, w);
+                });
                 if (!tieneMarcaReq) continue;
 
                 // Descartar si menciona otra marca competidora
-                var marcaBuscadaNorm = (config.marca || '').toLowerCase().replace(/[-\s]+/g, ' ');
+                var marcaBuscadaNorm = cleanText(config.marca || '');
                 var tieneMarcaComp = false;
                 if (config.marcasCompetidoras && config.marcasCompetidoras.length > 0) {
                     for (var mIdx = 0; mIdx < config.marcasCompetidoras.length; mIdx++) {
-                        var mOtra = config.marcasCompetidoras[mIdx].toLowerCase().replace(/[-\s]+/g, ' ');
-                        if (mOtra !== marcaBuscadaNorm && !marcaBuscadaNorm.includes(mOtra) && !mOtra.includes(marcaBuscadaNorm)) {
+                        var mOtra = cleanText(config.marcasCompetidoras[mIdx]);
+                        var esMisma = mOtra === marcaBuscadaNorm ||
+                            marcaBuscadaNorm.includes(mOtra) ||
+                            mOtra.includes(marcaBuscadaNorm) ||
+                            ((marcaBuscadaNorm === 'lucchetti' || marcaBuscadaNorm === 'luchetti') && (mOtra === 'lucchetti' || mOtra === 'luchetti'));
+                        if (!esMisma) {
                             if (contienePalabra(nClean, mOtra)) {
                                 tieneMarcaComp = true;
                                 break;
@@ -1020,25 +1318,110 @@ async function searchDia(page, prodClean, options = {}) {
             // C) REQUISITO DE VARIANTE
             if (config.variante) {
                 var varNorm = cleanText(config.variante);
-                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'lima limon', 'cola', 'suave'].some(function(b) {
+                var esAliasDicc = config.nombresSupermercados && config.nombresSupermercados.some(function(alias) {
+                    return alias === nClean || nClean.indexOf(alias) > -1 || alias.indexOf(nClean) > -1;
+                });
+                var esBase = ['original', 'tradicional', 'clasica', 'clasico', 'comun', 'entera', 'suave'].some(function(b) {
                     return varNorm.indexOf(b) > -1;
                 });
-                if (!esBase) {
-                    if (nClean.indexOf(varNorm) === -1) continue;
-                } else {
-                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
-                        continue;
-                    }
-                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
-                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa'].some(function(vOp) { return nClean.indexOf(vOp) > -1; })) {
+                if (!esAliasDicc && !esBase) {
+                    if (varNorm.indexOf('lima') > -1 || varNorm.indexOf('limon') > -1) {
+                        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+                        if (['cola', 'naranja', 'pomelo', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
                             continue;
                         }
+                    } else if (varNorm.indexOf('naranja') > -1) {
+                        if (nClean.indexOf('naranja') === -1) continue;
+                        if (['cola', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    } else if (varNorm.indexOf('cola') > -1) {
+                        if (nClean.indexOf('cola') === -1) continue;
+                        if (['naranja', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    } else if (varNorm.indexOf('tallarin') > -1) {
+                        if (nClean.indexOf('tallarin') === -1 && nClean.indexOf('tallarines') === -1) continue;
+                    } else if (nClean.indexOf(varNorm) === -1) {
+                        continue;
+                    }
+                } else if (!esAliasDicc) {
+                    if (['zero', 'light', 'diet', 'sin azucar'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                        continue;
+                    }
+                    if (varNorm.indexOf('cola') > -1) {
+                        if (['naranja', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (varNorm.indexOf('lima') > -1 || varNorm.indexOf('limon') > -1) {
+                        if (['cola', 'naranja', 'pomelo', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (varNorm.indexOf('naranja') > -1) {
+                        if (['cola', 'pomelo', 'lima', 'limon', 'tonica', 'guarana'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (config.categoria === 'leche' || (config.queryOriginal && config.queryOriginal.toLowerCase().indexOf('leche') > -1)) {
+                        if (['descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'protein', 'proteina', 'proteinas', 'extra protein', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'].some(function(vOp) { return contienePalabra(nClean, vOp); })) {
+                            continue;
+                        }
+                    }
+                    if (config.categoria === 'limpieza' || config.categoria === 'papel_higienico' || (config.queryOriginal && (config.queryOriginal.toLowerCase().indexOf('papel higienico') > -1 || config.queryOriginal.toLowerCase().indexOf('higienol') > -1))) {
+                        var qLowerD = (config.queryOriginal || '').toLowerCase();
+                        var varLowerD = (config.variante || '').toLowerCase();
+                        var pideMaxD = qLowerD.indexOf('max') > -1 || varLowerD.indexOf('max') > -1 || qLowerD.indexOf('100') > -1 || varLowerD.indexOf('100') > -1;
+                        var esMaxD = contienePalabra(nClean, 'max') || nClean.indexOf('100 mts') > -1 || nClean.indexOf('100 m') > -1 || nClean.indexOf('100m') > -1 || nClean.indexOf('mega') > -1;
+
+                        if (!pideMaxD && esMaxD) continue;
+                        if (pideMaxD && !esMaxD) continue;
                     }
                 }
             }
 
-            // D) SCORING POR PRESENTACIÓN
+            // D) SCORING COMPLETO Y EXHAUSTIVO
             var score = 50;
+
+            // Coincidencia con diccionario oficial de supermercados (máxima prioridad)
+            if (config.nombresSupermercados && config.nombresSupermercados.length > 0) {
+                for (var d = 0; d < config.nombresSupermercados.length; d++) {
+                    var aliasNorm = config.nombresSupermercados[d];
+                    if (aliasNorm === nClean) {
+                        score += 250;
+                        break;
+                    } else if (nClean.indexOf(aliasNorm) > -1 || aliasNorm.indexOf(nClean) > -1) {
+                        score += 180;
+                        break;
+                    }
+                }
+            }
+
+            // Coincidencia de variante solicitada (ej: "clasica", "entera", "3%")
+            if (config.variante) {
+                var vNorm = cleanText(config.variante);
+                if (vNorm.indexOf('clasica') > -1 || vNorm.indexOf('entera') > -1) {
+                    if (nClean.indexOf('clasica') > -1 || nClean.indexOf('clasico') > -1) score += 70;
+                    if (nClean.indexOf('entera') > -1) score += 60;
+                    if (nClean.indexOf('3%') > -1 || nClean.indexOf('3 %') > -1) score += 70;
+                } else if (vNorm.indexOf('original') > -1) {
+                    if (nClean.indexOf('original') > -1) score += 70;
+                } else if (vNorm.indexOf('largo fino') > -1) {
+                    if (nClean.indexOf('largo fino') > -1) score += 70;
+                } else if (vNorm.indexOf('tallarines') > -1 || vNorm.indexOf('tallarin') > -1) {
+                    if (nClean.indexOf('tallarin') > -1 || nClean.indexOf('tallarines') > -1) score += 70;
+                    if (nClean.indexOf('n5') > -1 || nClean.indexOf('n 5') > -1) score += 40;
+                } else if (vNorm.indexOf('cola') > -1) {
+                    if (contienePalabra(nClean, 'cola')) score += 70;
+                } else if (vNorm.indexOf('naranja') > -1) {
+                    if (contienePalabra(nClean, 'naranja')) score += 70;
+                } else if (vNorm.indexOf('lima') > -1 || vNorm.indexOf('limon') > -1) {
+                    if (contienePalabra(nClean, 'lima') || contienePalabra(nClean, 'limon')) score += 70;
+                }
+            }
+
+            // Scoring por presentación
             if (config.cantidad && config.unidad) {
                 var cantStr = String(config.cantidad).replace('.', ',');
                 var cantDot = String(config.cantidad);
@@ -1063,6 +1446,11 @@ async function searchDia(page, prodClean, options = {}) {
                 }
             }
 
+            // Término de categoría explícito
+            if (config.categoria && nClean.indexOf(cleanText(config.categoria)) > -1) {
+                score += 30;
+            }
+
             if (score > bestScore) {
                 bestScore = score;
                 bestCandidate = {
@@ -1071,14 +1459,13 @@ async function searchDia(page, prodClean, options = {}) {
                     url: urlVal,
                     stock: unavail ? 'SIN STOCK' : 'DISPONIBLE'
                 };
-                if (score >= 100) break;
             }
         }
 
         return bestCandidate;
     }, queryConfig);
 
-    return dData;
+    return dData ? { ...dData, terminoBuscado: textoATipear } : { name: 'No encontrado', price: 'N/D', url: page.url(), stock: 'NO ENCONTRADO', terminoBuscado: textoATipear };
 }
 
 // ==============================================================================
@@ -1209,6 +1596,7 @@ async function runRPA({
             onStatus({ type: 'log', message: '========================================' });
             onStatus({ type: 'log', message: '[SUPERMERCADO 1] Iniciando Carrefour Argentina...' });
         }
+        let ultimoTerminoCarrefour = null;
         for (let i = 0; i < totalItems; i++) {
             checkAborted();
             const itemObj = items[i];
@@ -1234,12 +1622,16 @@ async function runRPA({
                 itemObj,
                 cantidad,
                 unidad,
-                itemIndex: i
+                itemIndex: i,
+                ultimoTerminoBuscado: ultimoTerminoCarrefour
             };
 
             try {
                 checkAborted();
                 const cData = await searchCarrefour(page, prodClean, stepOptions);
+                if (cData && cData.terminoBuscado) {
+                    ultimoTerminoCarrefour = cData.terminoBuscado;
+                }
 
                 const carrefourItem = {
                     modo,
@@ -1277,6 +1669,7 @@ async function runRPA({
             onStatus({ type: 'log', message: '========================================' });
             onStatus({ type: 'log', message: '[SUPERMERCADO 2] Iniciando COTO Digital...' });
         }
+        let ultimoTerminoCoto = null;
         for (let i = 0; i < totalItems; i++) {
             checkAborted();
             const itemObj = items[i];
@@ -1302,12 +1695,16 @@ async function runRPA({
                 itemObj,
                 cantidad,
                 unidad,
-                itemIndex: i
+                itemIndex: i,
+                ultimoTerminoBuscado: ultimoTerminoCoto
             };
 
             try {
                 checkAborted();
                 const ctData = await searchCoto(page, prodClean, stepOptions);
+                if (ctData && ctData.terminoBuscado) {
+                    ultimoTerminoCoto = ctData.terminoBuscado;
+                }
 
                 const cotoItem = {
                     modo,
@@ -1345,6 +1742,7 @@ async function runRPA({
             onStatus({ type: 'log', message: '========================================' });
             onStatus({ type: 'log', message: '[SUPERMERCADO 3] Iniciando Supermercados Día %...' });
         }
+        let ultimoTerminoDia = null;
         for (let i = 0; i < totalItems; i++) {
             checkAborted();
             const itemObj = items[i];
@@ -1370,12 +1768,16 @@ async function runRPA({
                 itemObj,
                 cantidad,
                 unidad,
-                itemIndex: i
+                itemIndex: i,
+                ultimoTerminoBuscado: ultimoTerminoDia
             };
 
             try {
                 checkAborted();
                 const dData = await searchDia(page, prodClean, stepOptions);
+                if (dData && dData.terminoBuscado) {
+                    ultimoTerminoDia = dData.terminoBuscado;
+                }
 
                 const diaItem = {
                     modo,

@@ -12,6 +12,7 @@ function normalizar(texto) {
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // elimina tildes
+        .replace(/(\d+)\s*%/g, '$1%')    // normaliza "3 %" a "3%"
         .replace(/[\.,;:!¡?¿\(\)\[\]"'\-_/]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -20,7 +21,7 @@ function normalizar(texto) {
 // Lista de marcas comunes reconocidas en supermercados argentinos
 const MARCAS_CONOCIDAS = [
     // Bebidas y Gaseosas / Cervezas
-    'secco', 'coca cola', 'coca-cola', 'coca', 'pepsi', 'fanta', 'sprite', 'manaos',
+    'coca cola', 'coca-cola', 'coca', 'pepsi', 'fanta', 'sprite', 'manaos',
     '7up', 'seven up', 'aquarius', 'levite', 'villavicencio', 'eco de los andes',
     'kin', 'ivess', 'pritty', 'terma', 'quilmes', 'brahma', 'stella artois',
     'heineken', 'corona', 'andes origen', 'andes', 'patagonia', 'imperial', 'schneider',
@@ -58,7 +59,7 @@ const MARCAS_CONOCIDAS = [
 const DEFINICION_CATEGORIAS = {
     leche: {
         terminos: ['leche', 'lactea', 'descremada', 'entera', 'uht', 'polvo'],
-        incompatibles: ['alfajor', 'jugo', 'gaseosa', 'arroz', 'fideos', 'aceite', 'yerba', 'shampoo', 'jabon', 'galletita', 'galleta', 'detergente', 'cerveza', 'vino', 'queso crema', 'dulce de leche']
+        incompatibles: ['alfajor', 'jugo', 'gaseosa', 'arroz', 'fideos', 'aceite', 'yerba', 'shampoo', 'jabon', 'galletita', 'galleta', 'detergente', 'cerveza', 'vino', 'queso crema', 'dulce de leche', 'bebida vegetal', 'vegetal', 'almendra', 'almendras', 'coco', 'soja', 'avena', 'mani', 'castana', 'castanas']
     },
     yogur: {
         terminos: ['yogur', 'yogurt', 'yogurth'],
@@ -305,11 +306,52 @@ const LINEAS_PRODUCTO = [
     'suave', 'intenso', 'especial', 'tradicional', 'con palo', 'despalada', 'seleccion', 'familiar'
 ];
 
-// Extraer unidad y valor numérico de presentación (ej: "2.25L" -> { valor: 2.25, tipo: 'l', raw: '2.25l' })
+// Extraer unidad y valor numérico de presentación (ej: "2.25L" -> { valor: 2.25, tipo: 'l', raw: '2.25l' }, "100 g. x 3 uni" -> { valor: 0.3, tipo: 'kg', raw: '100 g. x 3 uni' })
 function extraerPresentacion(texto) {
     if (!texto || typeof texto !== 'string') return null;
     var raw = texto.toLowerCase();
-    // Litros / Mililitros: 2.25l, 2,25 lts, 1.5 l, 500 ml, etc.
+
+    // 1. Multipack previo de peso: "3x 100gramos", "3 x 100g", "pack 3 x 100g", "pack x 3 de 100 g"
+    var mMultiPesoPrev = raw.match(/(?:pack\s*(?:x\s*)?|x\s*)?(\d+)\s*(?:x|\*|de)\s*(\d+(?:[.,]\d+)?)\s*(kilos?|kilogramos?|kgs?|kg|k|gramos?|grs?|gr|g)\b/i);
+    if (mMultiPesoPrev) {
+        var countPrevP = parseInt(mMultiPesoPrev[1], 10);
+        var uValPrevP = parseFloat(mMultiPesoPrev[2].replace(',', '.'));
+        var isGPrevP = mMultiPesoPrev[3].toLowerCase().startsWith('g');
+        var totalGPrevP = (isGPrevP ? uValPrevP : uValPrevP * 1000) * countPrevP;
+        return { valor: totalGPrevP / 1000, tipo: 'kg', raw: mMultiPesoPrev[0].trim() };
+    }
+
+    // 2. Multipack posterior de peso: "100 g. x 3 uni", "100g x 3", "100 grs x 3", "100 g x 3 u"
+    var mMultiPesoPost = raw.match(/(\d+(?:[.,]\d+)?)\s*(kilos?|kilogramos?|kgs?|kg|k|gramos?|grs?|gr|g)\b(?:\s*\.?)?\s*(?:x|\*)\s*(\d+)\s*(?:unidades?|unids?|unid|uni|un|u|paquetes?|paqs?|sobres?)?\b/i);
+    if (mMultiPesoPost) {
+        var uValPostP = parseFloat(mMultiPesoPost[1].replace(',', '.'));
+        var isGPostP = mMultiPesoPost[2].toLowerCase().startsWith('g');
+        var countPostP = parseInt(mMultiPesoPost[3], 10);
+        var totalGPostP = (isGPostP ? uValPostP : uValPostP * 1000) * countPostP;
+        return { valor: totalGPostP / 1000, tipo: 'kg', raw: mMultiPesoPost[0].trim() };
+    }
+
+    // 3. Multipack previo de volumen: "6 x 500 ml", "pack x 2 de 1.5 l"
+    var mMultiVolPrev = raw.match(/(?:pack\s*(?:x\s*)?|x\s*)?(\d+)\s*(?:x|\*|de)\s*(\d+(?:[.,]\d+)?)\s*(litros?|lts?|lt|l|mililitros?|mls?|ml|cc)\b/i);
+    if (mMultiVolPrev) {
+        var countPrevV = parseInt(mMultiVolPrev[1], 10);
+        var uValPrevV = parseFloat(mMultiVolPrev[2].replace(',', '.'));
+        var isMlPrevV = mMultiVolPrev[3].toLowerCase().startsWith('m') || mMultiVolPrev[3].toLowerCase() === 'cc';
+        var totalMlPrevV = (isMlPrevV ? uValPrevV : uValPrevV * 1000) * countPrevV;
+        return { valor: totalMlPrevV / 1000, tipo: 'l', raw: mMultiVolPrev[0].trim() };
+    }
+
+    // 4. Multipack posterior de volumen: "500 ml x 6 uni", "1.5 l x 2"
+    var mMultiVolPost = raw.match(/(\d+(?:[.,]\d+)?)\s*(litros?|lts?|lt|l|mililitros?|mls?|ml|cc)\b(?:\s*\.?)?\s*(?:x|\*)\s*(\d+)\s*(?:unidades?|unids?|unid|uni|un|u|botellas?|latas?|packs?)?\b/i);
+    if (mMultiVolPost) {
+        var uValPostV = parseFloat(mMultiVolPost[1].replace(',', '.'));
+        var isMlPostV = mMultiVolPost[2].toLowerCase().startsWith('m') || mMultiVolPost[2].toLowerCase() === 'cc';
+        var countPostV = parseInt(mMultiVolPost[3], 10);
+        var totalMlPostV = (isMlPostV ? uValPostV : uValPostV * 1000) * countPostV;
+        return { valor: totalMlPostV / 1000, tipo: 'l', raw: mMultiVolPost[0].trim() };
+    }
+
+    // Litros / Mililitros simple: 2.25l, 2,25 lts, 1.5 l, 500 ml, etc.
     var mVol = raw.match(/(\d+(?:[.,]\d+)?)\s*(litros?|lts?|lt|l|mililitros?|mls?|ml|cc)\b/);
     if (mVol) {
         var num = parseFloat(mVol[1].replace(',', '.'));
@@ -317,7 +359,7 @@ function extraerPresentacion(texto) {
         var valorLitros = u === 'ml' ? num / 1000 : num;
         return { valor: valorLitros, tipo: 'l', raw: mVol[0].trim() };
     }
-    // Kilogramos / Gramos: 1kg, 1.5 kgs, 500g, 500 grs
+    // Kilogramos / Gramos simple: 1kg, 1.5 kgs, 500g, 500 grs
     var mPeso = raw.match(/(\d+(?:[.,]\d+)?)\s*(kilos?|kilogramos?|kgs?|kg|k|gramos?|grs?|gr|g)\b/);
     if (mPeso) {
         var numP = parseFloat(mPeso[1].replace(',', '.'));
@@ -325,13 +367,171 @@ function extraerPresentacion(texto) {
         var valorKg = uP === 'g' ? numP / 1000 : numP;
         return { valor: valorKg, tipo: 'kg', raw: mPeso[0].trim() };
     }
-    // Unidades / Packs: pack x 3, x 4 un, 4 rollos, 4 u
-    var mUn = raw.match(/(?:pack\s*x?\s*|x\s*)?(\d+)\s*(?:unidades?|unids?|unid|un|rollos?|sobres?|paquetes?|u)\b/);
+    // Unidades / Packs simple: pack x 3, x 4 un, 4 rollos, 4 u, 4 uni, 4 ud
+    var mUn = raw.match(/(?:pack\s*x?\s*|x\s*)?(\d+)\s*(?:unidades?|unids?|unid|uni|uds?|ud|un|rollos?|sobres?|paquetes?|u)\b/);
     if (mUn) {
         var numU = parseInt(mUn[1], 10);
         return { valor: numU, tipo: 'un', raw: mUn[0].trim() };
     }
     return null;
+}
+
+// Extrae todas las subcadenas relevantes de un texto (palabras individuales, n-gramas de frases y sub-raíces)
+function extraerSubcadenas(texto, minLen) {
+    if (!minLen) minLen = 2;
+    if (!texto || typeof texto !== 'string') return [];
+    var norm = normalizar(texto);
+    if (!norm) return [];
+
+    var subcadenas = new Set();
+    var tokens = norm.split(/\s+/).filter(function(t) { return t.length >= minLen; });
+
+    // 1. Tokens individuales (palabras)
+    for (var i = 0; i < tokens.length; i++) {
+        var t = tokens[i];
+        subcadenas.add(t);
+        if (t.length >= 4) {
+            for (var l = 3; l < t.length; l++) {
+                subcadenas.add(t.substring(0, l));
+            }
+        }
+    }
+
+    // 2. N-gramas continuos de palabras (secuencias consecutivas)
+    for (var nl = 2; nl <= tokens.length; nl++) {
+        for (var ni = 0; ni <= tokens.length - nl; ni++) {
+            var ngram = tokens.slice(ni, ni + nl).join(' ');
+            if (ngram.length >= minLen) {
+                subcadenas.add(ngram);
+            }
+        }
+    }
+
+    // 3. Cadena completa normalizada
+    if (norm.length >= minLen) {
+        subcadenas.add(norm);
+    }
+
+    return Array.from(subcadenas);
+}
+
+// Calcula las coincidencias de subcadenas entre dos textos cualesquiera (bidireccional)
+function calcularCoincidenciasSubcadenas(textoA, textoB, minLen) {
+    if (!minLen) minLen = 2;
+    var normA = normalizar(textoA || '');
+    var normB = normalizar(textoB || '');
+    if (!normA || !normB) {
+        return { coincidentes: [], cantidad: 0, tokensCoincidentes: 0, totalTokens: 0, porcentaje: 0, score: 0 };
+    }
+
+    var subsA = extraerSubcadenas(normA, minLen);
+    var tokensA = normA.split(/\s+/).filter(function(t) { return t.length >= minLen; });
+    var tokensB = normB.split(/\s+/).filter(function(t) { return t.length >= minLen; });
+
+    var coincidentesSet = new Set();
+    var score = 0;
+    var tokensCoincidentes = 0;
+
+    // Coincidencia exacta completa
+    if (normA === normB) {
+        coincidentesSet.add(normA);
+        score += 100;
+    } else if (normB.includes(normA)) {
+        coincidentesSet.add(normA);
+        score += 50;
+    } else if (normA.includes(normB)) {
+        coincidentesSet.add(normB);
+        score += 40;
+    }
+
+    // Coincidencia de subcadenas de A en B
+    for (var i = 0; i < subsA.length; i++) {
+        var sub = subsA[i];
+        if (normB.includes(sub)) {
+            coincidentesSet.add(sub);
+            score += (sub.includes(' ') ? 15 : 8) + Math.min(sub.length, 10);
+        }
+    }
+
+    // Coincidencia de tokens
+    for (var tIdx = 0; tIdx < tokensA.length; tIdx++) {
+        var ta = tokensA[tIdx];
+        var matched = false;
+        for (var tbIdx = 0; tbIdx < tokensB.length; tbIdx++) {
+            var tb = tokensB[tbIdx];
+            if (ta === tb) {
+                matched = true;
+                coincidentesSet.add(ta);
+                score += 12;
+                break;
+            } else if ((ta.length >= 2 && tb.includes(ta)) || (tb.length >= 2 && ta.includes(tb))) {
+                matched = true;
+                coincidentesSet.add(ta.length <= tb.length ? ta : tb);
+                score += 6;
+                break;
+            }
+        }
+        if (matched) tokensCoincidentes++;
+    }
+
+    var porcentaje = tokensA.length > 0 ? (tokensCoincidentes / tokensA.length) : 0;
+    return {
+        coincidentes: Array.from(coincidentesSet),
+        cantidad: coincidentesSet.size,
+        tokensCoincidentes: tokensCoincidentes,
+        totalTokens: tokensA.length,
+        porcentaje: Math.round(porcentaje * 100) / 100,
+        score: score
+    };
+}
+
+// Búsqueda por subcadenas que obtiene la mayor cantidad de coincidencias posibles.
+// Si no se provee 'candidatos', busca en todo el catálogo cerrado centralizado.
+// Si se provee una lista de candidatos (strings u objetos), evalúa cada uno y retorna los coincidentes ordenados.
+function buscarPorSubcadenas(query, candidatos, opciones) {
+    if (!candidatos || !Array.isArray(candidatos) || candidatos.length === 0) {
+        return catalogo.buscarPorSubcadenas(query, opciones || {});
+    }
+
+    var opts = opciones || {};
+    var minLen = opts.minLongitudSubcadena || 2;
+    var limite = opts.limite || 0;
+    var resultados = [];
+
+    for (var i = 0; i < candidatos.length; i++) {
+        var cand = candidatos[i];
+        var textoCand = '';
+        if (typeof cand === 'string') {
+            textoCand = cand;
+        } else if (cand && typeof cand === 'object') {
+            textoCand = cand.nombre || cand.nombre_completo || cand.producto || cand.titulo || cand.texto || '';
+        }
+
+        var match = calcularCoincidenciasSubcadenas(query, textoCand, minLen);
+        if (match.cantidad > 0) {
+            resultados.push({
+                candidato: cand,
+                texto: textoCand,
+                score: match.score,
+                cantidadCoincidencias: match.cantidad,
+                subcadenasCoincidentes: match.coincidentes,
+                tokensCoincidentes: match.tokensCoincidentes,
+                porcentajeTokens: match.porcentaje
+            });
+        }
+    }
+
+    resultados.sort(function(a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.cantidadCoincidencias !== a.cantidadCoincidencias) return b.cantidadCoincidencias - a.cantidadCoincidencias;
+        return b.porcentajeTokens - a.porcentajeTokens;
+    });
+
+    if (limite > 0 && resultados.length > limite) {
+        return resultados.slice(0, limite);
+    }
+
+    return resultados;
 }
 
 // Extrae todos los atributos estructurados de un producto de cualquier categoría
@@ -519,21 +719,39 @@ function sonComparables(itemA, itemB, queryOriginal) {
         }
     }
 
+    // 6.5. Longitud de rollo de papel higiénico (30m estándar vs 100m Max)
+    var esPapelA = attrA.categoria === 'papel_higienico' || attrA.textoNorm.includes('papel higienico') || attrA.textoNorm.includes('higienol');
+    var esPapelB = attrB.categoria === 'papel_higienico' || attrB.textoNorm.includes('papel higienico') || attrB.textoNorm.includes('higienol');
+    if (esPapelA || esPapelB) {
+        var aEs100m = attrA.textoNorm.includes('100') || attrA.textoNorm.includes('max') || attrA.textoNorm.includes('mega');
+        var bEs100m = attrB.textoNorm.includes('100') || attrB.textoNorm.includes('max') || attrB.textoNorm.includes('mega');
+        if (aEs100m !== bEs100m) {
+            return { comparable: false, motivo: 'Discrepancia en longitud de rollo de papel higiénico (100 mts vs 30 mts).' };
+        }
+    }
+
     return { comparable: true, motivo: 'Productos equivalentes y comparables.' };
 }
 
 // Detecta la intención de búsqueda: ESPECÍFICA o GENÉRICA de forma general para todas las categorías
 function detectarIntencion(queryOriginal) {
-    var queryNorm = normalizar(queryOriginal);
+    var rawText = '';
+    if (typeof queryOriginal === 'string') {
+        rawText = queryOriginal;
+    } else if (queryOriginal && typeof queryOriginal === 'object') {
+        rawText = [queryOriginal.nombre_completo, queryOriginal.producto, queryOriginal.marca, queryOriginal.variante, queryOriginal.nombre].filter(Boolean).join(' ');
+    }
+
+    var queryNorm = normalizar(rawText);
     if (!queryNorm) {
-        return { tipo: 'GENERICA', marca: null, presentacion: null, categoria: null, palabras: [] };
+        return { tipo: 'GENERICA', marca: null, presentacion: null, categoria: null, palabras: [], queryNormalizada: '' };
     }
 
     var tienePalabraGenerica = PALABRAS_GENERICAS.some(function(pg) {
         return queryNorm.includes(pg);
     });
 
-    var pres = extraerPresentacion(queryOriginal);
+    var pres = extraerPresentacion(rawText);
 
     // 1. Identificar categoría
     var catEncontrada = null;
@@ -612,12 +830,14 @@ function obtenerConfiguracionBusqueda(queryOriginal) {
     }
 
     var variantesRequeridas = [];
-    var qNorm = intencion.queryNormalizada;
-    SABORES_Y_VARIANTES.forEach(function(v) {
-        if (qNorm.includes(v)) {
-            variantesRequeridas.push(v);
-        }
-    });
+    var qNorm = intencion.queryNormalizada || '';
+    if (qNorm) {
+        SABORES_Y_VARIANTES.forEach(function(v) {
+            if (qNorm.includes(v)) {
+                variantesRequeridas.push(v);
+            }
+        });
+    }
 
     return {
         queryOriginal: queryOriginal,
@@ -633,13 +853,25 @@ function obtenerConfiguracionBusqueda(queryOriginal) {
     };
 }
 
-// Valida si un producto extraído coincide con la consulta solicitada
 function validarCoincidencia(queryOriginal, resultado) {
     var intencion = detectarIntencion(queryOriginal);
-    var nombreEncontrado = resultado.nombre || '';
+    var nombreEncontrado = (resultado && (resultado.nombre || resultado.nombre_encontrado)) || '';
+    var matchSub = calcularCoincidenciasSubcadenas(queryOriginal, nombreEncontrado);
+
+    var res = _validarCoincidenciaBase(queryOriginal, resultado, intencion, nombreEncontrado);
+    if (res) {
+        res.subcadenasCoincidentes = matchSub.coincidentes;
+        res.cantidadCoincidencias = matchSub.cantidad;
+        res.porcentajeCoincidencia = matchSub.porcentaje;
+        res.scoreSubcadenas = matchSub.score;
+    }
+    return res;
+}
+
+function _validarCoincidenciaBase(queryOriginal, resultado, intencion, nombreEncontrado) {
     var nombreNorm = normalizar(nombreEncontrado);
-    var precioStr = resultado.precioStr || '';
-    var stockRaw = normalizar(resultado.stockRaw || '');
+    var precioStr = (resultado && resultado.precioStr) || '';
+    var stockRaw = normalizar((resultado && resultado.stockRaw) || '');
 
     // 1. Detección de "No encontrado"
     if (!nombreEncontrado ||
@@ -690,6 +922,85 @@ function validarCoincidencia(queryOriginal, resultado) {
         }
     }
 
+    // 2.7. VALIDACIÓN DIRECTA MEDIANTE DICCIONARIO DE NOMBRES DE SUPERMERCADOS
+    if (catalogo.buscarPorDiccionarioSupermercado) {
+        var matchDict = catalogo.buscarPorDiccionarioSupermercado(nombreEncontrado);
+        if (matchDict && matchDict.item) {
+            var itemDict = matchDict.item;
+            var targetQueryCat = catalogo.buscarEnCatalogo(queryOriginal);
+            if (!targetQueryCat && (resultado.cantidad || resultado.unidad)) {
+                targetQueryCat = catalogo.buscarEnCatalogo({
+                    producto: queryOriginal,
+                    cantidad: resultado.cantidad,
+                    unidad: resultado.unidad
+                });
+            }
+
+            var esCoherente = false;
+            if (targetQueryCat) {
+                if (targetQueryCat.id === itemDict.id) {
+                    esCoherente = true;
+                } else if (targetQueryCat.categoria === itemDict.categoria) {
+                    if (intencion.tipo === 'GENERICA') {
+                        esCoherente = true;
+                    } else if (normalizar(targetQueryCat.marca) === normalizar(itemDict.marca) || ((normalizar(targetQueryCat.marca) === 'lucchetti' || normalizar(targetQueryCat.marca) === 'luchetti') && (normalizar(itemDict.marca) === 'lucchetti' || normalizar(itemDict.marca) === 'luchetti'))) {
+                        if (targetQueryCat.variante && itemDict.variante) {
+                            var vT = normalizar(targetQueryCat.variante);
+                            var vI = normalizar(itemDict.variante);
+                            if (vT === vI) {
+                                esCoherente = true;
+                            } else if (targetQueryCat.categoria === 'yerba' && ((vT.includes('suave') && vI.includes('tradicional')) || (vT.includes('tradicional') && vI.includes('suave')))) {
+                                esCoherente = true;
+                            } else if (targetQueryCat.categoria === 'leche' && ((vT.includes('entera') && vI.includes('clasica')) || (vT.includes('clasica') && vI.includes('entera')))) {
+                                esCoherente = true;
+                            } else if ((vT.includes('lima') && vI.includes('lima')) || (vT.includes('limon') && vI.includes('limon'))) {
+                                esCoherente = true;
+                            } else if ((vT.includes('tallarin') || vT.includes('tallarines')) && (vI.includes('tallarin') || vI.includes('tallarines'))) {
+                                esCoherente = true;
+                            } else if ((targetQueryCat.id && targetQueryCat.id.includes('max')) !== (itemDict.id && itemDict.id.includes('max'))) {
+                                esCoherente = false;
+                            } else {
+                                esCoherente = false;
+                            }
+                        } else {
+                            esCoherente = true;
+                        }
+                    }
+                }
+            } else {
+                var marcaDictNorm = normalizar(itemDict.marca);
+                var catDict = itemDict.categoria;
+                var coincideCat = !intencion.categoria || intencion.categoria === catDict;
+                var coincideMarca = !intencion.marca || normalizar(intencion.marca) === marcaDictNorm;
+                if (coincideCat && coincideMarca) {
+                    esCoherente = true;
+                }
+            }
+
+            if (esCoherente) {
+                var presEnc = extraerPresentacion(nombreEncontrado);
+                var presEquiv = true;
+                if (presEnc) {
+                    var uEnc = presEnc.tipo === 'l' ? 'L' : (presEnc.tipo === 'kg' ? 'kg' : 'un');
+                    presEquiv = catalogo.esPresentacionEquivalente(presEnc.valor, uEnc, itemDict.cantidad, itemDict.unidad);
+                }
+
+                if (presEquiv) {
+                    return {
+                        estado: 'VALIDADA',
+                        valido: true,
+                        motivo: 'Coincidencia validada mediante diccionario oficial de supermercados (' + itemDict.nombre_completo + ').',
+                        intencion: 'ESPECIFICA',
+                        marca: itemDict.marca,
+                        itemCatalogo: itemDict,
+                        diccionarioMatch: matchDict,
+                        precioNormalizado: calcularPrecioNormalizado({ nombre: nombreEncontrado, precio: resultado.precio, precioStr: resultado.precioStr })
+                    };
+                }
+            }
+        }
+    }
+
     // 2.8. VALIDACIÓN ESTRICTA CONTRA CATÁLOGO CERRADO
     var itemCat = catalogo.buscarEnCatalogo(queryOriginal);
     if (!itemCat && (resultado.cantidad || resultado.unidad)) {
@@ -706,6 +1017,9 @@ function validarCoincidencia(queryOriginal, resultado) {
         var marcaCatSinGuion = marcaCatNorm.replace(/-/g, ' ').trim();
         var palabrasMarcaCat = marcaCatNorm.split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
         var tieneMarcaCat = palabrasMarcaCat.every(function(m) {
+            if (m === 'lucchetti' || m === 'luchetti') {
+                return nombreNorm.includes('lucchetti') || nombreNorm.includes('luchetti');
+            }
             var rxM = new RegExp('(?:^|\\s)' + m.replace('-', '[-\\s]') + '(?:$|\\s)', 'i');
             return rxM.test(nombreNorm);
         });
@@ -724,13 +1038,57 @@ function validarCoincidencia(queryOriginal, resultado) {
         for (var mIdx = 0; mIdx < MARCAS_CONOCIDAS.length; mIdx++) {
             var mOtra = MARCAS_CONOCIDAS[mIdx];
             var mOtraSinGuion = mOtra.replace(/-/g, ' ').trim();
-            if (mOtraSinGuion !== marcaCatSinGuion && !marcaCatSinGuion.includes(mOtraSinGuion) && !mOtraSinGuion.includes(marcaCatSinGuion)) {
+            var esMismaMarca = (mOtraSinGuion === marcaCatSinGuion) ||
+                marcaCatSinGuion.includes(mOtraSinGuion) ||
+                mOtraSinGuion.includes(marcaCatSinGuion) ||
+                ((marcaCatSinGuion === 'lucchetti' || marcaCatSinGuion === 'luchetti') && (mOtraSinGuion === 'lucchetti' || mOtraSinGuion === 'luchetti'));
+            if (!esMismaMarca) {
                 var rxOtra = new RegExp('(?:^|\\s)' + mOtra.replace('-', '[-\\s]') + '(?:$|\\s)', 'i');
                 if (rxOtra.test(nombreNorm)) {
                     return {
                         estado: 'COINCIDENCIA NO VÁLIDA',
                         valido: false,
                         motivo: 'Se detectó marca competidora "' + mOtra.toUpperCase() + '" cuando se requería "' + itemCat.marca.toUpperCase() + '".',
+                        intencion: 'ESPECIFICA',
+                        marca: itemCat.marca
+                    };
+                }
+            }
+        }
+
+        // A.2) Validación estricta de CATEGORÍA E INCOMPATIBILIDADES
+        if (itemCat.categoria && DEFINICION_CATEGORIAS[itemCat.categoria]) {
+            var defCatCat = DEFINICION_CATEGORIAS[itemCat.categoria];
+            if (defCatCat.incompatibles) {
+                for (var incIdx = 0; incIdx < defCatCat.incompatibles.length; incIdx++) {
+                    var incTerm = defCatCat.incompatibles[incIdx];
+                    var rxInc = new RegExp('(?:^|\\s)' + incTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '(?:$|\\s)', 'i');
+                    if (rxInc.test(nombreNorm) || (incTerm.includes(' ') && nombreNorm.includes(incTerm))) {
+                        return {
+                            estado: 'COINCIDENCIA NO VÁLIDA',
+                            valido: false,
+                            motivo: 'El producto devuelto (' + nombreEncontrado + ') contiene "' + incTerm.toUpperCase() + '", incompatible con la categoría requerida (' + itemCat.categoria.toUpperCase() + ').',
+                            intencion: 'ESPECIFICA',
+                            marca: itemCat.marca
+                        };
+                    }
+                }
+            }
+
+            // Exigencia de término de categoría para leche (no puede ser solo marca y tamaño)
+            if (itemCat.categoria === 'leche') {
+                var tieneTerminoLeche = ['leche', 'lactea', 'uht'].some(function(t) {
+                    var rxT = new RegExp('(?:^|\\s)' + t + '(?:$|\\s)', 'i');
+                    return rxT.test(nombreNorm);
+                });
+                var esAliasDicc = itemCat._normNombresSupermercados && itemCat._normNombresSupermercados.some(function(alias) {
+                    return alias === nombreNorm || nombreNorm.includes(alias) || alias.includes(nombreNorm);
+                });
+                if (!tieneTerminoLeche && !esAliasDicc) {
+                    return {
+                        estado: 'COINCIDENCIA NO VÁLIDA',
+                        valido: false,
+                        motivo: 'El producto devuelto (' + nombreEncontrado + ') no contiene ningún término lácteo válido ("LECHE").',
                         intencion: 'ESPECIFICA',
                         marca: itemCat.marca
                     };
@@ -745,6 +1103,26 @@ function validarCoincidencia(queryOriginal, resultado) {
                 return varCatNorm.includes(b);
             });
 
+            // Rechazo preventivo de variantes incompatibles conocidas para productos base (ej: leche)
+            if (itemCat.categoria === 'leche' && esBase) {
+                var variantesIncompatiblesLeche = ['protein', 'proteina', 'proteinas', 'extra protein', 'descremada', 'deslactosada', 'chocolatada', 'liviana', 'sin lactosa', 'calcio', 'fibra', 'cardio', 'hierro', 'bio'];
+                for (var vIdx = 0; vIdx < variantesIncompatiblesLeche.length; vIdx++) {
+                    var vInc = variantesIncompatiblesLeche[vIdx];
+                    if (!intencion.queryNormalizada.includes(vInc)) {
+                        var rxVInc = new RegExp('(?:^|\\s)' + vInc + '(?:$|\\s)', 'i');
+                        if (rxVInc.test(nombreNorm)) {
+                            return {
+                                estado: 'COINCIDENCIA NO VÁLIDA',
+                                valido: false,
+                                motivo: 'Se detectó variante ajena "' + vInc.toUpperCase() + '" cuando se requería "' + itemCat.variante.toUpperCase() + '".',
+                                intencion: 'ESPECIFICA',
+                                marca: itemCat.marca
+                            };
+                        }
+                    }
+                }
+            }
+
             var palabrasVar = varCatNorm.split(/\s+/).filter(function(w) { return !STOP_WORDS.has(w); });
             var queryMencionaVariante = palabrasVar.some(function(v) { return intencion.queryNormalizada.includes(v); });
             var presQuery = extraerPresentacion(queryOriginal);
@@ -756,6 +1134,9 @@ function validarCoincidencia(queryOriginal, resultado) {
                     if (!tieneVariante && varCatNorm.includes('lima') && varCatNorm.includes('limon')) {
                         tieneVariante = nombreNorm.includes('lima') || nombreNorm.includes('limon') || nombreNorm.includes('sprite') || nombreNorm.includes('7up');
                     }
+                    if (!tieneVariante && (varCatNorm.includes('tallarin') || varCatNorm.includes('tallarines'))) {
+                        tieneVariante = nombreNorm.includes('tallarin') || nombreNorm.includes('tallarines');
+                    }
                     if (!tieneVariante && (itemCat.categoria === 'yerba' || (itemCat._normProducto && itemCat._normProducto.includes('yerba')))) {
                         if (nombreNorm.includes('suave') || nombreNorm.includes('tradicional') || nombreNorm.includes('con palo') || nombreNorm.includes('clasica')) {
                             tieneVariante = true;
@@ -764,6 +1145,13 @@ function validarCoincidencia(queryOriginal, resultado) {
                     if (!tieneVariante && (itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche')))) {
                         // Para leche, 'entera', 'clasica' y '3%' representan la leche entera estándar
                         if ((varCatNorm.includes('entera') || varCatNorm.includes('clasica')) && (nombreNorm.includes('clasica') || nombreNorm.includes('entera') || nombreNorm.includes('3%'))) {
+                            tieneVariante = true;
+                        }
+                    }
+                    if (!tieneVariante && (itemCat.categoria === 'galletitas' || (itemCat._normProducto && itemCat._normProducto.includes('galletita')))) {
+                        // Para galletitas Criollitas/de agua, 'clasicas', 'original', 'crackers' y 'de agua' son equivalentes
+                        if ((varCatNorm.includes('clasica') || varCatNorm.includes('clasicas') || varCatNorm.includes('original')) &&
+                            (nombreNorm.includes('clasica') || nombreNorm.includes('clasicas') || nombreNorm.includes('original') || nombreNorm.includes('crackers') || nombreNorm.includes('de agua') || nombreNorm.includes('saladas'))) {
                             tieneVariante = true;
                         }
                     }
@@ -796,7 +1184,11 @@ function validarCoincidencia(queryOriginal, resultado) {
                             continue;
                         }
                         // Excepción para leche: 'clasica', 'entera' y '3%' son variantes base compatibles entre sí
-                        if ((itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche'))) && (sabOtra === 'entera' || sabOtra === 'clasica')) {
+                        if ((itemCat.categoria === 'leche' || (itemCat._normProducto && itemCat._normProducto.includes('leche'))) && (sabOtra === 'entera' || sabOtra === 'clasica' || sabOtra === '3%')) {
+                            continue;
+                        }
+                        // Excepción para galletitas: 'clasica', 'clasicas', 'original' y 'salado' son variantes base compatibles entre sí
+                        if ((itemCat.categoria === 'galletitas' || (itemCat._normProducto && itemCat._normProducto.includes('galletita'))) && (sabOtra === 'original' || sabOtra === 'clasica' || sabOtra === 'clasicas' || sabOtra === 'salado')) {
                             continue;
                         }
                         var rxSabOtra = new RegExp('(?:^|\\s)' + sabOtra + '(?:$|\\s)', 'i');
@@ -823,6 +1215,31 @@ function validarCoincidencia(queryOriginal, resultado) {
                     estado: 'COINCIDENCIA NO VÁLIDA',
                     valido: false,
                     motivo: 'Presentación incompatible: solicitada ' + itemCat.cantidad + ' ' + itemCat.unidad + ' vs encontrada ' + presEncontradaCat.raw + '.',
+                    intencion: 'ESPECIFICA',
+                    marca: itemCat.marca
+                };
+            }
+        }
+
+        // D) Validación estricta de LONGITUD DE ROLLO para PAPEL HIGIÉNICO (30 mts vs 100 mts / Max)
+        if (itemCat.categoria === 'limpieza' || itemCat.categoria === 'papel_higienico' || (itemCat._normProducto && (itemCat._normProducto.includes('papel higienico') || itemCat._normProducto.includes('higienol')))) {
+            var esPeticionMax = (itemCat.id && itemCat.id.includes('max')) || (itemCat.nombre_completo && itemCat.nombre_completo.toLowerCase().includes('max')) || intencion.queryNormalizada.includes('max') || intencion.queryNormalizada.includes('100');
+            var esResultadoMax = nombreNorm.includes('max') || nombreNorm.includes('100 mts') || nombreNorm.includes('100 m') || nombreNorm.includes('100m') || nombreNorm.includes('mega');
+
+            if (!esPeticionMax && esResultadoMax) {
+                return {
+                    estado: 'COINCIDENCIA NO VÁLIDA',
+                    valido: false,
+                    motivo: 'Línea de papel higiénico incompatible: se encontró "Max / 100 mts" cuando se requería presentación estándar (30 mts).',
+                    intencion: 'ESPECIFICA',
+                    marca: itemCat.marca
+                };
+            }
+            if (esPeticionMax && !esResultadoMax) {
+                return {
+                    estado: 'COINCIDENCIA NO VÁLIDA',
+                    valido: false,
+                    motivo: 'Línea de papel higiénico incompatible: se requiere presentación "Max / 100 mts".',
                     intencion: 'ESPECIFICA',
                     marca: itemCat.marca
                 };
@@ -920,6 +1337,9 @@ function validarCoincidencia(queryOriginal, resultado) {
             return !STOP_WORDS.has(w);
         });
         var coincideMarca = palabrasMarca.every(function(m) {
+            if (m === 'lucchetti' || m === 'luchetti') {
+                return nombreNorm.includes('lucchetti') || nombreNorm.includes('luchetti');
+            }
             var regexM = new RegExp('(?:^|\\s)' + m.replace('-', '[-\\s]') + '(?:$|\\s)', 'i');
             return regexM.test(nombreNorm) || nombreNorm.includes(m);
         });
@@ -939,7 +1359,11 @@ function validarCoincidencia(queryOriginal, resultado) {
     for (var v = 0; v < variantesArray.length; v++) {
         var varItem = variantesArray[v];
         if (intencion.queryNormalizada.includes(varItem)) {
-            if (!nombreNorm.includes(varItem)) {
+            var coincideVar = nombreNorm.includes(varItem);
+            if (!coincideVar && (varItem === 'tallarin' || varItem === 'tallarines')) {
+                coincideVar = nombreNorm.includes('tallarin') || nombreNorm.includes('tallarines');
+            }
+            if (!coincideVar) {
                 return {
                     estado: 'COINCIDENCIA NO VÁLIDA',
                     valido: false,
@@ -1343,7 +1767,7 @@ if (require.main === module) {
         mostrarReporteIndividual(queryArg || null);
     } else if (args[0] === '--limpiar') {
         limpiarResultados(args[1] || '3');
-    } else if (args[0] === '--test') {
+    } else if (args[0] === '--test' || args[0] === '--diagnostico') {
         console.log('======================================================================');
         console.log('       🧪 BATERÍA DE PRUEBAS UNITARIAS: validador.js');
         console.log('======================================================================');
@@ -1358,24 +1782,24 @@ if (require.main === module) {
             }
         }
 
-        // Test 1: Rechazo de Manaos para Secco específico
-        var r1 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Gaseosa Manaos Pomelo 2.25L', precio: 1000 });
-        assertEq('Rechazo de Manaos para consulta Secco', r1.estado, 'COINCIDENCIA NO VÁLIDA');
+        // Test 1: Rechazo de Pepsi para Manaos Cola específico
+        var r1 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Gaseosa Pepsi Cola 2.25L', precio: 1000 });
+        assertEq('Rechazo de Pepsi para consulta Manaos Cola', r1.estado, 'COINCIDENCIA NO VÁLIDA');
 
-        // Test 2: Rechazo de Pepsi para Secco específico
-        var r2 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Gaseosa Pepsi Pomelo 1.5L', precio: 1200 });
-        assertEq('Rechazo de Pepsi para consulta Secco', r2.estado, 'COINCIDENCIA NO VÁLIDA');
+        // Test 2: Rechazo de Coca Cola para Manaos Cola específico
+        var r2 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Gaseosa Coca Cola 2.25L', precio: 2200 });
+        assertEq('Rechazo de Coca Cola para consulta Manaos Cola', r2.estado, 'COINCIDENCIA NO VÁLIDA');
 
-        // Test 3: Rechazo de Fanta para Secco específico
-        var r3 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Gaseosa Fanta Pomelo 2L', precio: 1500 });
-        assertEq('Rechazo de Fanta para consulta Secco', r3.estado, 'COINCIDENCIA NO VÁLIDA');
+        // Test 3: Rechazo de Fanta para Manaos Cola específico
+        var r3 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Gaseosa Fanta Pomelo 2L', precio: 1500 });
+        assertEq('Rechazo de Fanta para consulta Manaos Cola', r3.estado, 'COINCIDENCIA NO VÁLIDA');
 
         // Test 4: Rechazo de fruta por kg para bebida
-        var r4 = validarCoincidencia('Gaseosa Secco Pomelo', { nombre: 'Pomelo Rojo . Xkg', precio: 999 });
-        assertEq('Rechazo de Pomelo fruta para Secco', r4.estado, 'COINCIDENCIA NO VÁLIDA');
+        var r4 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Naranja . Xkg', precio: 999 });
+        assertEq('Rechazo de fruta para Manaos Cola', r4.estado, 'COINCIDENCIA NO VÁLIDA');
 
         // Test 5: Aceptación de alternativa en búsqueda genérica
-        var r5 = validarCoincidencia('gaseosa de pomelo', { nombre: 'Gaseosa Manaos Pomelo 2.25L', precio: 1000 });
+        var r5 = validarCoincidencia('gaseosa cola', { nombre: 'Gaseosa Manaos Cola 2.25L', precio: 1000 });
         assertEq('Aceptación de alternativa en búsqueda genérica', r5.estado, 'VALIDADA');
 
         // Test 6: Equivalencia 2.25L vs 2250ml
@@ -1468,9 +1892,17 @@ if (require.main === module) {
         var t26 = validarCoincidencia('Sprite 2.25L', { nombre: 'Gaseosa Sprite Lima Limon 2.25 L', precio: 3600 });
         assertEq('Catálogo: Aceptación Sprite 2.25 L', t26.estado, 'VALIDADA');
 
-        // Test 27: Aceptación Secco Pomelo 2.25 L
-        var t27 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Secco Pomelo 2.25 L', precio: 1500 });
-        assertEq('Catálogo: Aceptación Secco Pomelo 2.25 L', t27.estado, 'VALIDADA');
+        // Test 27: Aceptación Manaos Cola 2.25 L
+        var t27 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Gaseosa cola Manaos 2,25 lts', precio: 1500 });
+        assertEq('Catálogo: Aceptación Manaos Cola 2.25 L', t27.estado, 'VALIDADA');
+
+        // Test 27b: Aceptación Manaos Naranja 2.25 L
+        var t27b = validarCoincidencia('Manaos Naranja 2.25L', { nombre: 'Gaseosa Naranja Manaos 2.25l', precio: 1500 });
+        assertEq('Catálogo: Aceptación Manaos Naranja 2.25 L', t27b.estado, 'VALIDADA');
+
+        // Test 27c: Aceptación Manaos Lima Limón 2.25 L
+        var t27c = validarCoincidencia('Manaos Lima Limon 2.25L', { nombre: 'Gaseosa lima limón Manaos 2,25 lts', precio: 1500 });
+        assertEq('Catálogo: Aceptación Manaos Lima Limón 2.25 L', t27c.estado, 'VALIDADA');
 
         // Test 28: Aceptación Arroz Gallo 1 kg
         var t28 = validarCoincidencia('Arroz Gallo 1kg', { nombre: 'Arroz Gallo Largo Fino 1 kg', precio: 2200 });
@@ -1480,26 +1912,68 @@ if (require.main === module) {
         var t29 = validarCoincidencia('Leche La Serenisima 1L', { nombre: 'Leche La Serenísima Entera Clásica 1 L', precio: 1450 });
         assertEq('Catálogo: Aceptación Leche La Serenísima 1 L', t29.estado, 'VALIDADA');
 
-        // Test 30: RECHAZO Secco Pomelo vs Manaos Pomelo 2.25 L
-        var t30 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Manaos Pomelo 2.25 L', precio: 1200 });
-        assertEq('Catálogo: Rechazo Secco Pomelo vs Manaos Pomelo', t30.estado, 'COINCIDENCIA NO VÁLIDA');
+        // Test 30: RECHAZO Manaos Cola vs Manaos Naranja 2.25 L
+        var t30 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Gaseosa Naranja Manaos 2.25l', precio: 1200 });
+        assertEq('Catálogo: Rechazo Manaos Cola vs Manaos Naranja', t30.estado, 'COINCIDENCIA NO VÁLIDA');
 
-        // Test 31: RECHAZO Secco Pomelo vs Secco Cola 2.25 L
-        var t31 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Secco Cola 2.25 L', precio: 1500 });
-        assertEq('Catálogo: Rechazo Secco Pomelo vs Secco Cola', t31.estado, 'COINCIDENCIA NO VÁLIDA');
+        // Test 31: RECHAZO Manaos Cola vs Manaos Lima Limón 2.25 L
+        var t31 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Gaseosa lima limón Manaos 2,25 lts', precio: 1500 });
+        assertEq('Catálogo: Rechazo Manaos Cola vs Manaos Lima Limón', t31.estado, 'COINCIDENCIA NO VÁLIDA');
 
-        // Test 32: RECHAZO Secco Pomelo 2.25 L vs Secco Pomelo 1.5 L
-        var t32 = validarCoincidencia('Secco Pomelo 2.25L', { nombre: 'Gaseosa Secco Pomelo 1.5 L', precio: 1100 });
-        assertEq('Catálogo: Rechazo Secco Pomelo 2.25 L vs 1.5 L', t32.estado, 'COINCIDENCIA NO VÁLIDA');
+        // Test 32: RECHAZO Manaos Cola 2.25 L vs Manaos Cola 1.5 L
+        var t32 = validarCoincidencia('Manaos Cola 2.25L', { nombre: 'Gaseosa Cola Manaos 1.5 L', precio: 1100 });
+        assertEq('Catálogo: Rechazo Manaos Cola 2.25 L vs 1.5 L', t32.estado, 'COINCIDENCIA NO VÁLIDA');
 
         // Test 33: RECHAZO Arroz Gallo 1 kg vs Arroz Gallo 500 g
         var t33 = validarCoincidencia('Arroz Gallo 1kg', { nombre: 'Arroz Gallo 500 g', precio: 1200 });
         assertEq('Catálogo: Rechazo Arroz Gallo 1 kg vs 500 g', t33.estado, 'COINCIDENCIA NO VÁLIDA');
 
+        // Test 33b: RECHAZO Bebida Vegetal para Leche La Serenísima
+        var t33b = validarCoincidencia('Leche La Serenísima', { nombre: 'Bebida Vegetal Almendra La Serenisima Sin Endulzar 1 Lt.', precio: 5159, cantidad: 1, unidad: 'L' });
+        assertEq('Catálogo: Rechazo Bebida Vegetal para Leche La Serenísima', t33b.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33c: RECHAZO Leche Protein para Leche La Serenísima Clásica
+        var t33c = validarCoincidencia('Leche La Serenísima', { nombre: 'Leche Protein La Serenisima 1L', precio: 2340, cantidad: 1, unidad: 'L' });
+        assertEq('Catálogo: Rechazo Leche Protein para Leche Clásica', t33c.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33d: ACEPTACIÓN Leche La Serenísima Clásica 3% 1L (Carrefour / Día)
+        var t33d = validarCoincidencia('Leche La Serenísima', { nombre: 'Leche La serenisima clásica 3% 1L', precio: 2915, cantidad: 1, unidad: 'L' });
+        assertEq('Catálogo: Aceptación Leche La Serenísima Clásica 3% 1L', t33d.estado, 'VALIDADA');
+
+        // Test 33e: ACEPTACIÓN Galletitas Criollitas 100 g. x 3 uni (Pack Día % / Carrefour)
+        var t33e = validarCoincidencia('Galletitas Criollitas', { nombre: 'Galletitas original Criollitas 100 g. x 3 uni', precio: 1979 });
+        assertEq('Catálogo: Aceptación Criollitas 100 g. x 3 uni (300g)', t33e.estado, 'VALIDADA');
+
+        // Test 33f: ACEPTACIÓN Galletitas Criollitas 3x 100gramos (Pack 3x)
+        var t33f = validarCoincidencia('Galletitas Criollitas', { nombre: 'Galletitas Criollitas 3x 100gramos', precio: 1979 });
+        assertEq('Catálogo: Aceptación Criollitas 3x 100gramos (300g)', t33f.estado, 'VALIDADA');
+
+        // Test 33g: RECHAZO Galletitas Criollitas 100 g individual (no es pack de 300g)
+        var t33g = validarCoincidencia('Galletitas Criollitas', { nombre: 'Galletitas Criollitas 100 g', precio: 700 });
+        assertEq('Catálogo: Rechazo Criollitas 100 g individual vs 300 g', t33g.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33h: ACEPTACIÓN Papel Higiénico Higienol Max (Carrefour, COTO y Día %)
+        var t33h_carrefour = validarCoincidencia('Papel Higiénico Higienol Max', { nombre: 'Papel higiénico Higienol Max hoja simple 100 mts 4 uni', precio: 7680 });
+        assertEq('Catálogo: Aceptación Higienol Max Carrefour', t33h_carrefour.estado, 'VALIDADA');
+
+        var t33h_coto = validarCoincidencia('Papel Higiénico Higienol Max', { nombre: 'Papel Higiénico HIGIENOL Max Hoja Simple 100 M 4 Un', precio: 5759.99 });
+        assertEq('Catálogo: Aceptación Higienol Max COTO', t33h_coto.estado, 'VALIDADA');
+
+        var t33h_dia = validarCoincidencia('Papel Higiénico Higienol Max', { nombre: 'Papel Higiénico Higienol Max hoja simple 100 m 4 Ud.', precio: 7680 });
+        assertEq('Catálogo: Aceptación Higienol Max Día %', t33h_dia.estado, 'VALIDADA');
+
+        // Test 33i: RECHAZO Papel Higiénico Higienol Fresh 30 mts cuando se busca Max (100m)
+        var t33i = validarCoincidencia('Papel Higiénico Higienol Max', { nombre: 'Papel higiénico Higienol Fresh hoja simple 30 mts 4 uni', precio: 2499 });
+        assertEq('Catálogo: Rechazo Higienol Fresh 30m vs Max', t33i.estado, 'COINCIDENCIA NO VÁLIDA');
+
+        // Test 33j: ACEPTACIÓN Papel Higiénico Higienol Max para consulta general Papel Higiénico Higienol
+        var t33j = validarCoincidencia('Papel Higiénico Higienol', { nombre: 'Papel higiénico Higienol Max hoja simple 100 mts 4 uni', precio: 7680 });
+        assertEq('Catálogo: Aceptación Higienol Max para búsqueda Higienol', t33j.estado, 'VALIDADA');
+
         // Test 34: Comparación de 3 Supermercados (Incompleto en Día %)
         var itemsTestIncompleto = [
-            { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-            { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
+            { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25 L' },
+            { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25 L' },
             { supermercado: 'Día %', valido: false, precio: null, stock_status: 'NO ENCONTRADO', nombre: 'No encontrado' }
         ];
         var comp3Incompleto = validarComparacion3Supermercados(itemsTestIncompleto);
@@ -1507,12 +1981,29 @@ if (require.main === module) {
 
         // Test 35: Comparación de 3 Supermercados (Presente en los 3 con misma presentación)
         var itemsTestCompleto = [
-            { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-            { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' },
-            { supermercado: 'Día %', valido: true, precio: 1480, stock_status: 'DISPONIBLE', nombre: 'Secco Pomelo 2.25L' }
+            { supermercado: 'Carrefour', valido: true, precio: 1500, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25 L' },
+            { supermercado: 'COTO', valido: true, precio: 1550, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25 L' },
+            { supermercado: 'Día %', valido: true, precio: 1480, stock_status: 'DISPONIBLE', nombre: 'Manaos Cola 2.25 L' }
         ];
         var comp3Completo = validarComparacion3Supermercados(itemsTestCompleto);
         assertEq('3 Supermercados: Válido en los 3 -> Comparable', comp3Completo.comparable, true);
+
+        // Test 36: Búsqueda por subcadenas (Obtener mayor cantidad de coincidencias posibles)
+        var subsArroz = buscarPorSubcadenas('arroz');
+        assertEq('Búsqueda por subcadenas: arroz encuentra al menos 2 productos', subsArroz.length >= 2, true);
+
+        // Test 37: Búsqueda por subcadenas con candidatos
+        var candTest = [
+            'Fideos Tallarín Matarazzo 500g',
+            'Fideos Tirabuzón Matarazzo 500g',
+            'Arroz Gallo 1kg'
+        ];
+        var resCand = buscarPorSubcadenas('fideos matarazzo', candTest);
+        assertEq('Búsqueda por subcadenas en lista: encuentra 2 de fideos', resCand.length, 2);
+
+        // Test 38: Cálculo de subcadenas coincidentes
+        var matchCalc = calcularCoincidenciasSubcadenas('Coca Cola 2.25L', 'Gaseosa Coca Cola Sabor Original 2.25 L');
+        assertEq('Cálculo subcadenas coincidentes: cantidad > 0', matchCalc.cantidad > 0, true);
 
         console.log('----------------------------------------------------------------------');
         if (errores === 0) {
@@ -1522,8 +2013,21 @@ if (require.main === module) {
             console.log(' ❌ DIAGNÓSTICO FINAL: SE DETECTARON ' + errores + ' ERRORES\n');
             process.exit(1);
         }
+    } else if (args[0] === '--subcadenas' || args[0] === '--buscar') {
+        var querySub = args.slice(1).join(' ').trim();
+        var resSub = buscarPorSubcadenas(querySub);
+        console.log('======================================================================');
+        console.log('       🔍 RESULTADOS DE BÚSQUEDA POR SUBCADENAS (validador.js)');
+        console.log('       Consulta: "' + querySub + '"');
+        console.log('       Total de coincidencias obtenidas: ' + resSub.length);
+        console.log('======================================================================\n');
+        resSub.forEach(function(r, idx) {
+            var nom = r.item ? r.item.nombre_completo : (r.texto || JSON.stringify(r.candidato));
+            console.log((idx + 1) + '. ' + nom + ' [Score: ' + r.score + ' | Coincidencias: ' + r.cantidadCoincidencias + ']');
+            console.log('   • Subcadenas coincidentes: ' + r.subcadenasCoincidentes.join(', '));
+        });
     } else {
-        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--limpiar 1|2|3] | [--crear-temp "producto"] | [--test]');
+        console.log('Uso: node validador.js [--reporte-individual "producto"] | [--subcadenas "texto"] | [--limpiar 1|2|3] | [--crear-temp "producto"] | [--test|--diagnostico]');
     }
 }
 
@@ -1534,9 +2038,18 @@ if (require.main === module) {
 function adaptarTerminoSupermercado(termino, supermercado) {
     if (!termino || typeof termino !== 'string') return '';
     if (supermercado === 'Carrefour') {
-        return termino.replace(/(\d+)\.(\d+)/g, function(match, entero, decimal) {
+        var res = termino.replace(/(\d+)\.(\d+)/g, function(match, entero, decimal) {
             return entero + ',' + decimal;
         });
+        if (/coca\s*cola/i.test(res)) {
+            res = res.replace(/(\d+,\d+)\s*(?:lts?|litros?|l)?\b/gi, function(m, num) {
+                return num + ' lts';
+            });
+        }
+        return res;
+    }
+    if (supermercado === 'Día %' || supermercado === 'Dia' || supermercado === 'Dia %' || (supermercado && String(supermercado).toLowerCase().includes('dia'))) {
+        return termino.replace(/\blucchetti\b/gi, 'Luchetti');
     }
     return termino;
 }
@@ -1544,12 +2057,18 @@ function adaptarTerminoSupermercado(termino, supermercado) {
 module.exports = {
     adaptarTerminoSupermercado: adaptarTerminoSupermercado,
     normalizar: normalizar,
+    extraerSubcadenas: extraerSubcadenas,
+    calcularCoincidenciasSubcadenas: calcularCoincidenciasSubcadenas,
+    buscarPorSubcadenas: buscarPorSubcadenas,
     extraerPresentacion: extraerPresentacion,
     extraerAtributos: extraerAtributos,
     calcularPrecioNormalizado: calcularPrecioNormalizado,
     sonComparables: sonComparables,
     detectarIntencion: detectarIntencion,
     obtenerConfiguracionBusqueda: obtenerConfiguracionBusqueda,
+    obtenerDiccionarioSupermercados: catalogo.obtenerDiccionarioSupermercados,
+    buscarPorDiccionarioSupermercado: catalogo.buscarPorDiccionarioSupermercado,
+    agregarNombreSupermercado: catalogo.agregarNombreSupermercado,
     validarCoincidencia: validarCoincidencia,
     validarComparacion3Supermercados: validarComparacion3Supermercados,
     catalogo: catalogo,

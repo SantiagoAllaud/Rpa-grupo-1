@@ -177,7 +177,7 @@ Rpa programa/
 │   ├── capture_frontend_ui.js    # Captura de interfaz de usuario.
 │   ├── test_error_concurrency.js # Prueba de control de concurrencia y errores.
 │   ├── verify_compra_mes.js      # Verificación del flujo de compra del mes.
-│   └── verify_live_search_secco.js # Verificación de validación semántica estricta.
+│   └── verify_live_search_manaos.js # Verificación de validación semántica estricta.
 ├── .gitignore                    # Exclusión de node_modules, temporales y reportes locales.
 ├── ejecutar.bat                  # Lanzador por lotes interactivo (menú CLI de 7 opciones).
 ├── generar_excel.js              # Generador del reporte Excel de 5 hojas con ExcelJS.
