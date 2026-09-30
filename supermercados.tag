@@ -31,6 +31,16 @@ js unidades_compra = 1; try { if (typeof unidades !== 'undefined' && unidades &&
 js prod_clean = producto.replace(/"/g, '').replace(/'/g, '').trim();
 js query_term = prod_clean;
 js try { if (typeof termino !== 'undefined' && termino && termino.trim() && termino !== 'termino') { query_term = termino.trim(); } } catch(e) {}
+
+// Adaptaciones específicas para búsqueda individual con TagUI
+js var pLow = prod_clean.toLowerCase();
+js var qLow = query_term.toLowerCase();
+js if (pLow.indexOf('coca cola') > -1 || pLow.indexOf('coca-cola') > -1 || qLow.indexOf('coca cola') > -1) { query_term = 'coca cola 2,25L'; }
+js else if (pLow.indexOf('sprite') > -1 || qLow.indexOf('sprite') > -1) { query_term = 'sprite 2,25L'; }
+js else if ((pLow.indexOf('manaos') > -1 && pLow.indexOf('naranja') > -1) || (qLow.indexOf('manaos') > -1 && qLow.indexOf('naranja') > -1)) { query_term = 'manaos naranja'; }
+js else if ((pLow.indexOf('manaos') > -1 && (pLow.indexOf('lima') > -1 || pLow.indexOf('limon') > -1)) || (qLow.indexOf('manaos') > -1 && (qLow.indexOf('lima') > -1 || qLow.indexOf('limon') > -1))) { query_term = 'manaos lima limon'; }
+js else if ((pLow.indexOf('manaos') > -1 && pLow.indexOf('cola') > -1) || (qLow.indexOf('manaos') > -1 && qLow.indexOf('cola') > -1)) { query_term = 'manaos cola'; }
+
 js prod_url = encodeURIComponent(query_term.replace(/,/g, ' ').replace(/\s+/g, ' '));
 
 
@@ -127,9 +137,29 @@ for (var i = 0; i < cards.length; i++) {
     if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
         if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
     }
+    if (qStr.indexOf('sprite') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
+    // Reglas estrictas de variantes y sabores (Manaos, etc.)
+    if (qStr.indexOf('naranja') > -1) {
+        if (nClean.indexOf('naranja') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if (qStr.indexOf('cola') > -1 && qStr.indexOf('coca') === -1) {
+        if (nClean.indexOf('cola') === -1) continue;
+        if (nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && qStr.indexOf('sprite') === -1) {
+        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
 
     var score = 0;
     if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
+    if (qStr.indexOf('naranja') > -1 && nClean.indexOf('naranja') > -1) score += 200;
+    if (qStr.indexOf('cola') > -1 && nClean.indexOf('cola') > -1) score += 200;
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && (nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1)) score += 200;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
@@ -239,9 +269,29 @@ for (var i = 0; i < items.length; i++) {
     if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
         if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
     }
+    if (qStr.indexOf('sprite') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
+    // Reglas estrictas de variantes y sabores (Manaos, etc.)
+    if (qStr.indexOf('naranja') > -1) {
+        if (nClean.indexOf('naranja') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if (qStr.indexOf('cola') > -1 && qStr.indexOf('coca') === -1) {
+        if (nClean.indexOf('cola') === -1) continue;
+        if (nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && qStr.indexOf('sprite') === -1) {
+        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
 
     var score = 0;
     if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
+    if (qStr.indexOf('naranja') > -1 && nClean.indexOf('naranja') > -1) score += 200;
+    if (qStr.indexOf('cola') > -1 && nClean.indexOf('cola') > -1) score += 200;
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && (nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1)) score += 200;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
@@ -281,8 +331,59 @@ echo [SUPERMERCADO 3] Navegando a https://diaonline.supermercadosdia.com.ar...
 https://diaonline.supermercadosdia.com.ar
 wait 3
 
+// Cierre de modales/cookies si estuviera presente
+if present('Aceptar todo')
+    click Aceptar todo
+    wait 1
+if present('Aceptar')
+    click Aceptar
+    wait 1
+
 echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_term`...
-type input#downshift-0-input as `query_term`[enter]
+if present('input#downshift-0-input')
+    type input#downshift-0-input as `query_term`[enter]
+else if present('input[placeholder*="busc"]')
+    type input[placeholder*="busc"] as `query_term`[enter]
+else if present('input.vtex-styleguide-9-x-input')
+    type input.vtex-styleguide-9-x-input as `query_term`[enter]
+wait 1
+
+if present('button[aria-label="Buscar Productos"]')
+    click button[aria-label="Buscar Productos"]
+else if present('[class*="searchBarIcon"]')
+    click [class*="searchBarIcon"]
+else if present('[class*="searchIcon"]')
+    click [class*="searchIcon"]
+else if present('button[type="submit"]')
+    click button[type="submit"]
+else if present('[class*="search-bar"] button')
+    click [class*="search-bar"] button
+wait 2
+
+// Disparo de eventos DOM y submit de formulario en la página
+dom begin
+var inp = document.querySelector('input#downshift-0-input, input[placeholder*="busc" i], input.vtex-styleguide-9-x-input');
+if (inp) {
+    inp.focus();
+    var form = inp.closest('form');
+    if (form) {
+        var btn = form.querySelector('button, [class*="searchBarIcon"], [class*="searchIcon"], svg');
+        if (btn) btn.click();
+        try { form.requestSubmit(); } catch(e) { try { form.submit(); } catch(e2){} }
+    }
+    var ev = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
+    inp.dispatchEvent(ev);
+}
+dom finish
+wait 2
+
+// Cargar catálogo de Día % con el término si aún no navegó
+dom begin
+if (window.location.href.indexOf('_q=') === -1 && window.location.href.indexOf('map=ft') === -1) {
+    var q = encodeURIComponent("`query_term`");
+    window.location.href = "https://diaonline.supermercadosdia.com.ar/" + q + "?_q=" + q + "&map=ft";
+}
+dom finish
 wait 4
 
 echo [SUPERMERCADO 3] Extrayendo resultados...
@@ -311,7 +412,7 @@ var candidates = [];
 for (var i = 0; i < dCards.length; i++) {
     var c = dCards[i];
     var nEl = c.querySelector('h3, [class*="productBrand"]');
-    var pEl = c.querySelector('[class*="sellingPrice"], [class*="currencyContainer"]');
+    var pEl = c.querySelector('[class*="sellingPriceValue"], [class*="sellingPrice"], [class*="price_sellingPrice"], [class*="currencyContainer"]');
     var lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
     if (!nEl) continue;
 
@@ -361,9 +462,29 @@ for (var i = 0; i < dCards.length; i++) {
     if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
         if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
     }
+    if (qStr.indexOf('sprite') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
+    // Reglas estrictas de variantes y sabores (Manaos, etc.)
+    if (qStr.indexOf('naranja') > -1) {
+        if (nClean.indexOf('naranja') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if (qStr.indexOf('cola') > -1 && qStr.indexOf('coca') === -1) {
+        if (nClean.indexOf('cola') === -1) continue;
+        if (nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && qStr.indexOf('sprite') === -1) {
+        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
 
     var score = 0;
     if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
+    if (qStr.indexOf('naranja') > -1 && nClean.indexOf('naranja') > -1) score += 200;
+    if (qStr.indexOf('cola') > -1 && nClean.indexOf('cola') > -1) score += 200;
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && (nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1)) score += 200;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
@@ -400,4 +521,6 @@ echo 3 supermercados procesados.
 echo Resultados guardados en resultados.csv.
 echo Cerrando pestaña del navegador...
 echo ----------------------------------------------------------------------------
-run mouse_helper.exe delayedclosetab 2
+dom begin
+try { window.close(); } catch(e) {}
+dom finish

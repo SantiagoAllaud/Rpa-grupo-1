@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             prods.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
-                opt.textContent = `${p.nombre_completo} (${p.cantidad} ${p.unidad})`;
+                opt.textContent = p.nombre_completo;
                 if (selectedId && (p.id === selectedId || p.producto.toLowerCase() === selectedId.toLowerCase())) {
                     opt.selected = true;
                 }

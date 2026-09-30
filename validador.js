@@ -1760,7 +1760,21 @@ function crearTempInput(producto, cantidad, unidad) {
     const prodOficial = itemCat.nombre_completo || itemCat.producto;
     const cantOficial = itemCat.cantidad;
     const unidOficial = itemCat.unidad;
-    const termBusqueda = itemCat.termino_busqueda || prodOficial;
+    let termBusqueda = itemCat.termino_busqueda || prodOficial;
+
+    // Adaptaciones específicas para búsqueda individual con TagUI
+    const pLow = (prodOficial + ' ' + (producto || '')).toLowerCase();
+    if (pLow.includes('coca cola') || pLow.includes('coca-cola')) {
+        termBusqueda = 'coca cola 2,25L';
+    } else if (pLow.includes('sprite')) {
+        termBusqueda = 'sprite 2,25L';
+    } else if (pLow.includes('manaos') && pLow.includes('naranja')) {
+        termBusqueda = 'manaos naranja';
+    } else if (pLow.includes('manaos') && (pLow.includes('lima') || pLow.includes('limon'))) {
+        termBusqueda = 'manaos lima limon';
+    } else if (pLow.includes('manaos') && pLow.includes('cola')) {
+        termBusqueda = 'manaos cola';
+    }
 
     var tempFile = path.join(__dirname, 'temp_input.csv');
     var escProd = '"' + prodOficial.replace(/"/g, '""') + '"';

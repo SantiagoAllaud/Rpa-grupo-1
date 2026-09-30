@@ -444,10 +444,8 @@ app.post('/api/buscar-individual', async (req, res) => {
 
         await taguiPromise;
 
-        // Cerrar pestaña/ventana del navegador Chrome al finalizar las búsquedas
-        try {
-            execSync('taskkill /F /IM chrome.exe', { windowsHide: true, stdio: 'ignore' });
-        } catch (eKillChrome) {}
+        // Cerrar únicamente la ventana de Chrome abierta por TagUI (protegiendo el frontend)
+        cerrarNavegadorTagUI();
 
         // Leer resultados extraídos por TagUI en resultados.csv
         const vEngine = getValidador();
@@ -494,6 +492,9 @@ app.post('/api/buscar-individual', async (req, res) => {
             res.status(500).json({ success: false, message: errMsg });
         }
     } finally {
+        try {
+            execSync(`"${path.join(__dirname, 'mouse_helper.exe')}" closetab`, { windowsHide: true, stdio: 'ignore' });
+        } catch (e) {}
         try {
             execSync('taskkill /F /IM chrome.exe', { windowsHide: true, stdio: 'ignore' });
         } catch (eKillChrome) {}
