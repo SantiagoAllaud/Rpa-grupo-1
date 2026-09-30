@@ -346,6 +346,39 @@ app.post('/api/compra-mes', async (req, res) => {
     }
 });
 
+// Función para cerrar ÚNICAMENTE la ventana/instancia de Chrome iniciada por TagUI
+// Se filtra por la línea de comandos de TagUI (remote-debugging-port=9222 o tagui_user_profile)
+// de modo que NUNCA cierre la pestaña del frontend (http://localhost:3000) ni las pestañas del usuario.
+function cerrarNavegadorTagUI() {
+    // 1. Cerrar pestañas abiertas en el puerto 9222 vía CDP
+    try {
+        const http = require('http');
+        const req = http.get('http://127.0.0.1:9222/json/list', (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const tabs = JSON.parse(data);
+                    for (const tab of tabs) {
+                        if (tab && tab.id) {
+                            http.get(`http://127.0.0.1:9222/json/close/${tab.id}`, () => {}).on('error', () => {});
+                        }
+                    }
+                } catch(e) {}
+            });
+        });
+        req.on('error', () => {});
+        req.setTimeout(800, () => req.destroy());
+    } catch(e) {}
+
+    // 2. Terminar procesos de Chrome iniciados por TagUI (filtrando por remote-debugging-port o tagui)
+    try {
+        const { spawnSync } = require('child_process');
+        const psScript = "Get-CimInstance Win32_Process -Filter \"Name = 'chrome.exe'\" | Where-Object { $_.CommandLine -like '*remote-debugging-port=9222*' -or $_.CommandLine -like '*tagui*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+        spawnSync('powershell', ['-NoProfile', '-Command', psScript], { windowsHide: true });
+    } catch (e) {}
+}
+
 // Endpoint para Búsqueda Individual (Exclusiva con TagUI)
 app.post('/api/buscar-individual', async (req, res) => {
     if (isRpaRunning) {
@@ -492,12 +525,7 @@ app.post('/api/buscar-individual', async (req, res) => {
             res.status(500).json({ success: false, message: errMsg });
         }
     } finally {
-        try {
-            execSync(`"${path.join(__dirname, 'mouse_helper.exe')}" closetab`, { windowsHide: true, stdio: 'ignore' });
-        } catch (e) {}
-        try {
-            execSync('taskkill /F /IM chrome.exe', { windowsHide: true, stdio: 'ignore' });
-        } catch (eKillChrome) {}
+        cerrarNavegadorTagUI();
         if (fs.existsSync('temp_input.csv')) {
             try { fs.unlinkSync('temp_input.csv'); } catch(e) {}
         }
@@ -529,8 +557,8 @@ app.all('/api/abort', (req, res) => {
     if (currentTaguiProcess) {
         try {
             execSync('taskkill /F /T /PID ' + currentTaguiProcess.pid, { windowsHide: true, stdio: 'ignore' });
-            execSync('taskkill /F /IM chrome.exe', { windowsHide: true, stdio: 'ignore' });
         } catch (e) {}
+        cerrarNavegadorTagUI();
         currentTaguiProcess = null;
     }
     try {

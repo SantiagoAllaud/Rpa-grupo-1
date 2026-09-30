@@ -258,8 +258,8 @@ call node validador.js --crear-temp "!PROD_MANUAL!"
 call tagui supermercados.tag temp_input.csv
 if exist "temp_input.csv" del "temp_input.csv" >nul 2>&1
 
-:: Cerrar navegador Chrome al finalizar las búsquedas
-taskkill /F /IM chrome.exe >nul 2>&1
+:: Cerrar únicamente el navegador Chrome de TagUI al finalizar las búsquedas
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name = 'chrome.exe'\" | Where-Object { $_.CommandLine -like '*remote-debugging-port=9222*' -or $_.CommandLine -like '*tagui*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 
 :: Validación inteligente y reporte comparativo en vivo por consola
 echo.

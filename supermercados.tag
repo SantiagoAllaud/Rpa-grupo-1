@@ -341,45 +341,37 @@ if present('Aceptar')
 
 echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_term`...
 if present('input#downshift-0-input')
-    type input#downshift-0-input as `query_term`[enter]
+    type input#downshift-0-input as `query_term`
 else if present('input[placeholder*="busc"]')
-    type input[placeholder*="busc"] as `query_term`[enter]
+    type input[placeholder*="busc"] as `query_term`
 else if present('input.vtex-styleguide-9-x-input')
-    type input.vtex-styleguide-9-x-input as `query_term`[enter]
-wait 1
+    type input.vtex-styleguide-9-x-input as `query_term`
+wait 2
 
-if present('button[aria-label="Buscar Productos"]')
+echo [SUPERMERCADO 3] Seleccionando 'Ver todos los productos' mediante TagUI...
+if present('Ver todos los productos')
+    click Ver todos los productos
+else if present('//*[contains(text(), "Ver todos los productos")]')
+    click //*[contains(text(), "Ver todos los productos")]
+else if present('button[aria-label="Buscar Productos"]')
     click button[aria-label="Buscar Productos"]
-else if present('[class*="searchBarIcon"]')
-    click [class*="searchBarIcon"]
-else if present('[class*="searchIcon"]')
-    click [class*="searchIcon"]
 else if present('button[type="submit"]')
     click button[type="submit"]
-else if present('[class*="search-bar"] button')
-    click [class*="search-bar"] button
 wait 2
 
-// Disparo de eventos DOM y submit de formulario en la página
+// Fallback DOM para asegurar click en 'Ver todos los productos' o navegación al catálogo
 dom begin
-var inp = document.querySelector('input#downshift-0-input, input[placeholder*="busc" i], input.vtex-styleguide-9-x-input');
-if (inp) {
-    inp.focus();
-    var form = inp.closest('form');
-    if (form) {
-        var btn = form.querySelector('button, [class*="searchBarIcon"], [class*="searchIcon"], svg');
-        if (btn) btn.click();
-        try { form.requestSubmit(); } catch(e) { try { form.submit(); } catch(e2){} }
+var clicked = false;
+var allEl = Array.from(document.querySelectorAll('a, button, div, span, p'));
+for (var i = 0; i < allEl.length; i++) {
+    var txt = (allEl[i].innerText || '').trim().toLowerCase();
+    if (txt === 'ver todos los productos' || txt.indexOf('ver todos los productos') > -1) {
+        allEl[i].click();
+        clicked = true;
+        break;
     }
-    var ev = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
-    inp.dispatchEvent(ev);
 }
-dom finish
-wait 2
-
-// Cargar catálogo de Día % con el término si aún no navegó
-dom begin
-if (window.location.href.indexOf('_q=') === -1 && window.location.href.indexOf('map=ft') === -1) {
+if (!clicked && window.location.href.indexOf('_q=') === -1 && window.location.href.indexOf('map=ft') === -1) {
     var q = encodeURIComponent("`query_term`");
     window.location.href = "https://diaonline.supermercadosdia.com.ar/" + q + "?_q=" + q + "&map=ft";
 }
@@ -519,8 +511,4 @@ echo ---------------------------------------------------------------------------
 echo [ RPA FINALIZADO ]
 echo 3 supermercados procesados.
 echo Resultados guardados en resultados.csv.
-echo Cerrando pestaña del navegador...
 echo ----------------------------------------------------------------------------
-dom begin
-try { window.close(); } catch(e) {}
-dom finish
