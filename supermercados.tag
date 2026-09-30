@@ -31,8 +31,6 @@ js unidades_compra = 1; try { if (typeof unidades !== 'undefined' && unidades &&
 js prod_clean = producto.replace(/"/g, '').replace(/'/g, '').trim();
 js query_term = prod_clean;
 js try { if (typeof termino !== 'undefined' && termino && termino.trim() && termino !== 'termino') { query_term = termino.trim(); } } catch(e) {}
-js query_carrefour = query_term.replace(/(\d+)\.(\d+)/g, '$1,$2');
-js query_dia = query_term.replace(/\blucchetti\b/gi, 'Luchetti');
 js prod_url = encodeURIComponent(query_term.replace(/,/g, ' ').replace(/\s+/g, ' '));
 
 
@@ -48,17 +46,17 @@ if present('Aceptar todo')
     click Aceptar todo
     wait 1
 
-echo [SUPERMERCADO 1] Localizando buscador y escribiendo producto: `query_carrefour`...
-type input[placeholder*="buscando" i], input.vtex-styleguide-9-x-input as `query_carrefour`[enter]
+echo [SUPERMERCADO 1] Localizando buscador y escribiendo producto: `query_term`...
+if present('input.vtex-styleguide-9-x-input')
+    type input.vtex-styleguide-9-x-input as `query_term`[enter]
+else if present('input[placeholder*="buscando"]')
+    type input[placeholder*="buscando"] as `query_term`[enter]
 wait 2
-if present('button[class*="searchIcon"]')
-    click button[class*="searchIcon"]
-else if present('button[type="submit"]')
-    click button[type="submit"]
-wait 4
-
-echo [SUPERMERCADO 1] Aplicando orden: menor a mayor...
-wait 2
+if present('button[aria-label="Buscar Productos"]')
+    click button[aria-label="Buscar Productos"]
+else if present('button[class*="searchBarIcon--external-search"]')
+    click button[class*="searchBarIcon--external-search"]
+wait 5
 
 echo [SUPERMERCADO 1] Extrayendo resultados...
 carrefour_nom = "No encontrado"
@@ -75,7 +73,10 @@ function cleanText(s) {
 var qStr = cleanText("`producto`");
 var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-var cards = Array.from(document.querySelectorAll('article, [class*="product-summary"], [class*="vtex-search-result-3-x-galleryItem"], [class*="galleryItem"]')).slice(0, 15);
+// Seleccionar únicamente contenedores principales de tarjeta para evitar duplicados anidados
+var cards = Array.from(document.querySelectorAll('[class*="galleryItem"]'));
+if (cards.length === 0) cards = Array.from(document.querySelectorAll('article'));
+if (cards.length === 0) cards = Array.from(document.querySelectorAll('section[class*="product-summary"]'));
 if (cards.length === 0) return 'null';
 
 var incompatibles = ['arrocera', 'olla', 'vaporera', 'electrodomestico', 'jabon', 'shampoo', 'perro', 'gato', 'juguete', 'vela', 'taza', 'vaso', 'termo', 'alimento para perro', 'alimento para gato'];
@@ -122,7 +123,13 @@ for (var i = 0; i < cards.length; i++) {
     if (qStr.indexOf('playadito') > -1 && (nClean.indexOf('taragui') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
     if (qStr.indexOf('taragui') > -1 && (nClean.indexOf('playadito') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
 
+    // Descartar Zero / Light si la consulta busca sabor regular / original
+    if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
     var score = 0;
+    if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
@@ -165,9 +172,6 @@ wait 3
 echo [SUPERMERCADO 2] Localizando buscador y escribiendo producto: `query_term`...
 type input#cio-autocomplete-0-input as `query_term`[enter]
 wait 4
-
-echo [SUPERMERCADO 2] Aplicando orden: menor a mayor...
-wait 2
 
 echo [SUPERMERCADO 2] Extrayendo resultados...
 coto_nom = "No encontrado"
@@ -231,7 +235,13 @@ for (var i = 0; i < items.length; i++) {
     if (qStr.indexOf('playadito') > -1 && (nClean.indexOf('taragui') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
     if (qStr.indexOf('taragui') > -1 && (nClean.indexOf('playadito') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
 
+    // Descartar Zero / Light si la consulta busca sabor regular / original
+    if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
     var score = 0;
+    if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
@@ -271,12 +281,9 @@ echo [SUPERMERCADO 3] Navegando a https://diaonline.supermercadosdia.com.ar...
 https://diaonline.supermercadosdia.com.ar
 wait 3
 
-echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_dia`...
-type input#downshift-0-input as `query_dia`[enter]
+echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_term`...
+type input#downshift-0-input as `query_term`[enter]
 wait 4
-
-echo [SUPERMERCADO 3] Aplicando orden: menor a mayor...
-wait 2
 
 echo [SUPERMERCADO 3] Extrayendo resultados...
 dia_nom = "No encontrado"
@@ -293,7 +300,9 @@ function cleanText(s) {
 var qStr = cleanText("`producto`");
 var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-var dCards = Array.from(document.querySelectorAll('article, [class*="product-summary"]')).slice(0, 15);
+var dCards = Array.from(document.querySelectorAll('[class*="galleryItem"]'));
+if (dCards.length === 0) dCards = Array.from(document.querySelectorAll('article'));
+if (dCards.length === 0) dCards = Array.from(document.querySelectorAll('section[class*="product-summary"]'));
 if (dCards.length === 0) return 'null';
 
 var incompatibles = ['arrocera', 'olla', 'vaporera', 'electrodomestico', 'jabon', 'shampoo', 'perro', 'gato', 'juguete', 'vela', 'taza', 'vaso', 'termo', 'alimento para perro', 'alimento para gato'];
@@ -348,7 +357,13 @@ for (var i = 0; i < dCards.length; i++) {
     if (qStr.indexOf('playadito') > -1 && (nClean.indexOf('taragui') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
     if (qStr.indexOf('taragui') > -1 && (nClean.indexOf('playadito') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
 
+    // Descartar Zero / Light si la consulta busca sabor regular / original
+    if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
     var score = 0;
+    if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
@@ -383,4 +398,6 @@ echo ---------------------------------------------------------------------------
 echo [ RPA FINALIZADO ]
 echo 3 supermercados procesados.
 echo Resultados guardados en resultados.csv.
+echo Cerrando pestaña del navegador...
 echo ----------------------------------------------------------------------------
+run mouse_helper.exe delayedclosetab 2

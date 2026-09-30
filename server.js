@@ -444,6 +444,11 @@ app.post('/api/buscar-individual', async (req, res) => {
 
         await taguiPromise;
 
+        // Cerrar pestaña/ventana del navegador Chrome al finalizar las búsquedas
+        try {
+            execSync('taskkill /F /IM chrome.exe', { windowsHide: true, stdio: 'ignore' });
+        } catch (eKillChrome) {}
+
         // Leer resultados extraídos por TagUI en resultados.csv
         const vEngine = getValidador();
         const todosItems = vEngine.leerResultadosCSV('resultados.csv');
@@ -489,6 +494,9 @@ app.post('/api/buscar-individual', async (req, res) => {
             res.status(500).json({ success: false, message: errMsg });
         }
     } finally {
+        try {
+            execSync('taskkill /F /IM chrome.exe', { windowsHide: true, stdio: 'ignore' });
+        } catch (eKillChrome) {}
         if (fs.existsSync('temp_input.csv')) {
             try { fs.unlinkSync('temp_input.csv'); } catch(e) {}
         }
@@ -520,6 +528,7 @@ app.all('/api/abort', (req, res) => {
     if (currentTaguiProcess) {
         try {
             execSync('taskkill /F /T /PID ' + currentTaguiProcess.pid, { windowsHide: true, stdio: 'ignore' });
+            execSync('taskkill /F /IM chrome.exe', { windowsHide: true, stdio: 'ignore' });
         } catch (e) {}
         currentTaguiProcess = null;
     }

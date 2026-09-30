@@ -258,6 +258,9 @@ call node validador.js --crear-temp "!PROD_MANUAL!"
 call tagui supermercados.tag temp_input.csv
 if exist "temp_input.csv" del "temp_input.csv" >nul 2>&1
 
+:: Cerrar navegador Chrome al finalizar las búsquedas
+taskkill /F /IM chrome.exe >nul 2>&1
+
 :: Validación inteligente y reporte comparativo en vivo por consola
 echo.
 call node validador.js --reporte-individual "!PROD_MANUAL!"

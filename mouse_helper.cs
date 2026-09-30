@@ -621,6 +621,59 @@ public class MouseHelper {
                     Console.WriteLine(ok ? "OK" : "NOT_FOUND");
                     break;
                 }
+                case "closetab": {
+                    int targetPid = 0;
+                    if (args.Length > 1) int.TryParse(args[1], out targetPid);
+                    FocusChrome(targetPid);
+                    Thread.Sleep(80);
+                    SendKeys.SendWait("^w");
+                    Console.WriteLine("OK");
+                    break;
+                }
+                case "delayedclosetab": {
+                    int delayMs = 1500;
+                    if (args.Length > 1) {
+                        int parsedSec = 1;
+                        if (int.TryParse(args[1], out parsedSec)) {
+                            delayMs = parsedSec * 1000;
+                        }
+                    }
+                    try {
+                        ProcessStartInfo psi = new ProcessStartInfo();
+                        psi.FileName = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                        psi.Arguments = "closetab_worker " + delayMs;
+                        psi.UseShellExecute = true;
+                        psi.CreateNoWindow = true;
+                        psi.WindowStyle = ProcessWindowStyle.Hidden;
+                        Process.Start(psi);
+                    } catch {}
+                    Console.WriteLine("OK");
+                    break;
+                }
+                case "closetab_worker": {
+                    int delayMs = 1500;
+                    if (args.Length > 1) int.TryParse(args[1], out delayMs);
+                    Thread.Sleep(delayMs);
+                    try {
+                        FocusChrome(0);
+                        Thread.Sleep(100);
+                        SendKeys.SendWait("^w");
+                        Thread.Sleep(400);
+                        foreach (var proc in System.Diagnostics.Process.GetProcessesByName("chrome")) {
+                            try { proc.Kill(); } catch {}
+                        }
+                    } catch {}
+                    break;
+                }
+                case "close": {
+                    int targetPid = 0;
+                    if (args.Length > 1) int.TryParse(args[1], out targetPid);
+                    FocusChrome(targetPid);
+                    Thread.Sleep(80);
+                    SendKeys.SendWait("%{F4}");
+                    Console.WriteLine("OK");
+                    break;
+                }
                 default: {
                     Console.WriteLine("UNKNOWN_CMD");
                     break;
