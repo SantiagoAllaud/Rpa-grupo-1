@@ -22,57 +22,44 @@ async function testLiveSearch() {
     // Verificar que el WebSocket se conectó
     await new Promise(r => setTimeout(r, 1000));
 
-    // Escribir "Manaos Cola 2.25 L" en el input
-    console.log('[User] Escribiendo "Manaos Cola 2.25 L" en el campo de búsqueda...');
-    await page.type('#input-producto', 'Manaos Cola 2.25 L', { delay: 50 });
+    // Seleccionar "Manaos Cola 2.25 L" desde el desplegable del catálogo oficial
+    console.log('[User] Seleccionando "Manaos Cola 2.25 L" del catálogo cerrado...');
+    await page.waitForSelector('#select-producto option[value="gaseosa_manaos_cola_225l"]', { timeout: 10000 });
+    await page.select('#select-producto', 'gaseosa_manaos_cola_225l');
+    await page.evaluate(() => {
+        const sel = document.getElementById('select-producto');
+        sel.dispatchEvent(new Event('change'));
+    });
 
-    const artifactDir = 'C:\\Users\\alex1\\.gemini\\antigravity-ide\\brain\\85cd4321-22e2-425e-a22d-928db9b7ad0a';
+    const artifactDir = path.join(__dirname, '..');
     
     // Clic en Buscar Producto
-    console.log('[User] Haciendo clic en "Buscar Producto"...');
+    console.log('[User] Haciendo clic en "Comparar en 3 Súper"...');
     await page.click('#btn-buscar-individual');
 
     // Monitorear durante la ejecución
-    let capturedLiveFrame = false;
     const startTime = Date.now();
-    const maxWaitMs = 120000; // 2 minutos máximo
+    const maxWaitMs = 180000; // 3 minutos máximo
 
     while (Date.now() - startTime < maxWaitMs) {
         await new Promise(r => setTimeout(r, 2000));
 
-        const playerStatus = await page.evaluate(() => {
-            const badge = document.getElementById('player-status-badge');
-            const overlay = document.getElementById('player-overlay');
-            const time = document.getElementById('player-time');
+        const monitorStatus = await page.evaluate(() => {
+            const statusEl = document.getElementById('monitor-status-text');
+            const progressEl = document.getElementById('progress-percent-badge');
             return {
-                statusText: badge ? badge.textContent : '',
-                statusClass: badge ? badge.className : '',
-                overlayHidden: overlay ? overlay.classList.contains('hidden') : false,
-                timeText: time ? time.textContent : ''
+                statusText: statusEl ? statusEl.textContent : '',
+                percent: progressEl ? progressEl.textContent : '0%'
             };
         });
 
-        console.log(`[Stream Status] ${playerStatus.statusText} | Timer: ${playerStatus.timeText} | Overlay Oculto (Frames visibles): ${playerStatus.overlayHidden}`);
+        console.log(`[TagUI Status] ${monitorStatus.statusText} | Progreso: ${monitorStatus.percent}`);
 
-        // Si ya está transmitiendo frames reales, tomar captura del visor en vivo
-        if (playerStatus.overlayHidden && !capturedLiveFrame) {
-            console.log('>>> CAPTURANDO SCREENSHOT DEL FRONTEND CON EL STREAM DE CHROME EN VIVO...');
-            const liveShotPath = path.join(artifactDir, 'frontend_stream_chrome_en_vivo.png');
-            await page.screenshot({ path: liveShotPath, fullPage: true });
-            console.log('>>> Captura guardada en:', liveShotPath);
-            capturedLiveFrame = true;
-        }
-
-        if (playerStatus.statusText.includes('RPA FINALIZADO') || playerStatus.statusClass.includes('finished')) {
-            console.log('>>> El RPA ha FINALIZADO con éxito.');
+        if (monitorStatus.statusText.includes('FINALIZADO') || monitorStatus.statusText.includes('EXITOSAMENTE')) {
+            console.log('>>> El RPA TagUI ha FINALIZADO con éxito.');
             break;
         }
     }
-
-    // Tomar captura final al finalizar
-    const finalShotPath = path.join(artifactDir, 'frontend_stream_chrome_finalizado.png');
-    await page.screenshot({ path: finalShotPath, fullPage: true });
-    console.log('>>> Captura final guardada en:', finalShotPath);
 
     await userBrowser.close();
 

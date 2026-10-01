@@ -51,6 +51,7 @@ wss.on('error', (err) => {
 // Control de concurrencia: máximo 1 ejecución simultánea
 let isRpaRunning = false;
 let ultimoProcesoData = null;
+let currentTaguiProcess = null;
 
 wss.on('connection', (ws) => {
     wsClients.add(ws);
@@ -66,6 +67,12 @@ wss.on('connection', (ws) => {
         // Si el usuario cierra la pestaña o ventana del frontend mientras corre el RPA, abortar de inmediato
         if (wsClients.size === 0 && isRpaRunning) {
             console.log('[WS] Frontend desconectado. Abortando RPA inmediatamente...');
+            if (currentTaguiProcess) {
+                try {
+                    execSync('taskkill /F /T /PID ' + currentTaguiProcess.pid, { windowsHide: true, stdio: 'ignore' });
+                } catch (e) {}
+                currentTaguiProcess = null;
+            }
             try {
                 getRpaRunner().abortCurrentRun();
             } catch (e) {}
@@ -247,10 +254,10 @@ app.post('/api/compra-mes', async (req, res) => {
 
         if (itemsCanasta.length === 0) {
             itemsCanasta = [
-                { producto: 'leche', cantidad: 1, unidad: '1L' },
-                { producto: 'arroz', cantidad: 1, unidad: '1kg' },
-                { producto: 'fideos', cantidad: 1, unidad: '500g' },
-                { producto: 'aceite', cantidad: 1, unidad: '1.5L' }
+                { producto: 'Leche La Serenísima Clásica 1 L', cantidad: 1, unidad: 'L' },
+                { producto: 'Arroz Gallo Largo Fino 1 kg', cantidad: 1, unidad: 'kg' },
+                { producto: 'Fideos Matarazzo Tallarines 500 g', cantidad: 500, unidad: 'g' },
+                { producto: 'Aceite Cocinero Girasol 1.5 L', cantidad: 1.5, unidad: 'L' }
             ];
         }
 
@@ -339,13 +346,57 @@ app.post('/api/compra-mes', async (req, res) => {
     }
 });
 
-// Endpoint para Búsqueda Individual
+// Función para cerrar ÚNICAMENTE la ventana/instancia de Chrome iniciada por TagUI
+// Se filtra por la línea de comandos de TagUI (remote-debugging-port=9222 o tagui_user_profile)
+// de modo que NUNCA cierre la pestaña del frontend (http://localhost:3000) ni las pestañas del usuario.
+function cerrarNavegadorTagUI() {
+    // 1. Cerrar pestañas abiertas en el puerto 9222 vía CDP
+    try {
+        const http = require('http');
+        const req = http.get('http://127.0.0.1:9222/json', (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const tabs = JSON.parse(data);
+                    if (Array.isArray(tabs)) {
+                        for (const tab of tabs) {
+                            if (tab && tab.id) {
+                                http.get(`http://127.0.0.1:9222/json/close/${tab.id}`, () => {}).on('error', () => {});
+                            }
+                        }
+                    }
+                } catch(e) {}
+            });
+        });
+        req.on('error', () => {});
+        req.setTimeout(800, () => req.destroy());
+    } catch(e) {}
+
+    // 2. Terminar procesos iniciados por TagUI (filtrando estrictamente por tagui en la línea de comandos)
+    try {
+        const { spawnSync } = require('child_process');
+        const res = spawnSync('powershell', [
+            '-NoProfile',
+            '-Command',
+            "(Get-CimInstance Win32_Process -Filter \"CommandLine LIKE '%tagui%'\").ProcessId"
+        ]);
+        const pids = res.stdout.toString().split(/\r?\n/).map(s => s.trim()).filter(s => /^\d+$/.test(s));
+        for (const pid of pids) {
+            try {
+                process.kill(parseInt(pid, 10), 'SIGKILL');
+            } catch (eKill) {}
+        }
+    } catch (e) {}
+}
+
+// Endpoint para Búsqueda Individual (Exclusiva con TagUI)
 app.post('/api/buscar-individual', async (req, res) => {
     if (isRpaRunning) {
         return res.status(409).json({ success: false, message: "El RPA ya está ejecutándose." });
     }
 
-    const { id, producto, variante, nombre_completo, terminoBusqueda, cantidad = 1, unidad = '', demoMode = true, typingDelay = 50, mouseDuration = 600 } = req.body || {};
+    const { id, producto, variante, nombre_completo, terminoBusqueda, cantidad = 1, unidad = '' } = req.body || {};
     if ((!producto || !producto.trim()) && !id && !nombre_completo) {
         return res.status(400).json({ success: false, message: "No se proporcionó un producto." });
     }
@@ -370,10 +421,9 @@ app.post('/api/buscar-individual', async (req, res) => {
     const prodOficial = valCat.item ? (valCat.item.nombre_completo || valCat.item.producto) : (producto || nombre_completo || '').trim();
     const cantOficial = valCat.item ? valCat.item.cantidad : cantNum;
     const unidOficial = valCat.item ? valCat.item.unidad : String(unidad).trim();
-    const termOficial = (terminoBusqueda || (valCat.item ? valCat.item.termino_busqueda : ''));
 
     isRpaRunning = true;
-    broadcast({ type: 'status', state: 'connecting', message: 'Conectando con el navegador...' });
+    broadcast({ type: 'status', state: 'connecting', message: 'Iniciando TagUI...' });
 
     try {
         // Cerrar Excel obligatoriamente si el usuario lo tiene abierto para evitar bloqueos EBUSY
@@ -381,51 +431,77 @@ app.post('/api/buscar-individual', async (req, res) => {
             execSync('taskkill /F /IM EXCEL.EXE', { windowsHide: true, stdio: 'ignore' });
         } catch (eKill) {}
 
-        console.log(`Iniciando búsqueda para: ${prodOficial} (x${cantOficial} ${unidOficial}) [Demo: ${demoMode}]`);
-        broadcast({ type: 'log', message: `Búsqueda individual: "${prodOficial}" (Cantidad: ${cantOficial}, Unidad: ${unidOficial || 'Automática'})` });
+        console.log(`[TagUI] Iniciando búsqueda individual para: ${prodOficial} (x${cantOficial} ${unidOficial})`);
+        broadcast({ type: 'log', message: `Búsqueda individual con TagUI: "${prodOficial}" (Cantidad: ${cantOficial}, Unidad: ${unidOficial || 'Automática'})` });
 
-        // Limpieza de consulta previa
+        // Limpieza de consulta previa y creación de temp_input.csv para TagUI
         getValidador().limpiarResultados('2');
+        getValidador().crearTempInput(prodOficial, cantOficial, unidOficial);
 
-        const resultados = await getRpaRunner().runRPA({
-            modo: 'individual',
-            items: [{
-                id: valCat.item ? valCat.item.id : id,
-                producto: prodOficial,
-                variante: valCat.item ? valCat.item.variante : variante,
-                marca: valCat.item ? valCat.item.marca : undefined,
-                terminoBusqueda: termOficial,
-                cantidad: cantOficial,
-                unidad: unidOficial
-            }],
-            demoMode,
-            typingDelay,
-            mouseDuration,
-            onStatus: (st) => {
-                if (st.type === 'log') {
-                    broadcast({ type: 'log', message: st.message });
-                } else if (st.type === 'progress') {
-                    broadcast({ type: 'progress', percent: st.percent, message: st.message });
-                    broadcast({ type: 'log', message: st.message });
-                } else if (st.type === 'connected') {
-                    broadcast({ type: 'status', state: 'live', message: st.message });
-                } else if (st.type === 'finished') {
-                    broadcast({ type: 'status', state: 'finished', message: st.message });
-                } else if (st.type === 'nav') {
-                    broadcast(st);
-                } else if (st.type === 'error') {
-                    broadcast({ type: 'status', state: st.state || 'error', message: st.message });
-                    broadcast({ type: 'log', message: st.message });
+        // Ejecución exclusiva con TagUI mediante: tagui supermercados.tag temp_input.csv
+        const { spawn } = require('child_process');
+        const taguiPromise = new Promise((resolve, reject) => {
+            const child = spawn('tagui', ['supermercados.tag', 'temp_input.csv'], {
+                cwd: __dirname,
+                shell: true
+            });
+            currentTaguiProcess = child;
+
+            broadcast({ type: 'status', state: 'live', message: 'TagUI ejecutando búsqueda en Carrefour, COTO y Día %...' });
+
+            child.stdout.on('data', (data) => {
+                const text = data.toString();
+                const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+                for (const line of lines) {
+                    broadcast({ type: 'log', message: line });
+                    if (line.includes('[SUPERMERCADO 1]')) {
+                        broadcast({ type: 'progress', percent: 25, message: line });
+                    } else if (line.includes('[SUPERMERCADO 2]')) {
+                        broadcast({ type: 'progress', percent: 55, message: line });
+                    } else if (line.includes('[SUPERMERCADO 3]')) {
+                        broadcast({ type: 'progress', percent: 85, message: line });
+                    } else if (line.includes('[ RPA FINALIZADO ]')) {
+                        broadcast({ type: 'progress', percent: 100, message: line });
+                    }
                 }
-            }
+            });
+
+            child.stderr.on('data', (data) => {
+                const text = data.toString();
+                console.error('[TagUI stderr]:', text);
+            });
+
+            child.on('error', (err) => {
+                currentTaguiProcess = null;
+                reject(err);
+            });
+
+            child.on('close', (code) => {
+                currentTaguiProcess = null;
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`TagUI finalizó con código de salida ${code}`));
+                }
+            });
         });
+
+        await taguiPromise;
+
+        // Cerrar únicamente la ventana de Chrome abierta por TagUI (protegiendo el frontend)
+        cerrarNavegadorTagUI();
+
+        // Leer resultados extraídos por TagUI en resultados.csv
+        const vEngine = getValidador();
+        const todosItems = vEngine.leerResultadosCSV('resultados.csv');
+        const itemsIndividual = todosItems.filter(it => it.modo === 'individual');
 
         ultimoProcesoData = {
             id: valCat.item ? valCat.item.id : id,
             producto: prodOficial,
             cantidad: cantOficial,
             unidad: unidOficial,
-            items: resultados
+            items: itemsIndividual
         };
 
         // Reporte en consola y actualización de Excel
@@ -442,35 +518,29 @@ app.post('/api/buscar-individual', async (req, res) => {
             console.warn("Aviso al abrir Excel automáticamente:", errOpen.message);
         }
 
+        broadcast({ type: 'status', state: 'finished', message: 'Búsqueda individual con TagUI completada con éxito.' });
+
         if (!res.headersSent && !res.destroyed) {
             res.json({
                 success: true,
-                message: `Búsqueda de "${producto}" completada. Reporte Excel abierto.`,
+                message: `Búsqueda individual de "${producto}" completada exclusivamente con TagUI. Reporte Excel abierto.`,
                 data: ultimoProcesoData
             });
         }
     } catch (e) {
-        console.error("Error en búsqueda individual:", e);
-        const isFailsafe = e.message && e.message.includes('USER_MOUSE_INTERVENTION');
-        const isAborted = e.message && e.message.includes('RPA_ABORTED_BY_USER');
-
-        let errMsg = 'RPA FINALIZADO CON ERROR: ' + e.message;
-        let state = 'error';
-
-        if (isFailsafe) {
-            errMsg = '🛑 Regla estricta activada: Se detectó movimiento manual del mouse. El proceso de automatización se ha detenido de inmediato.';
-            state = 'aborted';
-        } else if (isAborted) {
-            errMsg = 'RPA detenido inmediatamente por el usuario.';
-            state = 'aborted';
-        }
-
-        broadcast({ type: 'status', state, message: errMsg });
+        console.error("Error en búsqueda individual TagUI:", e);
+        const errMsg = 'ERROR EN BÚSQUEDA INDIVIDUAL TAGUI: ' + e.message;
+        broadcast({ type: 'status', state: 'error', message: errMsg });
         broadcast({ type: 'log', message: errMsg });
         if (!res.headersSent && !res.destroyed) {
-            res.status(isFailsafe || isAborted ? 400 : 500).json({ success: false, message: errMsg });
+            res.status(500).json({ success: false, message: errMsg });
         }
     } finally {
+        cerrarNavegadorTagUI();
+        if (fs.existsSync('temp_input.csv')) {
+            try { fs.unlinkSync('temp_input.csv'); } catch(e) {}
+        }
+        currentTaguiProcess = null;
         isRpaRunning = false;
         setTimeout(() => {
             broadcast({ type: 'status', state: 'idle', message: 'RPA en espera' });
@@ -495,6 +565,13 @@ app.post('/api/abrir-excel', async (req, res) => {
 // Endpoint Kill-Switch para abortar la búsqueda inmediatamente
 app.all('/api/abort', (req, res) => {
     console.log('[API] Solicitud de abortar RPA recibida.');
+    if (currentTaguiProcess) {
+        try {
+            execSync('taskkill /F /T /PID ' + currentTaguiProcess.pid, { windowsHide: true, stdio: 'ignore' });
+        } catch (e) {}
+        cerrarNavegadorTagUI();
+        currentTaguiProcess = null;
+    }
     try {
         getRpaRunner().abortCurrentRun();
     } catch (e) {}

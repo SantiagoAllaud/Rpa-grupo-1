@@ -3,11 +3,11 @@
 // Trabajo Práctico Integrador - Etapa 1: RPA
 //
 // Script: supermercados.tag
-// Descripción: Entregable académico independiente para ejecutar explícitamente
-//              con TagUI. El Dashboard y server.js usan rpa_runner.js como único
-//              motor de producción visible.
+// Descripción: Motor de Búsqueda Rápida Individual ejecutado exclusivamente con TagUI:
+//              tagui supermercados.tag <archivo_de_entrada>
+//              (La Compra del Mes / Canasta se ejecuta exclusivamente con Puppeteer vía rpa_runner.js)
 //
-// Ejecución: tagui supermercados.tag input.csv
+// Ejecución: tagui supermercados.tag temp_input.csv
 // ==============================================================================
 
 // En la primera iteración creamos el encabezado si el archivo aún no existe
@@ -21,16 +21,26 @@ echo ---------------------------------------------------------------------------
 // Obtenemos la fecha actual en formato YYYY-MM-DD
 js var hoy = new Date(); var m = (hoy.getMonth() + 1).toString(); var d = hoy.getDate().toString(); if (m.length < 2) m = '0' + m; if (d.length < 2) d = '0' + d; fechaHoy = hoy.getFullYear() + '-' + m + '-' + d;
 
-// Detectar el modo de ejecución y cantidad solicitada
-js modo_actual = 'compra_mes'; try { if (typeof modo !== 'undefined' && modo && modo !== 'modo') { modo_actual = modo.trim(); } } catch(e) { modo_actual = 'compra_mes'; }
+// Detectar el modo de ejecución y cantidad solicitada (Búsqueda Individual exclusiva TagUI)
+js modo_actual = 'individual'; try { if (typeof modo !== 'undefined' && modo && modo !== 'modo') { modo_actual = modo.trim(); } } catch(e) { modo_actual = 'individual'; }
 js cant_actual = 1; try { if (typeof cantidad !== 'undefined' && cantidad && !isNaN(parseFloat(cantidad))) { cant_actual = parseFloat(cantidad); } } catch(e) { cant_actual = 1; }
 js unid_actual = ''; try { if (typeof unidad !== 'undefined' && unidad) { unid_actual = unidad.trim(); } } catch(e) { unid_actual = ''; }
 js unidades_compra = 1; try { if (typeof unidades !== 'undefined' && unidades && !isNaN(parseInt(unidades))) { unidades_compra = parseInt(unidades); } } catch(e) { unidades_compra = 1; }
 
-// Codificamos el término de búsqueda validado por el catálogo
+// Codificamos el término de búsqueda validado por el catálogo oficial
 js prod_clean = producto.replace(/"/g, '').replace(/'/g, '').trim();
 js query_term = prod_clean;
-js if (cant_actual && unid_actual && !prod_clean.toLowerCase().includes(unid_actual.toLowerCase())) { query_term = prod_clean + ' ' + cant_actual + unid_actual; }
+js try { if (typeof termino !== 'undefined' && termino && termino.trim() && termino !== 'termino') { query_term = termino.trim(); } } catch(e) {}
+
+// Adaptaciones específicas para búsqueda individual con TagUI
+js var pLow = prod_clean.toLowerCase();
+js var qLow = query_term.toLowerCase();
+js if (pLow.indexOf('coca cola') > -1 || pLow.indexOf('coca-cola') > -1 || qLow.indexOf('coca cola') > -1) { query_term = 'coca cola 2,25L'; }
+js else if (pLow.indexOf('sprite') > -1 || qLow.indexOf('sprite') > -1) { query_term = 'sprite 2,25L'; }
+js else if ((pLow.indexOf('manaos') > -1 && pLow.indexOf('naranja') > -1) || (qLow.indexOf('manaos') > -1 && qLow.indexOf('naranja') > -1)) { query_term = 'manaos naranja'; }
+js else if ((pLow.indexOf('manaos') > -1 && (pLow.indexOf('lima') > -1 || pLow.indexOf('limon') > -1)) || (qLow.indexOf('manaos') > -1 && (qLow.indexOf('lima') > -1 || qLow.indexOf('limon') > -1))) { query_term = 'manaos lima limon'; }
+js else if ((pLow.indexOf('manaos') > -1 && pLow.indexOf('cola') > -1) || (qLow.indexOf('manaos') > -1 && qLow.indexOf('cola') > -1)) { query_term = 'manaos cola'; }
+
 js prod_url = encodeURIComponent(query_term.replace(/,/g, ' ').replace(/\s+/g, ' '));
 
 
@@ -47,11 +57,16 @@ if present('Aceptar todo')
     wait 1
 
 echo [SUPERMERCADO 1] Localizando buscador y escribiendo producto: `query_term`...
-type input.vtex-styleguide-9-x-input as `query_term`[enter]
-wait 4
-
-echo [SUPERMERCADO 1] Aplicando orden: menor a mayor...
+if present('input.vtex-styleguide-9-x-input')
+    type input.vtex-styleguide-9-x-input as [clear]`query_term`[enter]
+else if present('input[placeholder*="buscando"]')
+    type input[placeholder*="buscando"] as [clear]`query_term`[enter]
 wait 2
+if present('button[aria-label="Buscar Productos"]')
+    click button[aria-label="Buscar Productos"]
+else if present('button[class*="searchBarIcon--external-search"]')
+    click button[class*="searchBarIcon--external-search"]
+wait 5
 
 echo [SUPERMERCADO 1] Extrayendo resultados...
 carrefour_nom = "No encontrado"
@@ -68,18 +83,24 @@ function cleanText(s) {
 var qStr = cleanText("`producto`");
 var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-var cards = Array.from(document.querySelectorAll('article, [class*="product-summary"], [class*="vtex-search-result-3-x-galleryItem"]')).slice(0, 10);
+// Seleccionar únicamente contenedores principales de tarjeta para evitar duplicados anidados
+var cards = Array.from(document.querySelectorAll('[class*="galleryItem"]'));
+if (cards.length === 0) cards = Array.from(document.querySelectorAll('article'));
+if (cards.length === 0) cards = Array.from(document.querySelectorAll('section[class*="product-summary"]'));
 if (cards.length === 0) return 'null';
+
+var incompatibles = ['arrocera', 'olla', 'vaporera', 'electrodomestico', 'jabon', 'shampoo', 'perro', 'gato', 'juguete', 'vela', 'taza', 'vaso', 'termo', 'alimento para perro', 'alimento para gato'];
 
 var candidates = [];
 for (var i = 0; i < cards.length; i++) {
     var c = cards[i];
-    var nEl = c.querySelector('[class*="productBrand"], [class*="product-summary-2-x-nameContainer"], [data-testid="product-summary-name"], h3, h2');
+    var nEl = c.querySelector('[class*="productBrand"], [class*="product-summary-2-x-nameContainer"], [data-testid="product-summary-name"], [class*="productName"], h3, h2');
     var pEl = c.querySelector('[class*="sellingPrice"], [class*="currencyContainer"], [class*="price_sellingPrice"]');
     var lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
     if (!nEl) continue;
 
     var nameVal = nEl.innerText.trim();
+    if (!nameVal) continue;
     var priceVal = pEl ? pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'N/D';
     var urlVal = lEl ? lEl.href : window.location.href;
 
@@ -88,11 +109,62 @@ for (var i = 0; i < cards.length; i++) {
     if (priceVal === 'N/D' || priceVal === '' || priceVal === '$ 0' || priceVal === '$ 0,00') unavail = true;
 
     var nClean = cleanText(nameVal);
+
+    var tieneInc = false;
+    for (var k = 0; k < incompatibles.length; k++) {
+        if (nClean.indexOf(incompatibles[k]) > -1 && qStr.indexOf(incompatibles[k]) === -1) {
+            tieneInc = true;
+            break;
+        }
+    }
+    if (tieneInc) continue;
+
+    // Reglas estrictas de marca del catálogo
+    if (qStr.indexOf('coca cola') > -1 && (nClean.indexOf('manaos') > -1 || nClean.indexOf('pepsi') > -1 || nClean.indexOf('secco') > -1)) continue;
+    if (qStr.indexOf('manaos') > -1 && (nClean.indexOf('coca cola') > -1 || nClean.indexOf('pepsi') > -1 || nClean.indexOf('sprite') > -1 || nClean.indexOf('fanta') > -1)) continue;
+    if (qStr.indexOf('sprite') > -1 && (nClean.indexOf('manaos') > -1 || nClean.indexOf('coca cola') > -1 || nClean.indexOf('7up') > -1)) continue;
+    if (qStr.indexOf('gallo') > -1 && (nClean.indexOf('lucchetti') > -1 || nClean.indexOf('ala') > -1)) continue;
+    if (qStr.indexOf('lucchetti') > -1 && (nClean.indexOf('gallo') > -1 || nClean.indexOf('ala') > -1 || nClean.indexOf('matarazzo') > -1)) continue;
+    if (qStr.indexOf('matarazzo') > -1 && (nClean.indexOf('lucchetti') > -1 || nClean.indexOf('barilla') > -1 || nClean.indexOf('favorita') > -1)) continue;
+    if (qStr.indexOf('serenisima') > -1 && (nClean.indexOf('tregar') > -1 || nClean.indexOf('ilolay') > -1)) continue;
+    if (qStr.indexOf('tregar') > -1 && (nClean.indexOf('serenisima') > -1 || nClean.indexOf('ilolay') > -1)) continue;
+    if (qStr.indexOf('cocinero') > -1 && (nClean.indexOf('natura') > -1 || nClean.indexOf('canuelas') > -1)) continue;
+    if (qStr.indexOf('natura') > -1 && (nClean.indexOf('cocinero') > -1 || nClean.indexOf('canuelas') > -1)) continue;
+    if (qStr.indexOf('playadito') > -1 && (nClean.indexOf('taragui') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
+    if (qStr.indexOf('taragui') > -1 && (nClean.indexOf('playadito') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
+
+    // Descartar Zero / Light si la consulta busca sabor regular / original
+    if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+    if (qStr.indexOf('sprite') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
+    // Reglas estrictas de variantes y sabores (Manaos, etc.)
+    if (qStr.indexOf('naranja') > -1) {
+        if (nClean.indexOf('naranja') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if (qStr.indexOf('cola') > -1 && qStr.indexOf('coca') === -1) {
+        if (nClean.indexOf('cola') === -1) continue;
+        if (nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && qStr.indexOf('sprite') === -1) {
+        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+
     var score = 0;
+    if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
+    if (qStr.indexOf('naranja') > -1 && nClean.indexOf('naranja') > -1) score += 200;
+    if (qStr.indexOf('cola') > -1 && nClean.indexOf('cola') > -1) score += 200;
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && (nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1)) score += 200;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
     }
+    if (score <= 0) continue;
     if ((qStr.indexOf('gaseosa') > -1 || qStr.indexOf('bebida') > -1) && (nClean.indexOf('shampoo') > -1 || nClean.indexOf('jabon') > -1 || nClean.indexOf('xkg') > -1)) {
         score -= 200;
     }
@@ -127,12 +199,11 @@ echo [SUPERMERCADO 2] Navegando a https://www.coto.com.ar...
 https://www.coto.com.ar
 wait 3
 
-echo [SUPERMERCADO 2] Localizando buscador y escribiendo producto: `query_term`...
-type input#cio-autocomplete-0-input as `query_term`[enter]
+if present('input#cio-autocomplete-0-input')
+    type input#cio-autocomplete-0-input as [clear]`query_term`[enter]
+else if present('input[placeholder*="busc"]')
+    type input[placeholder*="busc"] as [clear]`query_term`[enter]
 wait 4
-
-echo [SUPERMERCADO 2] Aplicando orden: menor a mayor...
-wait 2
 
 echo [SUPERMERCADO 2] Extrayendo resultados...
 coto_nom = "No encontrado"
@@ -149,8 +220,10 @@ function cleanText(s) {
 var qStr = cleanText("`producto`");
 var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-var items = Array.from(document.querySelectorAll('constructor-result-item, .product-card, article')).slice(0, 10);
+var items = Array.from(document.querySelectorAll('constructor-result-item, .product-card, article')).slice(0, 15);
 if (items.length === 0) return 'null';
+
+var incompatibles = ['arrocera', 'olla', 'vaporera', 'electrodomestico', 'jabon', 'shampoo', 'perro', 'gato', 'juguete', 'vela', 'taza', 'vaso', 'termo', 'alimento para perro', 'alimento para gato'];
 
 var candidates = [];
 for (var i = 0; i < items.length; i++) {
@@ -161,6 +234,7 @@ for (var i = 0; i < items.length; i++) {
     if (!nEl) continue;
 
     var nameVal = nEl.innerText.trim();
+    if (!nameVal) continue;
     var priceVal = pEl ? pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : 'N/D';
     var urlVal = lEl ? lEl.href : window.location.href;
 
@@ -169,11 +243,62 @@ for (var i = 0; i < items.length; i++) {
     if (priceVal === 'N/D' || priceVal === '' || priceVal === '$0' || priceVal === '$0,00') unavail = true;
 
     var nClean = cleanText(nameVal);
+
+    var tieneInc = false;
+    for (var k = 0; k < incompatibles.length; k++) {
+        if (nClean.indexOf(incompatibles[k]) > -1 && qStr.indexOf(incompatibles[k]) === -1) {
+            tieneInc = true;
+            break;
+        }
+    }
+    if (tieneInc) continue;
+
+    // Reglas estrictas de marca del catálogo
+    if (qStr.indexOf('coca cola') > -1 && (nClean.indexOf('manaos') > -1 || nClean.indexOf('pepsi') > -1 || nClean.indexOf('secco') > -1)) continue;
+    if (qStr.indexOf('manaos') > -1 && (nClean.indexOf('coca cola') > -1 || nClean.indexOf('pepsi') > -1 || nClean.indexOf('sprite') > -1 || nClean.indexOf('fanta') > -1)) continue;
+    if (qStr.indexOf('sprite') > -1 && (nClean.indexOf('manaos') > -1 || nClean.indexOf('coca cola') > -1 || nClean.indexOf('7up') > -1)) continue;
+    if (qStr.indexOf('gallo') > -1 && (nClean.indexOf('lucchetti') > -1 || nClean.indexOf('ala') > -1)) continue;
+    if (qStr.indexOf('lucchetti') > -1 && (nClean.indexOf('gallo') > -1 || nClean.indexOf('ala') > -1 || nClean.indexOf('matarazzo') > -1)) continue;
+    if (qStr.indexOf('matarazzo') > -1 && (nClean.indexOf('lucchetti') > -1 || nClean.indexOf('barilla') > -1 || nClean.indexOf('favorita') > -1)) continue;
+    if (qStr.indexOf('serenisima') > -1 && (nClean.indexOf('tregar') > -1 || nClean.indexOf('ilolay') > -1)) continue;
+    if (qStr.indexOf('tregar') > -1 && (nClean.indexOf('serenisima') > -1 || nClean.indexOf('ilolay') > -1)) continue;
+    if (qStr.indexOf('cocinero') > -1 && (nClean.indexOf('natura') > -1 || nClean.indexOf('canuelas') > -1)) continue;
+    if (qStr.indexOf('natura') > -1 && (nClean.indexOf('cocinero') > -1 || nClean.indexOf('canuelas') > -1)) continue;
+    if (qStr.indexOf('playadito') > -1 && (nClean.indexOf('taragui') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
+    if (qStr.indexOf('taragui') > -1 && (nClean.indexOf('playadito') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
+
+    // Descartar Zero / Light si la consulta busca sabor regular / original
+    if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+    if (qStr.indexOf('sprite') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
+    // Reglas estrictas de variantes y sabores (Manaos, etc.)
+    if (qStr.indexOf('naranja') > -1) {
+        if (nClean.indexOf('naranja') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if (qStr.indexOf('cola') > -1 && qStr.indexOf('coca') === -1) {
+        if (nClean.indexOf('cola') === -1) continue;
+        if (nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && qStr.indexOf('sprite') === -1) {
+        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+
     var score = 0;
+    if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
+    if (qStr.indexOf('naranja') > -1 && nClean.indexOf('naranja') > -1) score += 200;
+    if (qStr.indexOf('cola') > -1 && nClean.indexOf('cola') > -1) score += 200;
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && (nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1)) score += 200;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
     }
+    if (score <= 0) continue;
     if ((qStr.indexOf('gaseosa') > -1 || qStr.indexOf('bebida') > -1) && (nClean.indexOf('shampoo') > -1 || nClean.indexOf('xkg') > -1)) {
         score -= 200;
     }
@@ -208,12 +333,35 @@ echo [SUPERMERCADO 3] Navegando a https://diaonline.supermercadosdia.com.ar...
 https://diaonline.supermercadosdia.com.ar
 wait 3
 
-echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_term`...
-type input#downshift-0-input as `query_term`[enter]
-wait 4
+// Cierre de modales/cookies si estuviera presente
+if present('Aceptar todo')
+    click Aceptar todo
+    wait 1
+if present('Aceptar')
+    click Aceptar
+    wait 1
 
-echo [SUPERMERCADO 3] Aplicando orden: menor a mayor...
+echo [SUPERMERCADO 3] Localizando buscador y escribiendo producto: `query_term`...
+if present('input#downshift-0-input')
+    type input#downshift-0-input as [clear]`query_term`
+else if present('input[placeholder*="busc"]')
+    type input[placeholder*="busc"] as [clear]`query_term`
+else if present('input.vtex-styleguide-9-x-input')
+    type input.vtex-styleguide-9-x-input as [clear]`query_term`
 wait 2
+
+echo [SUPERMERCADO 3] Seleccionando 'Ver todos los productos' mediante TagUI...
+if present('Ver todos los productos')
+    click Ver todos los productos
+else if present('//*[contains(text(), "Ver todos los productos")]')
+    click //*[contains(text(), "Ver todos los productos")]
+else if present('button[aria-label="Buscar Productos"]')
+    click button[aria-label="Buscar Productos"]
+wait 2
+
+// Carga directa del catálogo de resultados de Día % según query_term
+js chrome_step('Page.navigate', {url: 'https://diaonline.supermercadosdia.com.ar/' + encodeURIComponent(query_term) + '?map=ft&_q=' + encodeURIComponent(query_term)});
+wait 4
 
 echo [SUPERMERCADO 3] Extrayendo resultados...
 dia_nom = "No encontrado"
@@ -230,18 +378,23 @@ function cleanText(s) {
 var qStr = cleanText("`producto`");
 var qWords = qStr.split(/\s+/).filter(function(w){ return w.length >= 2; });
 
-var dCards = Array.from(document.querySelectorAll('article, [class*="product-summary"]')).slice(0, 10);
+var dCards = Array.from(document.querySelectorAll('[class*="galleryItem"]'));
+if (dCards.length === 0) dCards = Array.from(document.querySelectorAll('article'));
+if (dCards.length === 0) dCards = Array.from(document.querySelectorAll('section[class*="product-summary"]'));
 if (dCards.length === 0) return 'null';
+
+var incompatibles = ['arrocera', 'olla', 'vaporera', 'electrodomestico', 'jabon', 'shampoo', 'perro', 'gato', 'juguete', 'vela', 'taza', 'vaso', 'termo', 'alimento para perro', 'alimento para gato'];
 
 var candidates = [];
 for (var i = 0; i < dCards.length; i++) {
     var c = dCards[i];
     var nEl = c.querySelector('h3, [class*="productBrand"]');
-    var pEl = c.querySelector('[class*="sellingPrice"], [class*="currencyContainer"]');
+    var pEl = c.querySelector('[class*="sellingPriceValue"], [class*="sellingPrice"], [class*="price_sellingPrice"], [class*="currencyContainer"]');
     var lEl = c.querySelector('a[href*="/p"]') || c.querySelector('a');
     if (!nEl) continue;
 
     var nameVal = nEl.innerText.trim();
+    if (!nameVal) continue;
     var priceVal = 'N/D';
     if (pEl) {
         priceVal = pEl.innerText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
@@ -258,11 +411,62 @@ for (var i = 0; i < dCards.length; i++) {
     if (priceVal === 'N/D' || priceVal === '' || priceVal === '$ 0' || priceVal === '$ 0,00') unavail = true;
 
     var nClean = cleanText(nameVal);
+
+    var tieneInc = false;
+    for (var k = 0; k < incompatibles.length; k++) {
+        if (nClean.indexOf(incompatibles[k]) > -1 && qStr.indexOf(incompatibles[k]) === -1) {
+            tieneInc = true;
+            break;
+        }
+    }
+    if (tieneInc) continue;
+
+    // Reglas estrictas de marca del catálogo
+    if (qStr.indexOf('coca cola') > -1 && (nClean.indexOf('manaos') > -1 || nClean.indexOf('pepsi') > -1 || nClean.indexOf('secco') > -1)) continue;
+    if (qStr.indexOf('manaos') > -1 && (nClean.indexOf('coca cola') > -1 || nClean.indexOf('pepsi') > -1 || nClean.indexOf('sprite') > -1 || nClean.indexOf('fanta') > -1)) continue;
+    if (qStr.indexOf('sprite') > -1 && (nClean.indexOf('manaos') > -1 || nClean.indexOf('coca cola') > -1 || nClean.indexOf('7up') > -1)) continue;
+    if (qStr.indexOf('gallo') > -1 && (nClean.indexOf('lucchetti') > -1 || nClean.indexOf('ala') > -1)) continue;
+    if (qStr.indexOf('lucchetti') > -1 && (nClean.indexOf('gallo') > -1 || nClean.indexOf('ala') > -1 || nClean.indexOf('matarazzo') > -1)) continue;
+    if (qStr.indexOf('matarazzo') > -1 && (nClean.indexOf('lucchetti') > -1 || nClean.indexOf('barilla') > -1 || nClean.indexOf('favorita') > -1)) continue;
+    if (qStr.indexOf('serenisima') > -1 && (nClean.indexOf('tregar') > -1 || nClean.indexOf('ilolay') > -1)) continue;
+    if (qStr.indexOf('tregar') > -1 && (nClean.indexOf('serenisima') > -1 || nClean.indexOf('ilolay') > -1)) continue;
+    if (qStr.indexOf('cocinero') > -1 && (nClean.indexOf('natura') > -1 || nClean.indexOf('canuelas') > -1)) continue;
+    if (qStr.indexOf('natura') > -1 && (nClean.indexOf('cocinero') > -1 || nClean.indexOf('canuelas') > -1)) continue;
+    if (qStr.indexOf('playadito') > -1 && (nClean.indexOf('taragui') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
+    if (qStr.indexOf('taragui') > -1 && (nClean.indexOf('playadito') > -1 || nClean.indexOf('rosamonte') > -1)) continue;
+
+    // Descartar Zero / Light si la consulta busca sabor regular / original
+    if (qStr.indexOf('coca cola') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('light') === -1 && qStr.indexOf('diet') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('light') > -1 || nClean.indexOf('diet') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+    if (qStr.indexOf('sprite') > -1 && qStr.indexOf('zero') === -1 && qStr.indexOf('sin azucar') === -1) {
+        if (nClean.indexOf('zero') > -1 || nClean.indexOf('sin azucar') > -1) continue;
+    }
+
+    // Reglas estrictas de variantes y sabores (Manaos, etc.)
+    if (qStr.indexOf('naranja') > -1) {
+        if (nClean.indexOf('naranja') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if (qStr.indexOf('cola') > -1 && qStr.indexOf('coca') === -1) {
+        if (nClean.indexOf('cola') === -1) continue;
+        if (nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && qStr.indexOf('sprite') === -1) {
+        if (nClean.indexOf('lima') === -1 && nClean.indexOf('limon') === -1) continue;
+        if (nClean.indexOf('cola') > -1 || nClean.indexOf('naranja') > -1 || nClean.indexOf('pomelo') > -1 || nClean.indexOf('guarana') > -1 || nClean.indexOf('tonica') > -1) continue;
+    }
+
     var score = 0;
+    if (nClean.indexOf('sabor original') > -1 || nClean.indexOf('original') > -1) score += 150;
+    if (qStr.indexOf('naranja') > -1 && nClean.indexOf('naranja') > -1) score += 200;
+    if (qStr.indexOf('cola') > -1 && nClean.indexOf('cola') > -1) score += 200;
+    if ((qStr.indexOf('lima') > -1 || qStr.indexOf('limon') > -1) && (nClean.indexOf('lima') > -1 || nClean.indexOf('limon') > -1)) score += 200;
     if (nClean.indexOf(qStr) > -1) score += 100;
     for (var w = 0; w < qWords.length; w++) {
         if (nClean.indexOf(qWords[w]) > -1) score += 20;
     }
+    if (score <= 0) continue;
     if ((qStr.indexOf('gaseosa') > -1 || qStr.indexOf('bebida') > -1) && (nClean.indexOf('shampoo') > -1 || nClean.indexOf('xkg') > -1)) {
         score -= 200;
     }

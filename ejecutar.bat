@@ -90,7 +90,7 @@ if not exist "generar_excel.js" (
 )
 if not exist "input.csv" (
     echo [AVISO] No se encontró input.csv. Creando canasta básica mensual por defecto...
-    (echo producto,modo& echo leche,compra_mes& echo arroz,compra_mes& echo fideos,compra_mes& echo aceite,compra_mes& echo yerba,compra_mes& echo azucar,compra_mes& echo cafe,compra_mes& echo galletitas,compra_mes& echo papel higienico,compra_mes) > input.csv
+    (echo producto,cantidad,unidad& echo Lavandina Ayudín,1,L& echo Leche La Serenísima,1,L& echo Coca Cola,2.25,L& echo Manaos Naranja,2.25,L& echo Manaos Lima Limón,2.25,L& echo Manaos Cola,2.25,L& echo Galletitas Criollitas,300,g) > input.csv
 )
 
 :: 5. Argumentos directos por línea de comandos (ej: ejecutar.bat "manaos cola 2.25l")
@@ -116,10 +116,10 @@ echo   [6] Limpiar resultados / historial (sin alterar input.csv)
 echo   [7] Diagnóstico del sistema y pruebas unitarias
 echo   [8] Salir
 echo.
-echo (Tip: También podés escribir directamente el nombre del producto aquí)
+echo (Tip: También podés ingresar directamente el número [1-20] o nombre de un producto del catálogo)
 echo.
 set "OPCION=1"
-set /p "OPCION=Elige opción [1-8] o escribe el producto [1]: "
+set /p "OPCION=Elige opción [1-8] o producto del catálogo [1]: "
 
 set "OPCION_FIRST="
 for /f "tokens=1" %%a in ("!OPCION!") do set "OPCION_FIRST=%%a"
@@ -140,15 +140,35 @@ if /i "!OPCION_FIRST!"=="input" goto :editar_input
 if /i "!OPCION_FIRST!"=="salir" goto :salir
 if /i "!OPCION_FIRST!"=="exit" goto :salir
 
-:: Si el usuario escribió directamente un producto (ej: "yerba playadito")
-set "PROD_MANUAL=%OPCION%"
-goto :ejecutar_individual
+:: Si el usuario escribió un número [1-20] o producto del catálogo
+set "PROD_RESOLVED="
+for /f "usebackq delims=" %%i in (`node catalogo.js --obtener-producto "!OPCION!" 2^>nul`) do set "PROD_RESOLVED=%%i"
+if not "!PROD_RESOLVED!"=="" (
+    set "PROD_MANUAL=!PROD_RESOLVED!"
+    goto :ejecutar_individual
+)
+
+echo.
+echo [ERROR] Opción o producto no válido en el catálogo: "!OPCION!"
+ping 127.0.0.1 -n 3 >nul 2>&1
+goto :menu
 
 :evaluar_arg
 if "%ARG1:~0,1%"=="-" (
     goto :ejecutar_mes_con_args
 ) else (
-    set "PROD_MANUAL=%*"
+    set "ARG_STR=%*"
+    set "PROD_MANUAL="
+    for /f "usebackq delims=" %%i in (`node catalogo.js --obtener-producto "!ARG_STR!" 2^>nul`) do set "PROD_MANUAL=%%i"
+    if "!PROD_MANUAL!"=="" (
+        echo.
+        echo ==============================================================================
+        echo [RECHAZADO] El producto ingresado "!ARG_STR!" no pertenece al catálogo cerrado.
+        echo             Ejecuta 'ejecutar.bat' para ver las opciones disponibles.
+        echo ==============================================================================
+        echo.
+        exit /b 1
+    )
     goto :ejecutar_individual
 )
 
@@ -158,7 +178,7 @@ echo ===========================================================================
 echo [INFO] Abriendo input.csv en el Bloc de Notas para su edición...
 echo ==============================================================================
 echo   - Agrega, quita o modifica los productos respetando el formato.
-echo   - Ejemplo de línea: pan lactal,compra_mes
+echo   - Ejemplo de línea: Arroz Gallo Largo Fino 1 kg,1,kg
 echo   - Guarda los cambios con Ctrl+G (o Archivo - Guardar).
 echo   - Regresa a esta consola y presiona una tecla cuando hayas terminado.
 echo ==============================================================================
@@ -168,12 +188,28 @@ pause
 goto :menu
 
 :pedir_individual
+cls
+call node catalogo.js --menu-individual
 echo.
-set "PROD_MANUAL="
-set /p "PROD_MANUAL=Ingresa el producto a buscar (ej: Manaos Cola 2.25L, Coca Cola 2.25L): "
-if "%PROD_MANUAL%"=="" (
+set "PROD_INPUT="
+set /p "PROD_INPUT=Selecciona el número [1-20] o escribe el nombre del producto del catálogo: "
+if "!PROD_INPUT!"=="" (
     echo [ERROR] No se ingresó ningún producto.
     ping 127.0.0.1 -n 3 >nul 2>&1
+    goto :menu
+)
+
+set "PROD_MANUAL="
+for /f "usebackq delims=" %%i in (`node catalogo.js --obtener-producto "!PROD_INPUT!" 2^>nul`) do set "PROD_MANUAL=%%i"
+
+if "!PROD_MANUAL!"=="" (
+    echo.
+    echo ==============================================================================
+    echo [RECHAZADO] La búsqueda rápida individual requiere seleccionar un producto
+    echo             del catálogo cerrado. "!PROD_INPUT!" no pertenece al catálogo.
+    echo ==============================================================================
+    echo.
+    pause
     goto :menu
 )
 goto :ejecutar_individual
@@ -218,8 +254,12 @@ call node validador.js --limpiar 2 >nul 2>&1
 :: Crear temp_input.csv de forma 100%% segura usando validador.js (maneja comas, comillas y acentos RFC-4180)
 call node validador.js --crear-temp "!PROD_MANUAL!"
 
-call node -e "require('./rpa_runner.js').runRPA({ modo: 'individual', items: [{ producto: process.argv[1] }], demoMode: true, onStatus: (s) => console.log(s.message || s) })" "!PROD_MANUAL!"
+:: Búsqueda rápida individual ejecutada exclusivamente con TagUI
+call tagui supermercados.tag temp_input.csv
 if exist "temp_input.csv" del "temp_input.csv" >nul 2>&1
+
+:: Cerrar únicamente el navegador Chrome de TagUI al finalizar las búsquedas
+call node validador.js --cerrar-tagui >nul 2>&1
 
 :: Validación inteligente y reporte comparativo en vivo por consola
 echo.
@@ -294,18 +334,7 @@ pause
 goto :menu
 
 :ejecutar_mes_con_args
-if not exist "input.csv" (
-    echo [ERROR] No se encontró el archivo input.csv.
-    pause
-    goto :menu
-)
-echo.
-echo [INFO] Iniciando automatización con parámetros [%*]...
-call tagui supermercados.tag input.csv %*
-call node generar_excel.js
-if exist "reporte_supermercados.xlsx" start "" "reporte_supermercados.xlsx"
-pause
-goto :menu
+goto :ejecutar_mes
 
 :abrir_excel
 echo.

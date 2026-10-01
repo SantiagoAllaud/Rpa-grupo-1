@@ -30,11 +30,11 @@ El repositorio implementa una arquitectura desacoplada en cuatro capas de softwa
 │    - Consola CLI Windows: ejecutar.bat (Menú de 7 opciones)            │
 ├───────────────────────────────────┬────────────────────────────────────┤
 │ 2. CAPA DE COMUNICACIÓN Y API     │ 3. CAPA DE MOTORES RPA             │
-│    - server.js: HTTP REST + WS    │    A) Motor Visible Puppeteer:     │
-│    - WebSocket: /ws/rpa-stream    │       rpa_runner.js                │
+│    - server.js: HTTP REST + WS    │    A) Motor Canasta / Compra Mes:  │
+│    - WebSocket: /ws/rpa-stream    │       rpa_runner.js (Puppeteer)    │
 │    - Lock de concurrencia único   │       mouse_helper.exe (Win32 API) │
-│    - Kill-switch por desconexión  │    B) Motor Académico TagUI:       │
-│                                   │       supermercados.tag            │
+│    - Kill-switch por desconexión  │    B) Motor Búsqueda Individual:   │
+│                                   │       supermercados.tag (TagUI)    │
 ├───────────────────────────────────┴────────────────────────────────────┤
 │ 4. CAPA DE VALIDACIÓN, PERSISTENCIA Y REPORTES                         │
 │    - validador.js: Inferencia semántica, detección de intención (marca)│
@@ -83,9 +83,10 @@ Rpa programa/
 ## 4. Responsabilidad de Cada Módulo Importante
 
 ### `rpa_runner.js`
-- **Responsabilidad:** Orquestar el recorrido visible por los 3 supermercados.
-- **Entrada:** Objeto de opciones `{ modo, items: [{ producto, cantidad, unidad }], demoMode, typingDelay, mouseDuration, onStatus }`.
+- **Responsabilidad:** Motor EXCLUSIVO para la Canasta / Compra del Mes. Orquesta el recorrido visible por los 3 supermercados con Puppeteer.
+- **Entrada:** Objeto de opciones `{ modo: 'compra_mes', items: [{ producto, cantidad, unidad }], demoMode, typingDelay, mouseDuration, onStatus }`.
 - **Salida:** Array de objetos con resultados extraídos; adición en `resultados.csv`.
+- **Restricción:** No debe utilizarse para búsquedas individuales (bloqueado con guard estricto).
 - **Funciones clave:**
   - `getChromePath()`: Encuentra el binario de Chrome/Edge en Windows.
   - `visibleNavigate(page, url)`: Mueve el cursor a la barra de direcciones, ejecuta `mouse_helper.exe nav <url>` y aguarda navegación real.
@@ -126,9 +127,10 @@ Rpa programa/
   5. `⚠️ Disponibilidad y Stock` (Detalle de productos sin stock o rechazados con motivo).
 
 ### `supermercados.tag`
-- **Responsabilidad:** Entregable académico TagUI, aislado del Dashboard y del motor de producción `rpa_runner.js`.
-- **Entrada:** `input.csv`.
-- **Salida:** Escritura en `resultados.csv` respetando el formato de columnas.
+- **Responsabilidad:** Motor EXCLUSIVO para la Búsqueda Rápida Individual. Ejecutado mediante `tagui supermercados.tag <archivo_de_entrada>`.
+- **Entrada:** Archivo CSV de entrada (`temp_input.csv` o similar con cabecera `producto,modo,cantidad,unidad`).
+- **Salida:** Escritura en `resultados.csv` con columna `modo = individual` respetando las 10 columnas RFC-4180.
+- **Restricción:** No debe utilizar Puppeteer, ni `rpa_runner.js`, ni `page.goto()`. Compra del Mes no utiliza TagUI.
 
 ---
 
@@ -181,9 +183,9 @@ tagui supermercados.tag input.csv
    ```bash
    node generar_excel.js
    ```
-3. **Prueba de búsqueda individual por RPA visible:**
+3. **Prueba de búsqueda individual exclusiva por TagUI:**
    ```bash
-   node -e "require('./rpa_runner.js').runRPA({ modo: 'individual', items: [{ producto: 'arroz' }], demoMode: true, onStatus: (s) => console.log(s.message || s) })"
+   node validador.js --crear-temp "Arroz Gallo Largo Fino 1 kg" && tagui supermercados.tag temp_input.csv
    ```
 4. **Pruebas de regresión automatizadas:**
    ```bash
@@ -314,9 +316,9 @@ Antes de dar por concluida cualquier modificación en el código:
    ```bash
    node validador.js --diagnostico
    ```
-3. **Ejecutar una prueba en vivo con producto individual:**
+3. **Ejecutar una prueba en vivo con producto individual vía TagUI:**
    ```bash
-   node -e "require('./rpa_runner.js').runRPA({ modo: 'individual', items: [{ producto: 'arroz' }], demoMode: true, onStatus: (s) => console.log(s.message || s) }).then(res => console.log('Resultado:', res.length))"
+   node validador.js --crear-temp "Arroz Gallo Largo Fino 1 kg" && tagui supermercados.tag temp_input.csv
    ```
 4. **Verificar que se genera el archivo Excel sin errores:**
    ```bash

@@ -28,17 +28,17 @@ function postJson(urlPath, data) {
 async function testConcurrency() {
     console.log('--- TEST CONCURRENCIA: Lanzar dos RPAs simultáneos ---');
     
-    // Iniciar primer RPA en background (no esperar a que termine)
-    postJson('/api/buscar-individual', { producto: 'arroz', cantidad: 1, unidad: '500g' })
+    // Iniciar primer RPA en background con producto oficial del catálogo (no esperar a que termine)
+    postJson('/api/buscar-individual', { id: 'arroz_gallo_largo_fino_1kg', producto: 'Arroz Gallo Largo Fino 1 kg', cantidad: 1, unidad: 'kg' })
         .then(r => console.log('[RPA 1 terminado]:', r.statusCode))
         .catch(e => console.log('[RPA 1 error]:', e.message));
 
-    // Esperar 250ms para que el primer RPA adquiera el lock isRpaRunning = true
-    await new Promise(r => setTimeout(r, 250));
+    // Esperar 400ms para que el primer RPA adquiera el lock isRpaRunning = true
+    await new Promise(r => setTimeout(r, 400));
 
     // Intentar lanzar el segundo RPA mientras el primero sigue ejecutándose
     console.log('[RPA 2] Intentando lanzar segundo RPA concurrente...');
-    const res2 = await postJson('/api/buscar-individual', { producto: 'leche', cantidad: 1, unidad: '1L' });
+    const res2 = await postJson('/api/buscar-individual', { id: 'leche_la_serenisima_clasica_1l', producto: 'Leche La Serenísima Clásica 1 L', cantidad: 1, unidad: 'L' });
     console.log('[RPA 2 Respuesta]: Status =', res2.statusCode, '| Mensaje =', res2.body.message);
 
     if (res2.statusCode === 409 && res2.body.message.includes('ya está')) {
@@ -46,6 +46,9 @@ async function testConcurrency() {
     } else {
         console.error('>>> TEST CONCURRENCIA FALLIDO: No se bloqueó la concurrencia.');
     }
+
+    // Abortar RPA 1 para liberar recursos
+    await postJson('/api/abort', {}).catch(() => {});
 }
 
 testConcurrency().catch(err => {
